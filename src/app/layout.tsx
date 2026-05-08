@@ -24,6 +24,9 @@ const sarabun = Sarabun({
 export const metadata: Metadata = {
   title: "ระบบคะแนนความประพฤตินักเรียน",
   description: "Student Conduct Score System",
+  icons: {
+    icon: "/file.svg",
+  },
 };
 
 export default function RootLayout({
