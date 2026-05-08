@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 const publicRoutes = ['/login', '/pdpa-consent', '/pdpa-rejected', '/change-password'];
 const adminOnlyRoutes = ['/teachers', '/settings'];
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes and static files
@@ -91,19 +91,19 @@ export async function proxy(request: NextRequest) {
   } else if (profile.role === 'teacher') {
     if (pathname.startsWith('/student')) {
       const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
+      url.pathname = '/';
       return NextResponse.redirect(url);
     }
     // Teachers can't access admin-only routes
     if (adminOnlyRoutes.some(r => pathname.startsWith(r))) {
       const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
+      url.pathname = '/';
       return NextResponse.redirect(url);
     }
   } else if (profile.role === 'admin') {
     if (pathname.startsWith('/student')) {
       const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
+      url.pathname = '/';
       return NextResponse.redirect(url);
     }
   }
