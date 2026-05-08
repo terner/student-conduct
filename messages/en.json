@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "students": "Students",
+    "teachers": "Teachers",
+    "classrooms": "Classrooms",
+    "score": "Score",
+    "reports": "Reports",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "score": {
+    "deduct": "Deduct Points",
+    "add": "Add Points",
+    "current": "Current Score",
+    "history": "Score History",
+    "record": "Record Score",
+    "bulkRecord": "Bulk Record",
+    "category": "Category",
+    "note": "Note",
+    "totalDeducted": "Total Deducted",
+    "threshold": "Threshold Level"
+  },
+  "level": {
+    "excellent": "Excellent",
+    "good": "Good",
+    "fair": "Fair",
+    "poor": "Needs Improvement"
+  },
+  "report": {
+    "title": "Reports",
+    "individual": "Individual Report",
+    "classroom": "Classroom Report",
+    "threshold": "Threshold Report",
+    "monthly": "Monthly Report",
+    "atRisk": "At-Risk Students",
+    "statistics": "School Statistics",
+    "export": "Export Report",
+    "print": "Print"
+  },
+  "threshold": {
+    "level1": "Level 1",
+    "level2": "Level 2",
+    "level3": "Level 3",
+    "level4": "Maximum Level",
+    "summary": "{count} students reached threshold",
+    "noStudents": "No students reached threshold"
+  },
+  "student": {
+    "list": "Student List",
+    "detail": "Student Details",
+    "id": "Student ID",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "classroom": "Classroom",
+    "status": "Status",
+    "score": "Current Score"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "studentId": "Student ID",
+    "changePassword": "Change Password",
+    "forgotPassword": "Forgot Password"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "filter": "Filter",
+    "all": "All",
+    "noData": "No data available",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Try Again"
+  }
+}
