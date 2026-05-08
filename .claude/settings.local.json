@@ -70,7 +70,9 @@
       "Bash(cp /tmp/ecc/rules/typescript/*.md .claude/rules/typescript/)",
       "Bash(cp /tmp/ecc/rules/web/*.md .claude/rules/web/)",
       "Bash(rm -f .claude/rules/coding-style.md .claude/rules/hooks.md .claude/rules/patterns.md .claude/rules/security.md .claude/rules/testing.md .claude/rules/design-quality.md .claude/rules/performance.md)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts, null, 2\\)\\)\")",
+      "Bash(mkdir -p .github/workflows)"
     ]
   },
   "disabledMcpjsonServers": [
