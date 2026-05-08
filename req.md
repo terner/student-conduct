@@ -2244,6 +2244,104 @@ const securityHeaders = [
 | **Path traversal** in file upload | ใช้ UUID-based filename → ไม่ใช้ user input |
 | **HTML injection** in notifications | strip HTML tags |
 
+#### 8.19.5 XSS Prevention & OWASP Compliance
+
+ระบบใช้มาตรการป้องกัน XSS ตาม OWASP Cheat Sheet และแนวทางจาก Mozilla Web Security Guidelines
+
+##### 8.19.5.1 XSS Protection Layers
+
+```
+┌─────────────────────────────────────────┐
+│ Layer 1: CSP Headers (next.config.ts)    │ ← ป้องกันแม้ JS จะถูก inject
+├─────────────────────────────────────────┤
+│ Layer 2: Input Sanitization (sanitize.ts)│ ← sanitize ก่อนบันทึก DB
+├─────────────────────────────────────────┤
+│ Layer 3: XSS Detection Middleware        │ ← detect รูปแบบอันตรายใน request
+├─────────────────────────────────────────┤
+│ Layer 4: Output Encoding (SafeText)      │ ← encode ตอนแสดงผล
+├─────────────────────────────────────────┤
+│ Layer 5: React/Next.js Default Escape    │ ← JSX escape อัตโนมัติ
+└─────────────────────────────────────────┘
+```
+
+##### 8.19.5.2 Input Sanitization Functions
+
+ไฟล์ `src/lib/security/sanitize.ts`:
+
+| Function | ใช้กับ | ป้องกัน |
+|----------|-------|--------|
+| `escapeHtml()` | แสดงชื่อนักเรียน, หมายเหตุ | HTML entity encode (`< > & " ' /`) |
+| `escapeAttribute()` | แทรกค่าใน HTML attribute | Attribute encode (`" ' < > `` =`) |
+| `escapeJs()` | แทรกค่าใน JavaScript string | JS string escape |
+| `sanitizeUrl()` | ลิงก์รูป, URL หลักฐาน | จำกัด protocol (http/https/mailto/tel) |
+| `stripHtml()` | notification, search query | ลบ HTML tags ทั้งหมด |
+| `sanitizeDisplayName()` | ชื่อ-นามสกุล | strip HTML + control chars |
+| `sanitizeNote()` | หมายเหตุ | strip HTML + ลบ `javascript:` + event handlers |
+| `sanitizeCsvCell()` | Export CSV | ป้องกัน CSV injection (prefix `= + - @` ด้วย `'`) |
+| `sanitizeFilePath()` | Upload path | ป้องกัน path traversal |
+| `sanitizeSearchQuery()` | ค้นหา | strip HTML + special chars |
+
+##### 8.19.5.3 XSS Detection (Request Level)
+
+ไฟล์ `src/lib/security/validate-input.ts`:
+
+```typescript
+// ตรวจจับ pattern อันตรายใน request body
+const XSS_PATTERNS = [
+  /<script[\s>]/i,
+  /javascript\s*:/i,
+  /on\w+\s*=/i,           // onclick, onload, onerror
+  /data\s*:\s*text\/html/i,
+  /document\s*\.\s*cookie/i,
+  /<iframe[\s>]/i,
+  /<object[\s>]/i,
+  /<embed[\s>]/i,
+  /<svg[\s>]/i,
+  /expression\s*\(/i,
+  /vbscript\s*:/i,
+];
+```
+
+- ตรวจสอบทุก request body ที่ส่งเข้ามา (POST, PUT, PATCH)
+- ถ้าพบ XSS pattern → return 400 `XSS_DETECTED`
+- ใช้ `containsXSS()` recursive check ทุก field ใน object
+
+##### 8.19.5.4 Server-Side Validation Wrapper
+
+ไฟล์ `src/lib/validation/form-utils.ts`:
+
+```typescript
+export async function validatedAction<TInput, TOutput>(
+  schema: z.ZodSchema<TInput>,
+  handler: (data: TInput, profile: Profile) => Promise<ApiResponse<TOutput>>,
+  input: unknown,
+  profile: Profile,
+): Promise<ApiResponse<TOutput>> {
+  // 1. XSS check
+  if (containsXSS(input)) {
+    return { success: false, error: { code: 'XSS_DETECTED', message: '...' } };
+  }
+  // 2. Zod validation
+  const parsed = safeParse(schema, input);
+  if (!parsed.success) return { success: false, error: parsed.error };
+  // 3. Execute handler
+  return handler(parsed.data, profile);
+}
+```
+
+##### 8.19.5.5 XSS Rules สำหรับ Developer
+
+| กฎ | รายละเอียด |
+|----|-----------|
+| 🚫 **ห้ามใช้ dangerouslySetInnerHTML** | ถ้าจำเป็นต้องใช้ → ใช้ `<SafeHtml>` component + sanitize HTML ก่อน |
+| ✅ **ใช้ `<SafeText>` component** | สำหรับแสดง user-generated content ทั้งหมด |
+| ✅ **Zod schema validation** | ทุก input ต้องผ่าน Zod ก่อนบันทึก |
+| ✅ **escapeHtml() ก่อนแสดงผล** | encode HTML entities ทุกครั้ง |
+| ✅ **sanitizeNote() ก่อนบันทึก DB** | ลบ script, event handler, javascript: URL |
+| ✅ **sanitizeCsvCell() ใน export** | ป้องกัน CSV injection |
+| ✅ **sanitizeUrl() สำหรับ URL** | จำกัด protocol ไว้ที่ http/https/mailto/tel |
+| ✅ **XSS detection ใน middleware** | สกัด request อันตรายตั้งแต่เนิ่น ๆ |
+
 ### 8.20 Data Validation Rules & Error Codes
 
 #### 8.20.1 Field Validation Rules
@@ -2301,6 +2399,185 @@ const securityHeaders = [
     "message": "ขออภัย คุณทำรายการบ่อยเกินไป กรุณารอ 15 นาที"
   },
   "retryAfter": 900
+}
+```
+
+### 8.21 Form Validation & Zod Schemas
+
+ระบบใช้ **Zod** สำหรับ validation ทุกระดับ — client-side (react-hook-form) + server-side
+
+#### 8.21.1 Schema Architecture
+
+```
+src/lib/validation/
+├── schemas.ts        # Zod schemas ทั้งหมด (30+ schemas)
+├── form-utils.ts     # form utilities (safeParse, validatedAction, formatZodError)
+└── ...
+
+src/types/
+├── index.ts          # TypeScript interfaces + types
+└── config.ts         # SchoolConfig types
+
+src/components/ui/
+├── FormField.tsx     # Form field wrapper (label + error + helpText)
+└── SafeText.tsx      # Safe text rendering (XSS-safe)
+```
+
+#### 8.21.2 Schema Categories
+
+| หมวด | Schema | Validates |
+|------|--------|-----------|
+| **Auth** | `loginEmailSchema` | email + password format |
+| | `loginStudentSchema` | student_id (10 digits) + password |
+| | `changePasswordSchema` | password strength + confirm match |
+| **Profile** | `profileSchema` | first_name, last_name (Thai/English), phone |
+| **Student** | `studentSchema` | full student info + class assignment |
+| | `studentImportSchema` | CSV import row validation |
+| **Score** | `scoreRecordSchema` | points (1-999), category, note |
+| | `scoreBulkRecordSchema` | multiple students + same score |
+| | `scoreVoidSchema` | void reason (10-500 chars) |
+| | `scoreCategorySchema` | category name, points, type |
+| **Classroom** | `classroomSchema` | name, stage, grade level, year |
+| **Teacher** | `teacherSchema` | name, email, employee_id, department |
+| | `teacherClassroomSchema` | assignment role |
+| **Guardian** | `guardianSchema` | name, phone, line, email, address |
+| | `studentGuardianSchema` | relation, is_primary, permissions |
+| **Intervention** | `interventionSchema` | type, method, summary, outcome |
+| **Bond** | `bondDocumentSchema` | student, threshold, status |
+| **Settings** | `schoolInfoSchema` | school name, address, phone |
+| | `scoreSettingsSchema` | base score, floor, ceiling, academic year |
+| | `thresholdSchema` | deducted, action, color |
+| | `thresholdsArraySchema` | array of thresholds (min 1) |
+| **PDPA** | `pdpaConsentSchema` | version + accepted (must be true) |
+| **Import** | `csvImportSchema` | file type + import type + year |
+| **Common** | `paginationSchema` | page, page_size, search, filters |
+
+#### 8.21.3 Form Validation Flow
+
+```
+User Input
+    │
+    ▼
+┌──────────────────────────┐
+│ Client-side (react-hook-form + Zod) │
+│ - real-time validation             │
+│ - field-level error messages       │
+│ - disable submit until valid       │
+└──────────┬───────────────────────┘
+           │
+           ▼ POST
+┌──────────────────────────┐
+│ XSS Detection            │ ← containsXSS() check
+│ (validate-input.ts)      │
+└──────────┬───────────────────────┘
+           │
+           ▼
+┌──────────────────────────┐
+│ Zod Validation           │ ← safeParse() with schema
+│ (server-side revalidate) │
+└──────────┬───────────────────────┘
+           │
+           ▼
+┌──────────────────────────┐
+│ Business Logic           │
+│ (check permission,       │
+│  save to DB, audit log)  │
+└──────────┬───────────────────────┘
+           │
+           ▼
+┌──────────────────────────┐
+│ Response                 │
+│ { success, data, error } │
+└──────────────────────────┘
+```
+
+#### 8.21.4 API Error Response Format
+
+```typescript
+// Success
+{ "success": true, "data": { ... } }
+
+// Validation Error (422)
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบ",
+    "details": {
+      "phone": ["เบอร์โทรศัพท์ไม่ถูกต้อง (เช่น 081-234-5678)"],
+      "email": ["รูปแบบอีเมลไม่ถูกต้อง"]
+    }
+  }
+}
+
+// XSS Detected (400)
+{
+  "success": false,
+  "error": {
+    "code": "XSS_DETECTED",
+    "message": "ตรวจพบรูปแบบข้อมูลที่ไม่ปลอดภัย กรุณาตรวจสอบข้อมูลอีกครั้ง"
+  }
+}
+```
+
+#### 8.21.5 Server Action Pattern
+
+```typescript
+'use server';
+import { z } from 'zod';
+import { validatedAction } from '@/lib/validation/form-utils';
+import { getAuthProfile } from '@/lib/server-action';
+
+const createStudentSchema = z.object({
+  first_name: z.string().min(2).max(50),
+  last_name: z.string().min(2).max(50),
+  student_id_number: z.string().regex(/^\d{10}$/, 'รหัสนักเรียนต้องเป็นตัวเลข 10 หลัก'),
+  classroom_id: z.string().min(1, 'กรุณาเลือกห้องเรียน'),
+});
+
+export const createStudent = async (formData: FormData) => {
+  const { profile } = await getAuthProfile();
+  if (!profile) return { success: false, error: { code: 'UNAUTHORIZED', message: 'ไม่ได้รับอนุญาต' } };
+
+  const input = Object.fromEntries(formData);
+  return validatedAction(createStudentSchema, async (data) => {
+    // data is typed: { first_name: string, last_name: string, ... }
+    // Save to DB...
+    return { success: true, data: savedStudent };
+  }, input, profile);
+};
+```
+
+#### 8.21.6 Client-Side Form Component Pattern
+
+```typescript
+'use client';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { studentSchema, type StudentInput } from '@/lib/validation/schemas';
+import { FormField } from '@/components/ui/FormField';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+
+export function StudentForm() {
+  const form = useForm<StudentInput>({
+    resolver: zodResolver(studentSchema),
+    defaultValues: { first_name: '', last_name: '', student_id_number: '', ... }
+  });
+
+  const { register, formState: { errors, isSubmitting } } = form;
+
+  return (
+    <form>
+      <FormField label="ชื่อ" error={errors.first_name?.message} required>
+        <Input {...register('first_name')} />
+      </FormField>
+      <FormField label="นามสกุล" error={errors.last_name?.message} required>
+        <Input {...register('last_name')} />
+      </FormField>
+      <Button type="submit" disabled={isSubmitting}>บันทึก</Button>
+    </form>
+  );
 }
 ```
 
