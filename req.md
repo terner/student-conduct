@@ -36,7 +36,7 @@ Next.js 14 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                    Codebase (GitHub)                      │
-│  school-behavior-grade/                                   │
+│  student-conduct/                                          │
 │  ├── school.config.ts          ← Config สำหรับโรงเรียนนี้   │
 │  ├── .env.local                ← Supabase keys + secrets   │
 │  ├── messages/th.json          ← ภาษาไทย                   │

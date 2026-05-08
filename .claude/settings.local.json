@@ -75,7 +75,8 @@
       "Bash(mkdir -p .github/workflows)",
       "Bash(npx shadcn@latest add sidebar breadcrumb skeleton dropdown-menu avatar switch checkbox tooltip popover command collapsible breadcrumb pagination progress calendar drawer hover-card scroll-area --yes)",
       "Bash(npm ls *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(ssh *)"
     ]
   },
   "disabledMcpjsonServers": [

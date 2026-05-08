@@ -11,7 +11,7 @@
 ## Architecture
 
 ```
-school-behavior-grade/
+student-conduct/
 ├── req.md                   # Full version spec
 ├── reqmvp.md                # MVP spec (กำลัง implement)
 ├── school.config.ts         # School configuration + feature flags
