@@ -13,7 +13,7 @@
 ```
 student-conduct/
 ├── req.md                   # Full version spec
-├── reqmvp.md                # MVP spec (กำลัง implement)
+├── reqmvp.md                # MVP spec (reference)
 ├── school.config.ts         # School configuration + feature flags
 ├── .env.local               # Supabase keys, secrets
 ├── messages/
@@ -92,8 +92,8 @@ student-conduct/
 
 | File | Purpose |
 |------|---------|
-| `reqmvp.md` | **Current MVP spec** — เริ่มต้นที่นี่ก่อน |
-| `req.md` | Full version spec — เผื่อไว้สำหรับ phase 2+ |
+| `req.md` | **Full version spec** — ใช้เป็นหลัก |
+| `reqmvp.md` | MVP spec — reference สำหรับการตัดสินใจ feature flags |
 | `school.config.example.ts` | Template for school configuration |
 | `app/(dashboard)/reports/threshold/page.tsx` | ⭐ Threshold report page |
 
