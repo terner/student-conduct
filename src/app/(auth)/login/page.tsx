@@ -119,6 +119,10 @@ export default function LoginPage() {
             <p className="text-center text-xs text-muted-foreground">
               สำหรับครู/ผู้ดูแลระบบเท่านั้น
             </p>
+            <div className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
+              <p className="text-center font-medium">ทดสอบระบบ</p>
+              <p className="text-center">admin@school.com / Admin123!</p>
+            </div>
           </form>
         </CardContent>
       </Card>
