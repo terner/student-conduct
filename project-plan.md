@@ -6,257 +6,377 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 
 ---
 
-## 1. ภาพรวม (Project Overview)
+## 1. สถานะปัจจุบัน (Current State)
 
-### 1.1 เป้าหมาย
-สร้างระบบบันทึก ติดตาม และรายงานคะแนนความประพฤตินักเรียน สำหรับโรงเรียนไทย
-- ครูบันทึกคะแนนดี/ไม่ดี ของนักเรียน
-- Admin จัดการนักเรียน ครู ห้องเรียน และดูรายงาน
-- นักเรียนดูประวัติคะแนนของตนเอง
-- รองรับหลายโรงเรียน (clone project → ตั้งค่า → deploy)
+### ✅ เสร็จแล้ว (Foundation Layer)
 
-### 1.2 สถาปัตยกรรม
+| หมวด | สิ่งที่ทำ | ไฟล์ |
+|------|-----------|------|
+| **Project** | Next.js 16 + TypeScript + Tailwind v4 | `next.config.ts`, `tsconfig.json` |
+| **UI Components** | shadcn/ui 31 components (sidebar, dialog, table, ฯลฯ) | `src/components/ui/*` |
+| **Design System** | Sidebar, TopBar, UserMenu, LanguageSwitcher, Empty, Spinner | `src/components/layout/*`, `src/components/ui/empty.tsx` |
+| **Dark Mode** | next-themes + CSS variables light/dark | `src/components/theme-provider.tsx`, `src/app/globals.css` |
+| **Types** | 15+ interfaces (Student, Score, Classroom, Teacher, ฯลฯ) | `src/types/*` |
+| **Validation** | Zod 30+ schemas + form-utils | `src/lib/validation/*` |
+| **Security** | XSS sanitization (8 functions), CSP headers, OWASP compliance | `src/lib/security/*` |
+| **Auth** | Middleware (auth guard, role routing, PDPA check, must_change_password) | `src/middleware.ts` |
+| **Server Actions** | withAuth wrapper, checkPermission, getAuthProfile | `src/lib/server-action.ts` |
+| **Supabase Clients** | client.ts, server.ts, admin.ts | `src/lib/supabase/*` |
+| **Config** | school.config.example.ts + .env.example | root |
+| **CI/CD** | GitHub Actions CI (lint+tsc+build) + CD (Vercel) | `.github/workflows/*` |
+| **i18n** | Message files TH/EN | `messages/th.json`, `messages/en.json` |
+| **Font** | Sarabun (Thai) + Geist (Latin) | `src/app/layout.tsx` |
+
+### 🔶 หน้าที่ยังเป็น Placeholder
+
+| Route | File | สถานะ |
+|-------|------|--------|
+| `/login` | `src/app/(auth)/login/page.tsx` | placeholder |
+| `/dashboard` | `src/app/(dashboard)/page.tsx` | placeholder |
+| `/students` | `src/app/(dashboard)/students/page.tsx` | placeholder |
+| `/classrooms` | `src/app/(dashboard)/classrooms/page.tsx` | placeholder |
+| `/score/record` | `src/app/(dashboard)/score/record/page.tsx` | placeholder |
+| `/reports` | `src/app/(dashboard)/reports/page.tsx` | placeholder |
+| `/reports/individual` | `src/app/(dashboard)/reports/individual/page.tsx` | placeholder |
+| `/reports/classroom` | `src/app/(dashboard)/reports/classroom/page.tsx` | placeholder |
+| `/reports/threshold` | `src/app/(dashboard)/reports/threshold/page.tsx` | placeholder |
+| `/teachers` | `src/app/(dashboard)/teachers/page.tsx` | placeholder |
+| `/settings` | `src/app/(dashboard)/settings/page.tsx` | placeholder |
+| `/settings/import` | `src/app/(dashboard)/settings/import/page.tsx` | placeholder |
+| `/student/dashboard` | `src/app/student/dashboard/page.tsx` | placeholder |
+| `/` (root) | `src/app/page.tsx` | placeholder |
+
+### ❌ ยังขาด / ต้องทำ
+
+| หัวข้อ | รายละเอียด |
+|--------|-----------|
+| Supabase project | ยังไม่มี connection string จริงใน `.env.local` |
+| Database schema | SQL ใน `req.md` section 3 ยังไม่ได้ migrate |
+| Auth login จริง | หน้า login placeholder, ยังไม่เชื่อม Supabase Auth |
+| PDPA consent page | ยังไม่สร้าง `/pdpa-consent` |
+| Change password page | ยังไม่สร้าง `/change-password` |
+| CRUD operations | ทุก module (students, scores, classrooms, teachers) ยังไม่มี |
+| Server actions | ยังไม่มี action files สำหรับแต่ละ module |
+| API routes | ยังไม่มี REST endpoints |
+| Dashboard data | ยังไม่มี stats/query |
+| Reports | ยังไม่มี logic สำหรับ generate reports |
+| CSV import | ยังไม่เชื่อม papaparse |
+| Evidence upload | ยังไม่เชื่อม Supabase Storage |
+
+---
+
+## 2. Multi-Agent Workflow
+
+### หลักการ
+
+ทำงานแบบ **batch generation** — สร้างหลายไฟล์พร้อมกันในแต่ละรอบ แบ่งตาม **Agent (กลุ่มงาน)** ที่ independent กัน:
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    Frontend (Vercel)                      │
-│  Next.js 14 App Router + TypeScript + shadcn/ui          │
-│  - SSR / Server Components                                │
-│  - API Routes (REST)                                      │
-│  - Server Actions                                         │
-│  - Middleware (Auth + PDPA + i18n)                        │
-└────────────┬─────────────────────────────────────────────┘
-             │
-             ▼
-┌──────────────────────────────────────────────────────────┐
-│                   Backend (Supabase)                      │
-│  - PostgreSQL Database (RLS enabled)                      │
-│  - Auth Service (bcrypt, JWT, session)                    │
-│  - Edge Functions (API เสริม, 500K req/เดือนฟรี)           │
-│  - Storage (evidence รูปภาพ)                               │
-│  - Realtime (แจ้งเตือน)                                    │
-└──────────────────────────────────────────────────────────┘
+รอบที่ 0: Setup Supabase
+         └── สร้าง project + migrate DB + ตั้งค่า auth
+
+รอบที่ 1: Foundation Agent (Agent 0)
+         ├── lib/actions/*.action.ts
+         ├── lib/db/queries/*.queries.ts    ← 5-10 ไฟล์พร้อมกัน
+         └── lib/utils/csv.ts
+
+รอบที่ 2: Feature Agents (Agent 1 + 2 + 3) — พร้อมกัน
+         ├── components/features/xxx/*.tsx
+         ├── app/*/page.tsx                 ← 8-15 ไฟล์ต่อ Agent
+         └── app/*/[id]/page.tsx
+
+รอบที่ 3: Dashboard Agents (Agent 4 + 5) — พร้อมกัน
+         ├── components/features/dashboard/*.tsx
+         ├── components/features/settings/*.tsx
+         └── app/*/page.tsx
 ```
 
-### 1.3 Multi-School Design
+### กฎ Multi-Agent
+
+1. **ไม่มีการแก้ไขไฟล์ซ้อนกัน** — แต่ละ Agent ทำงานใน directory ของตัวเอง
+2. **ใช้ types ร่วมกัน** — ทุก Agent ใช้ types/validation จาก `src/types/*` และ `src/lib/validation/*`
+3. **Interface มาก่อน Implementation** — สร้าง types + server actions + queries ก่อน components/pages
+4. **Batch > Sequential** — สร้างให้ครบ module ในครั้งเดียว ดีกว่าสร้างทีละไฟล์
+5. **Build หลังแต่ละ Phase** — ทดสอบ build ทั้งโปรเจกต์หลังทุก Agent ใน Phase นั้นเสร็จ
+
+---
+
+## 3. Agent Breakdown
+
+### Agent 0 — Foundation (ทำครั้งเดียวก่อนเริ่ม Agent อื่น)
 
 ```
-GitHub Repo (codebase เดียวกัน)
-    │
-    ├── school.config.ts.example → school.config.ts
-    ├── .env.example → .env.local
-    │
-    ├── โรงเรียน ก. → Vercel Project A + Supabase A
-    ├── โรงเรียน ข. → Vercel Project B + Supabase B
-    └── โรงเรียน ค. → Vercel Project C + Supabase C
+📦 src/lib/
+├── actions/
+│   ├── student.action.ts     → Server actions สำหรับ Student CRUD
+│   ├── score.action.ts       → Server actions สำหรับ Score
+│   ├── classroom.action.ts   → Server actions สำหรับ Classroom
+│   ├── teacher.action.ts     → Server actions สำหรับ Teacher
+│   └── report.action.ts      → Server actions สำหรับ Reports
+├── db/
+│   ├── queries/
+│   │   ├── student.queries.ts
+│   │   ├── score.queries.ts
+│   │   ├── classroom.queries.ts
+│   │   └── teacher.queries.ts
+│   └── index.ts
+└── utils/
+    ├── csv.ts                → CSV import/export (papaparse)
+    └── pdf.ts                → PDF generation
 ```
 
-แต่ละโรงเรียน clone → config → deploy → ใช้ได้ทันที
-ข้อมูลแยกกันคนละ Supabase project
+### Agent 1 — Student Module
 
----
-
-## 2. Tech Stack
-
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| Framework | Next.js 14 (App Router) | SSR, routing, API, server actions |
-| Language | TypeScript | Type safety |
-| Database | Supabase (PostgreSQL) | Data + RLS |
-| Auth | Supabase Auth | Login, roles, JWT |
-| Hosting | Vercel (Hobby/Pro) | CI/CD, CDN |
-| UI | shadcn/ui + Tailwind | Components, dark mode |
-| Charts | Recharts | Score timeline, statistics |
-| i18n | next-intl | TH/EN bilingual |
-| Font | Sarabun + Geist | Thai + Latin |
-| Forms | react-hook-form + zod | Validation |
-| CSV | papaparse | Import/Export |
-| Design | getdesign notion theme | Clean UI |
-| State | React Query (TanStack Query) | Server state, cache |
-| PDF | @react-pdf/renderer | Reports, bond docs |
-
----
-
-## 3. Milestones & Timeline
-
-### Phase 1: Foundation (Week 1-2)
-- [ ] Init Next.js + TypeScript project
-- [ ] Setup Supabase project + DB schema
-- [ ] Setup i18n (next-intl) + font (Sarabun + Geist)
-- [ ] Setup shadcn/ui + Tailwind + Notion theme
-- [ ] Create `school.config.ts` + `.env` structure
-- [ ] Auth: Login page + Supabase Auth integration
-- [ ] Auth: 3 roles (admin/teacher/student) + redirect
-- [ ] Auth: Middleware (auth guard + PDPA guard)
-- [ ] PDPA: Consent page + forced accept flow
-
-### Phase 2: Core Features (Week 3-4)
-- [ ] Student CRUD + list + search + filter
-- [ ] Classroom management
-- [ ] Teacher management + assignment to classrooms
-- [ ] Score categories (admin configurable)
-- [ ] Score record form (add/deduct)
-- [ ] Bulk score recording
-- [ ] Score history + transaction table
-- [ ] Score timeline chart (Recharts)
-- [ ] Evidence upload (Supabase Storage)
-- [ ] Score approval flow (pending → approve/reject)
-- [ ] Score void flow (correction)
-
-### Phase 3: Dashboard & Reports (Week 5-6)
-- [ ] Admin dashboard (overview, stats)
-- [ ] Teacher dashboard (classroom scope)
-- [ ] Student dashboard (self-view)
-- [ ] Individual report + PDF
-- [ ] Classroom report + PDF
-- [ ] Monthly report + snapshot
-- [ ] At-risk report
-- [ ] School statistics + charts
-- [ ] Bond document (ทัณฑ์บน) + PDF
-
-### Phase 4: Advanced Features (Week 7-8)
-- [ ] Permission system (permissions table + UI editor)
-- [ ] Intervention & contact logs
-- [ ] In-app notifications (Supabase Realtime)
-- [ ] Audit log + action log viewer
-- [ ] CSV import (students, teachers, annual)
-- [ ] Academic year management + annual import wizard
-- [ ] Guardian management (multiple per student)
-- [ ] Score trend arrows + sparkline
-- [ ] Settings page (admin)
-- [ ] Export CSV/Excel/PDF
-
-### Phase 5: Polish & Security (Week 9-10)
-- [ ] Security headers (CSP, HSTS, etc.)
-- [ ] Rate limiting (all endpoints)
-- [ ] File upload security (EXIF strip, resize, scan)
-- [ ] Data validation hardening
-- [ ] PDPA rights (data portability, erasure)
-- [ ] Error boundary + loading states
-- [ ] Empty states + edge cases
-- [ ] PWA support (manifest, service worker)
-- [ ] Cold start protection (Edge Functions, keep-alive)
-- [ ] Security audit checklist
-
-### Phase 6: Multi-School & Deployment (Week 11-12)
-- [ ] `school.config.ts` complete (all feature flags)
-- [ ] Documentation: README, setup guide
-- [ ] Deployment guide for new schools
-- [ ] Vercel deployment + env vars
-- [ ] Supabase project setup guide
-- [ ] Test with real school data
-- [ ] Performance optimization
-- [ ] Bug fixes
-
----
-
-## 4. Database Schema Overview
-
-### Core Tables (8)
-`profiles` · `academic_years` · `classrooms` · `students` · `guardians` · `student_guardians` · `teachers` · `teacher_classrooms`
-
-### Enrollment (1)
-`student_enrollments`
-
-### Score (3)
-`score_categories` · `score_transactions` · `score_transaction_evidence`
-
-### Documents (1)
-`bond_documents`
-
-### Features (5)
-`monthly_reports` · `notifications` · `intervention_logs` · `audit_logs` · `action_logs`
-
-### Security (4)
-`pdpa_consents` · `permissions` · `role_permissions` · `profile_permission_overrides`
-
-### Config (1)
-`settings`
-
-> **Total: 23 tables** — ดู schema เต็มใน `req.md` Section 3
-
----
-
-## 5. API Overview
-
-| Group | Endpoints | Auth | Permission |
-|-------|-----------|------|------------|
-| Auth | login, logout, forgot, reset, session | ❌/✅ | — |
-| Students | CRUD, score-history, guardians | ✅ | student.* |
-| Score | record, bulk, approve, reject, void | ✅ | score.* |
-| Classrooms | list, detail, report | ✅ | student.* |
-| Reports | monthly, at-risk, statistics, bond | ✅ | report.* |
-| Interventions | list, create, detail | ✅ | intervention.* |
-| Settings | get, update, import, logs | ✅ | settings.* |
-
-> ดู endpoints เต็มใน `req.md` Section 5.1
-
----
-
-## 6. Config-Driven Design (Feature Flags)
-
-ใน `school.config.ts`:
-
-```typescript
-features: {
-  lineNotify: false,        // ❌ ไม่ใช่ MVP
-  emailSummary: false,      // ❌ ไม่ใช่ MVP
-  pwa: false,               // ❌ ไม่ใช่ MVP
-  monthlyReportSnapshot: true,
-  atRiskReport: true,
-  interventionLog: true,
-  bondDocument: true,
-  evidenceUpload: true,
-  bulkScoreRecord: true,
-  guardianManagement: true,
-  auditLog: true,
-  actionLog: true,
-  scoreApproval: true,
-  csvExport: true,
-  statistics: true,
-}
+```
+📦 src/
+├── app/(dashboard)/students/
+│   ├── page.tsx              → Student list (table + search + filter)
+│   └── [id]/
+│       └── page.tsx          → Student detail (profile + score history)
+├── components/features/students/
+│   ├── student-table.tsx     → Sortable table
+│   ├── student-search.tsx    → Search + filter bar
+│   ├── student-form.tsx      → Create/edit form
+│   ├── student-detail.tsx    → Profile detail card
+│   └── student-status-badge.tsx
 ```
 
-> ถ้า feature flag = false → ฟีเจอร์นั้นไม่แสดงใน UI, ไม่มี route, ไม่มี API
+### Agent 2 — Score Module
+
+```
+📦 src/
+├── app/(dashboard)/score/
+│   ├── record/
+│   │   └── page.tsx          → Score record form + recent transactions
+│   └── categories/
+│       └── page.tsx          → Manage score categories (admin)
+├── components/features/scores/
+│   ├── score-record-form.tsx → Add/deduct form
+│   ├── score-transaction-table.tsx
+│   ├── score-category-form.tsx
+│   ├── score-badge.tsx       → แสดงระดับความประพฤติ
+│   ├── score-timeline.tsx    → Recharts timeline chart
+│   ├── score-void-dialog.tsx
+│   └── evidence-uploader.tsx
+```
+
+### Agent 3 — Classroom & Teacher Module
+
+```
+📦 src/
+├── app/(dashboard)/classrooms/
+│   ├── page.tsx              → Classroom list
+│   └── [id]/
+│       └── page.tsx          → Classroom detail (students + teachers)
+├── app/(dashboard)/teachers/
+│   ├── page.tsx              → Teacher list
+│   └── [id]/
+│       └── page.tsx          → Teacher detail + assigned classrooms
+├── components/features/classrooms/
+│   ├── classroom-table.tsx
+│   ├── classroom-form.tsx
+│   ├── teacher-table.tsx
+│   ├── teacher-form.tsx
+│   └── teacher-classroom-assign.tsx
+```
+
+### Agent 4 — Dashboard & Reports Module
+
+```
+📦 src/
+├── app/(dashboard)/
+│   ├── page.tsx              → Admin dashboard (stats + charts)
+│   └── reports/
+│       ├── page.tsx          → Report hub
+│       ├── individual/
+│       │   └── page.tsx      → Individual report + PDF
+│       ├── classroom/
+│       │   └── page.tsx      → Classroom report + PDF
+│       └── threshold/
+│           └── page.tsx      → At-risk threshold report
+├── app/student/
+│   └── dashboard/
+│       └── page.tsx          → Student self-view dashboard
+├── components/features/dashboard/
+│   ├── stats-cards.tsx
+│   ├── score-distribution-chart.tsx
+│   ├── recent-transactions.tsx
+│   └── at-risk-alert.tsx
+```
+
+### Agent 5 — Settings & Admin Module
+
+```
+📦 src/
+├── app/(dashboard)/settings/
+│   ├── page.tsx              → Settings hub
+│   ├── import/
+│   │   └── page.tsx          → CSV import wizard
+│   └── logs/
+│       └── page.tsx          → Audit log viewer
+├── components/features/settings/
+│   ├── school-info-form.tsx
+│   ├── score-config-form.tsx
+│   ├── threshold-config.tsx
+│   ├── csv-import-dialog.tsx
+│   ├── audit-log-table.tsx
+│   └── academic-year-select.tsx
+```
 
 ---
 
-## 7. Free Tier Limits
+## 4. Execution Order
 
-| Service | Limit | หมายเหตุ |
-|---------|-------|----------|
-| Vercel Hobby | 100 API calls/วัน | ~พอสำหรับ 30 ครู |
-| Supabase Free | 500MB DB + 1GB Storage | ~พอสำหรับ 1,000 นักเรียน |
-| Supabase Edge Functions | 500K requests/เดือน | API backend |
-| Supabase Auth | 50,000 users | มากเกินพอ |
+```
+Phase 0: Setup Supabase (ต้องทำก่อน)
+├── สร้าง Supabase project จริง
+├── รัน Database Schema (SQL จาก req.md section 3)
+├── ตั้งค่า Auth providers
+├── ตั้งค่า Storage bucket
+├── เติม .env.local
+└── ทดสอบ connection
 
-> ⚠️ ถ้าเกิน Vercel 100 calls/วัน → ใช้ Supabase Edge Functions เป็น API backend (500K/เดือนฟรี)
+Phase 1: Foundation (Agent 0)
+├── สร้าง Server Actions ทุก module
+├── สร้าง DB query functions
+├── สร้าง CSV + PDF utilities
+└── build test
+
+Phase 2: Core Features (Agent 1 + 2 + 3 พร้อมกัน)
+├── Agent 1: Student Module
+├── Agent 2: Score Module
+└── Agent 3: Classroom & Teacher Module
+└── build test
+
+Phase 3: Reports & Dashboard (Agent 4)
+├── Admin/Teacher/Student dashboards
+├── Reports (individual, class, threshold)
+└── build test
+
+Phase 4: Settings (Agent 5)
+├── Settings pages
+├── CSV import
+├── Audit log
+└── build test
+
+Phase 5: Polish & Deploy
+├── Loading states (skeleton)
+├── Empty states
+├── Edge cases
+├── Error boundaries
+└── Deploy to Vercel
+```
 
 ---
 
-## 8. Key Directories Structure
+## 5. File Architecture
 
 ```
 school-conduct/
-├── school.config.ts            # Config + feature flags
-├── school.config.example.ts    # ตัวอย่าง config
-├── .env.local                  # Secrets (ไม่อยู่ใน git)
-├── .env.example                # ตัวอย่าง env
+├── school.config.ts                # Config + feature flags
+├── school.config.example.ts        # ตัวอย่าง config
+├── .env.local                      # Secrets (ไม่อยู่ใน git)
+├── .env.example                    # ตัวอย่าง env
 ├── messages/
-│   ├── th.json                 # ภาษาไทย
-│   └── en.json                 # ภาษาอังกฤษ
-├── app/
-│   ├── (auth)/                 # Login, PDPA consent
-│   ├── (dashboard)/            # Admin/Teacher routes
-│   ├── student/                # Student self-view
-│   └── api/                    # REST API endpoints
-├── components/
-│   ├── ui/                     # shadcn/ui
-│   ├── shared/                 # Reusable components
-│   └── features/               # Feature-specific
-├── lib/
-│   ├── supabase/               # Supabase client
-│   ├── i18n/                   # next-intl config
-│   └── permissions/            # Permission check
-└── types/                      # TypeScript types
+│   ├── th.json                     # ภาษาไทย
+│   └── en.json                     # ภาษาอังกฤษ
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx              # Root layout (ThemeProvider + TooltipProvider)
+│   │   ├── globals.css             # Tailwind + CSS variables + dark mode
+│   │   ├── page.tsx                # Landing page
+│   │   ├── (auth)/
+│   │   │   ├── layout.tsx
+│   │   │   └── login/page.tsx
+│   │   ├── (dashboard)/
+│   │   │   ├── layout.tsx          # SidebarProvider + AppSidebar + TopBar
+│   │   │   ├── page.tsx            # Admin dashboard
+│   │   │   ├── students/
+│   │   │   ├── classrooms/
+│   │   │   ├── teachers/
+│   │   │   ├── score/
+│   │   │   ├── reports/
+│   │   │   └── settings/
+│   │   └── student/
+│   │       ├── layout.tsx
+│   │       └── dashboard/page.tsx
+│   ├── components/
+│   │   ├── ui/                     # shadcn/ui components (31 files)
+│   │   ├── layout/                 # AppSidebar, TopBar, UserMenu, LanguageSwitcher
+│   │   └── features/               # Feature-specific components (ยังไม่มี)
+│   │       ├── students/
+│   │       ├── scores/
+│   │       ├── classrooms/
+│   │       ├── teachers/
+│   │       ├── dashboard/
+│   │       ├── reports/
+│   │       └── settings/
+│   ├── lib/
+│   │   ├── supabase/               # client.ts, server.ts, admin.ts
+│   │   ├── validation/             # schemas.ts, form-utils.ts
+│   │   ├── security/               # sanitize.ts, validate-input.ts, headers.ts
+│   │   ├── actions/                # Server actions (ยังไม่มี)
+│   │   ├── db/                     # DB queries (ยังไม่มี)
+│   │   └── utils.ts                # cn() helper
+│   ├── hooks/
+│   │   └── use-mobile.ts
+│   ├── types/
+│   │   ├── index.ts
+│   │   └── config.ts
+│   └── middleware.ts               # Auth + PDPA + role guard
+├── .github/
+│   └── workflows/
+│       ├── ci.yml
+│       └── deploy.yml
+├── req.md                          # Full requirements document
+└── project-plan.md                 # This file
 ```
+
+---
+
+## 6. Tech Stack Status
+
+| Layer | Technology | สถานะ |
+|-------|-----------|--------|
+| Framework | Next.js 16 (App Router, Turbopack) | ✅ |
+| Language | TypeScript | ✅ |
+| Database | Supabase (PostgreSQL) | ❌ ยังไม่มี project |
+| Auth | Supabase Auth | ❌ ยังไม่เชื่อม |
+| Hosting | Vercel (Hobby) | ❌ ยังไม่ deploy |
+| UI | shadcn/ui 31 components + Tailwind v4 | ✅ |
+| Charts | Recharts | ✅ ติดตั้งแล้ว |
+| i18n | next-intl | 🔶 มี messages files แต่ routing ยังไม่เชื่อม |
+| Font | Sarabun + Geist | ✅ |
+| Forms | react-hook-form + zod | ✅ |
+| CSV | papaparse | ✅ ติดตั้งแล้ว |
+| Validation | Zod 30+ schemas | ✅ |
+| Security | XSS, CSP, OWASP | ✅ |
+| CI/CD | GitHub Actions | ✅ |
+| Dark Mode | next-themes | ✅ |
+| Design System | Carbonflow patterns | ✅ |
+
+---
+
+## 7. Supabase Setup Checklist (ต้องทำก่อนเริ่ม Phase 1)
+
+- [ ] สร้าง Supabase project ใหม่ (Free tier)
+- [ ] รัน Database Schema SQL (จาก `req.md` section 3) ใน Supabase SQL Editor
+- [ ] เปิด Auth methods (Email/Password)
+- [ ] สร้าง Storage bucket ชื่อ `evidence`
+- [ ] ตั้งค่า RLS policies (หรือใช้ Service Role key สำหรับ dev)
+- [ ] คัดลอก project URL + anon key + service role key ไปใส่ `.env.local`
+- [ ] ทดสอบ connection ด้วย `npm run dev`
+- [ ] สร้าง admin user เริ่มต้น
+- [ ] ทดสอบ login ผ่านหน้า /login
+
+---
+
+## 8. Risk & Mitigation
+
+| Risk | Mitigation |
+|------|-----------|
+| Multi-agent ไฟล์ overlap | แต่ละ Agent มี directory ของตัวเอง, types/validation ใช้อันเดียวกัน |
+| Server action ไม่มี DB จริง | Agent 0 สร้าง action abstraction ก่อน, ค่อยเชื่อม DB ที่หลัง |
+| Recharts version conflict | lock version ใน package.json |
+| i18n routing ซับซ้อน | Simplified approach (state-based) ก่อน, ค่อย migrate |
+| Build fail จาก dependency | CI จะแจ้งก่อน merge |
