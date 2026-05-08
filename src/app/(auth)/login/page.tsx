@@ -52,8 +52,10 @@ export default function LoginPage() {
       }
 
       console.log('[Login] Success! Redirecting...');
-      router.push('/');
-      router.refresh();
+      // Ensure cookies are synced before redirect
+      await supabase.auth.getSession();
+      // Use window.location for full page redirect so middleware reads cookies correctly
+      window.location.href = '/';
     } catch (err) {
       console.error('[Login] Caught error:', err);
       setError('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
