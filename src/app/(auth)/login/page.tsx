@@ -31,22 +31,31 @@ export default function LoginPage() {
     setError('');
 
     try {
+      console.log('[Login] Starting login...', { email: data.email });
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      console.log('[Login] Supabase client created');
+
+      const result = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
+      console.log('[Login] SignIn result:', result);
+
+      const { error: authError } = result;
 
       if (authError) {
+        console.error('[Login] Auth error:', authError);
         setError(authError.message === 'Invalid login credentials'
           ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
           : 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
         return;
       }
 
+      console.log('[Login] Success! Redirecting...');
       router.push('/');
       router.refresh();
-    } catch {
+    } catch (err) {
+      console.error('[Login] Caught error:', err);
       setError('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
     } finally {
       setLoading(false);
