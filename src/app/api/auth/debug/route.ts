@@ -56,24 +56,68 @@ export async function GET(request: Request) {
     });
   } catch {}
 
-  // Try client with manual cookies
+  // Track getAll calls
+  let getAllCallCount = 0;
+
+  // Try client with manual cookies - wrapped with logging
   const supabase = createServerClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
+          getAllCallCount++;
+          console.log('[Debug] getAll called #' + getAllCallCount);
           return manualCookies;
         },
-        setAll() {},
+        setAll(cookiesToSet) {
+          console.log('[Debug] setAll called with', cookiesToSet.length, 'cookies');
+        },
       },
     }
   );
 
-  const [getUserResult, getSessionResult] = await Promise.all([
-    supabase.auth.getUser().then(r => ({ user: r.data?.user?.id || null, error: r.error?.message || null })).catch(e => ({ user: null, error: e.message })),
-    supabase.auth.getSession().then(r => ({ found: !!r.data?.session, error: r.error?.message || null })).catch(e => ({ found: false, error: e.message })),
-  ]);
+  const getUserResult = await supabase.auth.getUser()
+    .then(r => ({ user: r.data?.user?.id || null, error: r.error?.message || null }))
+    .catch(e => ({ user: null, error: e.message }));
+
+  const getSessionResult = await supabase.auth.getSession()
+    .then(r => ({ found: !!r.data?.session, error: r.error?.message || null }))
+    .catch(e => ({ found: false, error: e.message }));
+
+  // Try manually reading from storage
+  let storageResult: string | null = null;
+  try {
+    // Access the storage directly to check
+    const storageKey = 'supabase.auth.token';
+    const allCookies = await manualCookies;
+    const { combineChunks } = await import('@supabase/ssr');
+    const value = await combineChunks(storageKey, async (chunkName) => {
+      const c = manualCookies.find(({ name }) => name === chunkName);
+      return c?.value || null;
+    });
+    if (value) {
+      // decodeChunkedCookieValue is internal, manually decode
+      if (value.startsWith('base64-')) {
+        try {
+          const b64 = value.slice(7);
+          const decoded = new TextDecoder().decode(
+            Uint8Array.from(atob(b64.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
+          );
+          JSON.parse(decoded);
+          storageResult = 'valid-session';
+        } catch {
+          storageResult = 'decode-failed';
+        }
+      } else {
+        storageResult = 'no-base64-prefix';
+      }
+    } else {
+      storageResult = 'combine-chunks-null';
+    }
+  } catch (e: any) {
+    storageResult = `error: ${e.message}`;
+  }
 
   return NextResponse.json({
     cookiePresent: !!authCookie,
@@ -82,6 +126,8 @@ export async function GET(request: Request) {
     manualDecode,
     combinedValuePrefix: combinedValue?.substring(0, 40),
     combinedValueLength: combinedValue?.length,
+    storageResult,
+    getAllCallCount,
     getUser: getUserResult,
     getSession: getSessionResult,
   });
