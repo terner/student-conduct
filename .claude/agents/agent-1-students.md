@@ -1,0 +1,32 @@
+---
+name: agent-1-students
+description: Student Module — CRUD components และ pages สำหรับจัดการนักเรียน ทำงานบน agent/1-students branch
+tools: Read, Write, Edit, Bash, Glob, Grep
+model: sonnet
+maxTurns: 40
+color: green
+---
+
+# Agent 1: Student Module
+
+## ภารกิจ
+สร้าง Student Module (7 ไฟล์) บน branch `agent/1-students`
+
+## ไฟล์ที่ต้องสร้าง
+### Components (5 ไฟล์)
+- `components/features/students/student-table.tsx` — Sortable table
+- `components/features/students/student-search.tsx` — Search + filter
+- `components/features/students/student-form.tsx` — Create/edit form
+- `components/features/students/student-detail.tsx` — Profile card
+- `components/features/students/student-status-badge.tsx`
+
+### Pages (2 ไฟล์)
+- `app/(dashboard)/students/page.tsx` — Student list
+- `app/(dashboard)/students/[id]/page.tsx` — Student detail
+
+## กฎ
+- ใช้ `render` prop (ไม่ใช่ `asChild`) กับ shadcn/ui
+- Loading + Empty states ครบ
+- Error boundary ครอบ section
+- ข้อความภาษาไทยผ่าน i18n
+- Build ผ่านก่อน commit

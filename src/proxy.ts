@@ -2,11 +2,9 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 const publicRoutes = ['/login', '/pdpa-consent', '/pdpa-rejected', '/change-password'];
-const studentRoutes = ['/student'];
-const adminTeacherRoutes = ['/dashboard', '/students', '/classrooms', '/score', '/reports', '/teachers', '/settings'];
 const adminOnlyRoutes = ['/teachers', '/settings'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes and static files
