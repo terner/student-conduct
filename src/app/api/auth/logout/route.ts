@@ -6,7 +6,8 @@ export async function GET() {
   await supabase.auth.signOut();
 
   const response = NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000'));
-  response.cookies.set('sb-auth-token', '', { maxAge: 0, path: '/' });
+  // Clear all auth cookies
+  response.cookies.set('supabase.auth.token', '', { maxAge: 0, path: '/' });
 
   return response;
 }

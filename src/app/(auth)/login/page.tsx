@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { School, LogIn, AlertCircle } from 'lucide-react';
@@ -10,10 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { loginEmailSchema, type LoginEmailInput } from '@/lib/validation/schemas';
-import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -31,30 +28,24 @@ export default function LoginPage() {
     setError('');
 
     try {
-      console.log('[Login] Starting login...', { email: data.email });
-      const supabase = createClient();
-      console.log('[Login] Supabase client created');
+      console.log('[Login] Calling API route...', { email: data.email });
 
-      const result = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email, password: data.password }),
       });
-      console.log('[Login] SignIn result:', result);
 
-      const { error: authError } = result;
+      const result = await res.json();
 
-      if (authError) {
-        console.error('[Login] Auth error:', authError);
-        setError(authError.message === 'Invalid login credentials'
-          ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
-          : 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+      if (!res.ok) {
+        console.error('[Login] API error:', result);
+        setError(result.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
         return;
       }
 
       console.log('[Login] Success! Redirecting...');
-      // Ensure cookies are synced before redirect
-      await supabase.auth.getSession();
-      // Use window.location for full page redirect so middleware reads cookies correctly
+      // Full page redirect so cookies are sent with the request
       window.location.href = '/';
     } catch (err) {
       console.error('[Login] Caught error:', err);
