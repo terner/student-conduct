@@ -100,7 +100,7 @@ export function buildQueryParams(
   if (!result.success) return new URLSearchParams();
 
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(result.data)) {
+  for (const [key, value] of Object.entries(result.data as Record<string, unknown>)) {
     if (value !== undefined && value !== null && value !== '') {
       params.set(key, String(value));
     }

@@ -1,0 +1,59 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { LogOut, User, Settings } from 'lucide-react'
+import Link from 'next/link'
+
+interface UserMenuProps {
+  firstName?: string
+  lastName?: string
+  role?: string
+}
+
+export function UserMenu({ firstName, lastName, role }: UserMenuProps) {
+  const router = useRouter()
+  const supabase = createClient()
+  const initials = `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="ghost" className="size-8 rounded-full p-0" />}>
+          <Avatar className="size-8">
+            <AvatarFallback className="text-xs">{initials || 'U'}</AvatarFallback>
+          </Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>
+          <div className="flex flex-col">
+            <span>{firstName} {lastName}</span>
+            <span className="text-xs text-muted-foreground capitalize">{role}</span>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link href="/settings" />}>
+          <User className="mr-2 size-4" />โปรไฟล์
+        </DropdownMenuItem>
+        {role === 'admin' && (
+          <DropdownMenuItem render={<Link href="/settings" />}>
+            <Settings className="mr-2 size-4" />ตั้งค่าระบบ
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="mr-2 size-4" />ออกจากระบบ
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}

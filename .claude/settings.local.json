@@ -72,7 +72,10 @@
       "Bash(rm -f .claude/rules/coding-style.md .claude/rules/hooks.md .claude/rules/patterns.md .claude/rules/security.md .claude/rules/testing.md .claude/rules/design-quality.md .claude/rules/performance.md)",
       "Bash(npm run *)",
       "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts, null, 2\\)\\)\")",
-      "Bash(mkdir -p .github/workflows)"
+      "Bash(mkdir -p .github/workflows)",
+      "Bash(npx shadcn@latest add sidebar breadcrumb skeleton dropdown-menu avatar switch checkbox tooltip popover command collapsible breadcrumb pagination progress calendar drawer hover-card scroll-area --yes)",
+      "Bash(npm ls *)",
+      "Bash(node *)"
     ]
   },
   "disabledMcpjsonServers": [
