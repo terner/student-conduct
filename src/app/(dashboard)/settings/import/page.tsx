@@ -49,7 +49,7 @@ export default function ImportPage() {
           <CardHeader>
             <CardTitle>อัปโหลดไฟล์ CSV</CardTitle>
             <CardDescription>
-              รองรับไฟล์ CSV ที่มีคอลัมน์: รหัสนักเรียน, ชื่อ, นามสกุล, ชั้นปี, ห้อง, เลขที่
+              รองรับไฟล์ CSV ที่มีคอลัมน์: รหัสนักเรียน, คำนำหน้า, ชื่อ, นามสกุล, ชั้นปี, ห้อง, เลขที่ในห้อง, ระดับ
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -132,31 +132,34 @@ export default function ImportPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>รหัสนักเรียน</TableHead>
+                <TableHead>คำนำหน้า</TableHead>
                 <TableHead>ชื่อ</TableHead>
                 <TableHead>นามสกุล</TableHead>
                 <TableHead>ชั้นปี</TableHead>
                 <TableHead>ห้อง</TableHead>
-                <TableHead>เลขที่</TableHead>
+                <TableHead>เลขที่ในห้อง</TableHead>
                 <TableHead>ระดับ</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow>
                 <TableCell className="font-mono text-xs">1234567890</TableCell>
+                <TableCell>เด็กชาย</TableCell>
                 <TableCell>สมชาย</TableCell>
                 <TableCell>ใจดี</TableCell>
                 <TableCell>1</TableCell>
                 <TableCell>ป.1/1</TableCell>
-                <TableCell>1</TableCell>
+                <TableCell>15</TableCell>
                 <TableCell>primary</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-mono text-xs">1234567891</TableCell>
+                <TableCell>เด็กหญิง</TableCell>
                 <TableCell>สมหญิง</TableCell>
                 <TableCell>รักเรียน</TableCell>
                 <TableCell>1</TableCell>
                 <TableCell>ป.1/1</TableCell>
-                <TableCell>2</TableCell>
+                <TableCell>16</TableCell>
                 <TableCell>primary</TableCell>
               </TableRow>
             </TableBody>
@@ -167,9 +170,9 @@ export default function ImportPage() {
             className="mt-2"
             onClick={() => {
               const blob = new Blob([
-                'รหัสนักเรียน,ชื่อ,นามสกุล,ชั้นปี,ห้อง,เลขที่,ระดับ\n' +
-                '1234567890,สมชาย,ใจดี,1,ป.1/1,1,primary\n' +
-                '1234567891,สมหญิง,รักเรียน,1,ป.1/1,2,primary\n'
+                'รหัสนักเรียน,คำนำหน้า,ชื่อ,นามสกุล,ชั้นปี,ห้อง,เลขที่ในห้อง,ระดับ\n' +
+                '1234567890,เด็กชาย,สมชาย,ใจดี,1,ป.1/1,15,primary\n' +
+                '1234567891,เด็กหญิง,สมหญิง,รักเรียน,1,ป.1/1,16,primary\n'
               ], { type: 'text/csv' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');

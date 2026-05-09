@@ -272,11 +272,12 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
       try {
         const row = rows[i];
         const studentId = String(row['รหัสนักเรียน'] || row['student_id'] || row['student_id_number'] || '');
+        const prefix = String(row['คำนำหน้า'] || row['prefix'] || '');
         const firstName = String(row['ชื่อ'] || row['first_name'] || '');
         const lastName = String(row['นามสกุล'] || row['last_name'] || '');
         const gradeLevel = Number(row['ชั้นปี'] || row['grade_level'] || 1);
         const classroomName = String(row['ห้อง'] || row['classroom'] || '');
-        const classNum = row['เลขที่'] || row['class_number'];
+        const classNum = row['เลขที่ในห้อง'] || row['เลขที่'] || row['class_number'];
         const classNumber = classNum !== undefined && classNum !== '' ? Number(classNum) : undefined;
         const status = String(row['สถานะ'] || row['status'] || 'active');
 
@@ -312,12 +313,14 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         }
 
         // Create profile
+        const fullName = prefix ? `${prefix}${firstName} ${lastName}` : `${firstName} ${lastName}`;
         const { data: profile } = await adminClient
           .from('profiles')
           .insert({
             user_id: authUser.user.id,
             role: 'student',
-            full_name: `${firstName} ${lastName}`,
+            full_name: fullName,
+            prefix: prefix || null,
             is_active: status === 'active',
           })
           .select('id')
