@@ -89,7 +89,7 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
                 </TableCell>
                 <TableCell>
                   <Link href={`/students/${student.id}`} className="font-medium hover:text-primary hover:underline">
-                    {student.first_name} {student.last_name}
+                    {student.prefix}{student.first_name} {student.last_name}
                   </Link>
                 </TableCell>
                 <TableCell>{student.classroom_name}</TableCell>

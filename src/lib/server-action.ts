@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createClientWithUser } from '@/lib/supabase/server';
 import { validateXSS } from '@/lib/security/validate-input';
 import { NextResponse } from 'next/server';
 
@@ -10,12 +10,14 @@ export type ActionResult<T = unknown> =
 
 /**
  * Get authenticated user's profile
+ *
+ * Uses createClientWithUser() to avoid the redundant
+ * setSession() + getUser() double call pattern.
  */
 export async function getAuthProfile() {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const { supabase, user } = await createClientWithUser();
 
-  if (authError || !user) {
+  if (!user) {
     return { profile: null, error: 'UNAUTHORIZED' as const };
   }
 

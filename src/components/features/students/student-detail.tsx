@@ -29,7 +29,7 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
             </div>
             <div>
               <dt className="text-muted-foreground">ชื่อ-นามสกุล</dt>
-              <dd className="font-medium">{student.first_name} {student.last_name}</dd>
+              <dd className="font-medium">{student.prefix}{student.first_name} {student.last_name}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">ห้องเรียน</dt>

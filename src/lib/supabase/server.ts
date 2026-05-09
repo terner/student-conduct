@@ -1,4 +1,4 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient, type User, type SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 const BASE64_PREFIX = 'base64-';
@@ -24,13 +24,11 @@ function decodeCookieValue(value: string): string | null {
   }
 }
 
-/**
- * Create a Supabase client for server-side usage (Server Components, Route Handlers, Server Actions).
- *
- * Reads the session from the `supabase.auth.token` cookie and sets it on the client.
- * This avoids the @supabase/ssr cookie chunking issues and works reliably.
- */
-export async function createClient() {
+// Internal helper to build a client and optionally resolve the session
+async function buildClient(): Promise<{
+  supabase: SupabaseClient<any, 'public', any>;
+  user: User | null;
+}> {
   const cookieStore = await cookies();
   const allCookies = cookieStore.getAll();
 
@@ -59,13 +57,39 @@ export async function createClient() {
     }
   );
 
-  // If we found a session, set it on the client
+  let user: User | null = null;
+
+  // setSession() validates/refreshes the token AND returns the user.
+  // This avoids a redundant getUser() call later.
   if (session?.access_token) {
-    await supabase.auth.setSession({
+    const { data } = await supabase.auth.setSession({
       access_token: session.access_token,
       refresh_token: session.refresh_token,
     });
+    user = data?.session?.user ?? null;
   }
 
+  return { supabase, user };
+}
+
+/**
+ * Create a Supabase client for server-side usage (Server Components, Route Handlers, Server Actions).
+ *
+ * Reads the session from the `supabase.auth.token` cookie and sets it on the client.
+ * This avoids the @supabase/ssr cookie chunking issues and works reliably.
+ */
+export async function createClient(): Promise<SupabaseClient<any, 'public', any>> {
+  const { supabase } = await buildClient();
   return supabase;
+}
+
+/**
+ * Like createClient() but also returns the authenticated user in one call,
+ * avoiding a redundant getUser() call (setSession() already returns the user).
+ */
+export async function createClientWithUser(): Promise<{
+  supabase: SupabaseClient<any, 'public', any>;
+  user: User | null;
+}> {
+  return buildClient();
 }

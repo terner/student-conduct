@@ -5,8 +5,7 @@ import { Users, GraduationCap, BookOpen, AlertTriangle, TrendingDown, TrendingUp
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
-import { getDashboardStats, getThresholdReport } from '@/lib/actions/report.action';
-import { getRecentScoreTransactions } from '@/lib/actions/score.action';
+import { getDashboard } from '@/lib/actions/dashboard.action';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
@@ -16,14 +15,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const [statsRes, txRes, thresholdRes] = await Promise.all([
-        getDashboardStats(),
-        getRecentScoreTransactions(10),
-        getThresholdReport(),
-      ]);
-      if (statsRes.success) setStats(statsRes.data);
-      if (txRes.success) setRecentTx(txRes.data || []);
-      if (thresholdRes.success) setAtRisk(thresholdRes.data?.students?.slice(0, 5) || []);
+      // Single consolidated call — replaces 3 separate server actions
+      const res = await getDashboard();
+      if (res.success) {
+        setStats(res.data.stats);
+        setRecentTx(res.data.recentTransactions || []);
+        setAtRisk(res.data.atRiskStudents?.slice(0, 5) || []);
+      }
       setLoading(false);
     }
     load();

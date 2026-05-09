@@ -1,7 +1,7 @@
 'use server';
 
 import { withAuth, type ActionResult } from '@/lib/server-action';
-import { listStudents, getStudentById, createStudent, updateStudent, getStudentScoreSummary, getStudentEnrollments } from '@/lib/db';
+import { listStudents, getStudentById, createStudent, updateStudent, archiveStudent, getStudentScoreSummary, getStudentEnrollments } from '@/lib/db';
 import { studentSchema, paginationSchema } from '@/lib/validation/schemas';
 import { validateXSS } from '@/lib/security/validate-input';
 import { createClient } from '@/lib/supabase/server';
@@ -33,6 +33,7 @@ export async function getStudent(id: string) {
 }
 
 export async function addStudent(data: {
+  prefix?: string;
   first_name: string;
   last_name: string;
   student_id_number: string;
@@ -58,7 +59,12 @@ export async function addStudent(data: {
       .single();
 
     const result = await createStudent({
-      ...validated,
+      prefix: validated.prefix,
+      first_name: validated.first_name,
+      last_name: validated.last_name,
+      student_id_number: validated.student_id_number,
+      classroom_id: validated.classroom_id,
+      class_number: validated.class_number,
       academic_year_id: acYear?.id,
     });
 
@@ -67,11 +73,13 @@ export async function addStudent(data: {
 }
 
 export async function editStudent(id: string, data: {
+  prefix?: string;
   first_name?: string;
   last_name?: string;
   student_id_number?: string;
   classroom_id?: string;
   current_status?: string;
+  class_number?: number;
 }) {
   return withAuth(async (profile) => {
     const xssCheck = validateXSS({ ...data });
@@ -99,14 +107,31 @@ export async function getStudentScoreInfo(studentId: string) {
   });
 }
 
-export async function getClassroomsForSelect() {
+export async function getClassroomsForSelect(academicYearId?: string) {
+  return withAuth(async () => {
+    const supabase = await createClient();
+    let query = supabase
+      .from('classrooms')
+      .select('id, name, grade_level, education_stage, academic_year_id')
+      .order('grade_level')
+      .order('name');
+
+    if (academicYearId) {
+      query = query.eq('academic_year_id', academicYearId);
+    }
+
+    const { data } = await query;
+    return { success: true, data: data || [] };
+  });
+}
+
+export async function getAcademicYears() {
   return withAuth(async () => {
     const supabase = await createClient();
     const { data } = await supabase
-      .from('classrooms')
-      .select('id, name, grade_level, education_stage')
-      .order('grade_level')
-      .order('name');
+      .from('academic_years')
+      .select('id, name, is_current, base_score')
+      .order('name', { ascending: false });
     return { success: true, data: data || [] };
   });
 }
@@ -151,6 +176,7 @@ export async function getStudentDashboard() {
       data: {
         student: {
           id: student.id,
+          prefix: (student.profiles as any)?.prefix || '',
           full_name: (student.profiles as any)?.full_name || '',
           student_id_number: student.student_id_number,
           classroom_name: (student.classrooms as any)?.name || '',
@@ -174,6 +200,21 @@ export async function getStudentDashboard() {
         })),
       },
     };
+  });
+}
+
+/**
+ * Archive (soft-delete) a student — sets status to 'inactive'
+ * Requires admin or teacher role.
+ */
+export async function deleteStudent(id: string) {
+  return withAuth(async (profile) => {
+    if (profile.role !== 'admin' && profile.role !== 'teacher') {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบและครูเท่านั้นที่สามารถลบข้อมูลนักเรียน' } };
+    }
+
+    await archiveStudent(id);
+    return { success: true, data: { id } };
   });
 }
 

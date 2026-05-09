@@ -38,8 +38,12 @@ export default function StudentDashboardPage() {
       {studentInfo && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">{studentInfo.classrooms?.name || 'ไม่ระบุชั้นเรียน'}</CardTitle>
-            <p className="text-sm text-muted-foreground">รหัสนักเรียน: {studentInfo.student_id_number}</p>
+            <CardTitle className="text-lg">
+              {studentInfo.prefix || ''}{studentInfo.full_name || ''}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {studentInfo.classroom_name || studentInfo.classrooms?.name || 'ไม่ระบุชั้นเรียน'} · รหัสนักเรียน: {studentInfo.student_id_number}
+            </p>
           </CardHeader>
         </Card>
       )}

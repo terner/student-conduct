@@ -83,7 +83,10 @@ export const profileSchema = z.object({
 });
 
 // ─── Student ───
+export const studentPrefixEnum = ['เด็กชาย', 'เด็กหญิง', 'นาย', 'นางสาว', 'นาง'] as const;
+
 export const studentSchema = z.object({
+  prefix: z.enum(studentPrefixEnum).default('เด็กชาย'),
   first_name: z
     .string()
     .min(2, errorMessages.tooShort(2))

@@ -1,22 +1,63 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getAcademicYears, getClassroomsForSelect } from '@/lib/actions/student.action';
 
 interface StudentSearchProps {
-  onSearch: (params: { search?: string; classroom_id?: string; grade_level?: string; education_stage?: string; status?: string }) => void;
-  classrooms?: { id: string; name: string; grade_level: number; education_stage: string }[];
+  onSearch: (params: { search?: string; classroom_id?: string; grade_level?: string; education_stage?: string; status?: string; academic_year?: string }) => void;
+  classrooms?: { id: string; name: string; grade_level: number; education_stage: string; academic_year_id?: string }[];
+  academicYears?: { id: string; name: string; is_current: boolean }[];
 }
 
-export function StudentSearch({ onSearch, classrooms }: StudentSearchProps) {
+interface ClassroomOption {
+  id: string;
+  name: string;
+  grade_level: number;
+  education_stage: string;
+}
+
+export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentSearchProps) {
   const [search, setSearch] = useState('');
   const [classroomId, setClassroomId] = useState('');
   const [gradeLevel, setGradeLevel] = useState('');
   const [educationStage, setEducationStage] = useState('');
   const [status, setStatus] = useState('');
+  const [academicYears, setAcademicYears] = useState<{ id: string; name: string; is_current: boolean }[]>([]);
+  const [selectedYearId, setSelectedYearId] = useState('');
+  const [filteredClassrooms, setFilteredClassrooms] = useState<ClassroomOption[]>([]);
+  const [loadingClassrooms, setLoadingClassrooms] = useState(false);
+
+  // Load academic years on mount
+  useEffect(() => {
+    getAcademicYears().then((res) => {
+      if (res.success && res.data) {
+        setAcademicYears(res.data);
+        const current = res.data.find((y: any) => y.is_current);
+        if (current) setSelectedYearId(current.id);
+        else if (res.data.length > 0) setSelectedYearId(res.data[0].id);
+      }
+    });
+  }, []);
+
+  // Load classrooms when year changes
+  useEffect(() => {
+    if (!selectedYearId) return;
+    setLoadingClassrooms(true);
+    getClassroomsForSelect(selectedYearId).then((res) => {
+      if (res.success && res.data) {
+        setFilteredClassrooms(res.data);
+      }
+    }).finally(() => setLoadingClassrooms(false));
+  }, [selectedYearId]);
+
+  // If classrooms provided via props, use those (filtered by year)
+  const displayClassrooms = propClassrooms && propClassrooms.length > 0
+    ? propClassrooms.filter(c => !selectedYearId || c.academic_year_id === selectedYearId)
+    : filteredClassrooms;
 
   const handleSearch = useCallback(() => {
     onSearch({
@@ -25,8 +66,9 @@ export function StudentSearch({ onSearch, classrooms }: StudentSearchProps) {
       grade_level: gradeLevel || undefined,
       education_stage: educationStage as 'primary' | 'secondary' | undefined,
       status: status || undefined,
+      academic_year: selectedYearId || undefined,
     });
-  }, [search, classroomId, gradeLevel, educationStage, status, onSearch]);
+  }, [search, classroomId, gradeLevel, educationStage, status, selectedYearId, onSearch]);
 
   const handleClear = useCallback(() => {
     setSearch('');
@@ -50,6 +92,22 @@ export function StudentSearch({ onSearch, classrooms }: StudentSearchProps) {
         />
       </div>
 
+      {/* Academic Year */}
+      <div className="w-[140px]">
+        <Select value={selectedYearId} onValueChange={(v) => v !== null && setSelectedYearId(v)}>
+          <SelectTrigger>
+            <SelectValue placeholder="ปีการศึกษา" />
+          </SelectTrigger>
+          <SelectContent>
+            {academicYears.map((y) => (
+              <SelectItem key={y.id} value={y.id}>
+                {y.name}{y.is_current ? ' (ปัจจุบัน)' : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="w-[140px]">
         <Select value={educationStage} onValueChange={(v) => v !== null && setEducationStage(v)}>
           <SelectTrigger>
@@ -70,24 +128,33 @@ export function StudentSearch({ onSearch, classrooms }: StudentSearchProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">ทั้งหมด</SelectItem>
-            {[1, 2, 3, 4, 5, 6].map((g) => (
+            {(!educationStage || educationStage === 'primary') && [1, 2, 3, 4, 5, 6].map((g) => (
               <SelectItem key={g} value={String(g)}>
                 ป.{g}
+              </SelectItem>
+            ))}
+            {(!educationStage || educationStage === 'secondary') && [7, 8, 9].map((g) => (
+              <SelectItem key={g} value={String(g)}>
+                ม.{g - 6}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {classrooms && (
+      {displayClassrooms && (
         <div className="w-[160px]">
-          <Select value={classroomId} onValueChange={(v) => v !== null && setClassroomId(v)}>
+          <Select
+            value={classroomId}
+            onValueChange={(v) => v !== null && setClassroomId(v)}
+            disabled={!selectedYearId || loadingClassrooms}
+          >
             <SelectTrigger>
-              <SelectValue placeholder="ห้องเรียน" />
+              <SelectValue placeholder={loadingClassrooms ? 'โหลด...' : 'ห้องเรียน'} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">ทั้งหมด</SelectItem>
-              {classrooms.map((c) => (
+              {displayClassrooms.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
                 </SelectItem>
@@ -108,6 +175,7 @@ export function StudentSearch({ onSearch, classrooms }: StudentSearchProps) {
             <SelectItem value="inactive">ไม่ active</SelectItem>
             <SelectItem value="transferred">ย้ายออก</SelectItem>
             <SelectItem value="graduated">จบการศึกษา</SelectItem>
+            <SelectItem value="suspended">พักการเรียน</SelectItem>
           </SelectContent>
         </Select>
       </div>
