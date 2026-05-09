@@ -102,7 +102,7 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="ออกจากระบบ" render={<Link href="/api/auth/logout" />}>
+            <SidebarMenuButton tooltip="ออกจากระบบ" render={<Link href="/api/auth/logout" prefetch={false} />}>
               <LogOut className="size-4" />
               <span>ออกจากระบบ</span>
             </SidebarMenuButton>
