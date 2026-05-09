@@ -295,8 +295,9 @@ export async function createStudent(data: {
   last_name: string;
   student_id_number: string;
   classroom_id: string;
-  class_number: number;
+  class_number?: number;
   academic_year_id?: string;
+  avatar_url?: string;
 }) {
   const supabase = await createClient();
 
@@ -322,6 +323,7 @@ export async function createStudent(data: {
       role: 'student',
       full_name: fullName,
       prefix: prefix || null,
+      avatar_url: data.avatar_url || null,
       is_active: true,
     })
     .select('id')
@@ -350,16 +352,19 @@ export async function createStudent(data: {
     throw studentError;
   }
 
-  // 4. Create enrollment
+  // 4. Create enrollment (class_number is optional)
+  const enrollmentData: Record<string, unknown> = {
+    student_id: student.id,
+    classroom_id: data.classroom_id,
+    enrollment_status: 'active',
+    source: 'manual',
+  };
+  if (data.class_number !== undefined) {
+    enrollmentData.class_number = data.class_number;
+  }
   const { error: enrollmentError } = await supabase
     .from('student_enrollments')
-    .insert({
-      student_id: student.id,
-      classroom_id: data.classroom_id,
-      class_number: data.class_number,
-      enrollment_status: 'active',
-      source: 'manual',
-    });
+    .insert(enrollmentData);
 
   if (enrollmentError) throw enrollmentError;
 
@@ -377,6 +382,7 @@ export async function updateStudent(id: string, data: {
   classroom_id?: string;
   current_status?: string;
   class_number?: number;
+  avatar_url?: string;
 }) {
   const supabase = await createClient();
 
@@ -422,6 +428,11 @@ export async function updateStudent(id: string, data: {
       const profileUpdate: Record<string, unknown> = { full_name: newFullName };
       if (data.prefix !== undefined) profileUpdate.prefix = data.prefix || null;
       if (data.first_name || data.last_name) profileUpdate.full_name = newFullName;
+
+      // Update avatar if provided
+      if (data.avatar_url !== undefined) {
+        profileUpdate.avatar_url = data.avatar_url || null;
+      }
 
       await supabase
         .from('profiles')

@@ -101,11 +101,10 @@ export const studentSchema = z.object({
     .string()
     .regex(studentIdRegex, errorMessages.invalidStudentId),
   classroom_id: z.string().min(1, errorMessages.required),
-  class_number: z
-    .number()
-    .int()
-    .min(1, errorMessages.invalidClassNumber)
-    .max(50, errorMessages.invalidClassNumber),
+  class_number: z.preprocess(
+    (val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
+    z.number().int().min(1, errorMessages.invalidClassNumber).max(50, errorMessages.invalidClassNumber).optional(),
+  ),
   current_status: z.enum(['active', 'inactive', 'transferred', 'graduated', 'suspended']).default('active'),
 });
 

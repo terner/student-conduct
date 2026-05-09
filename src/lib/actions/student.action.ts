@@ -38,7 +38,8 @@ export async function addStudent(data: {
   last_name: string;
   student_id_number: string;
   classroom_id: string;
-  class_number: number;
+  class_number?: number;
+  avatar_url?: string;
 }) {
   return withAuth(async (profile) => {
     // Validate
@@ -66,6 +67,7 @@ export async function addStudent(data: {
       classroom_id: validated.classroom_id,
       class_number: validated.class_number,
       academic_year_id: acYear?.id,
+      avatar_url: data.avatar_url,
     });
 
     return { success: true, data: result };
@@ -80,6 +82,7 @@ export async function editStudent(id: string, data: {
   classroom_id?: string;
   current_status?: string;
   class_number?: number;
+  avatar_url?: string;
 }) {
   return withAuth(async (profile) => {
     const xssCheck = validateXSS({ ...data });

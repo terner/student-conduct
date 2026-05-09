@@ -47,7 +47,7 @@ export default function StudentsPage() {
     fetchData(cleaned, 1);
   }, [fetchData]);
 
-  const handleAddStudent = async (formData: StudentInput) => {
+  const handleAddStudent = async (formData: StudentInput & { avatar_url?: string }) => {
     const result = await addStudent({
       prefix: formData.prefix,
       first_name: formData.first_name,
@@ -55,6 +55,7 @@ export default function StudentsPage() {
       student_id_number: formData.student_id_number,
       classroom_id: formData.classroom_id,
       class_number: formData.class_number,
+      avatar_url: formData.avatar_url,
     });
 
     if (result.success) {
@@ -66,7 +67,7 @@ export default function StudentsPage() {
     }
   };
 
-  const handleEditStudent = async (formData: StudentInput) => {
+  const handleEditStudent = async (formData: StudentInput & { avatar_url?: string }) => {
     if (!editingStudent) return;
     const result = await editStudent(editingStudent.id, {
       prefix: formData.prefix,
@@ -76,6 +77,7 @@ export default function StudentsPage() {
       classroom_id: formData.classroom_id,
       current_status: formData.current_status,
       class_number: formData.class_number,
+      avatar_url: formData.avatar_url,
     });
 
     if (result.success) {

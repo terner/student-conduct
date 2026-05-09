@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,9 +12,9 @@ import { studentSchema, studentPrefixEnum, type StudentInput } from '@/lib/valid
 import { getAcademicYears, getClassroomsForSelect } from '@/lib/actions/student.action';
 
 interface StudentFormProps {
-  defaultValues?: Partial<StudentInput>;
+  defaultValues?: Partial<StudentInput> & { avatar_url?: string };
   classrooms?: { id: string; name: string; grade_level: number; education_stage?: string; academic_year_id?: string }[];
-  onSubmit: (data: StudentInput) => Promise<void>;
+  onSubmit: (data: StudentInput & { avatar_url?: string }) => Promise<void>;
   onCancel?: () => void;
   loading?: boolean;
 }
@@ -47,6 +47,8 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   const [selectedYearId, setSelectedYearId] = useState<string>('');
   const [selectedGradeLevel, setSelectedGradeLevel] = useState<number | null>(null);
   const [loadingClassrooms, setLoadingClassrooms] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>(defaultValues?.avatar_url || '');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const {
     register,
@@ -137,8 +139,75 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     }
   }, [selectedYearId, loadClassrooms]);
 
+  // Upload avatar handler
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('ไฟล์ต้องมีขนาดไม่เกิน 2MB');
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('student_id', 'temp-' + Date.now());
+      const res = await fetch('/api/upload/avatar', { method: 'POST', body: formData });
+      const result = await res.json();
+      if (res.ok && result.url) {
+        setAvatarUrl(result.url);
+      } else {
+        alert(result.error || 'อัปโหลดไม่สำเร็จ');
+      }
+    } catch {
+      alert('เกิดข้อผิดพลาดในการอัปโหลด');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit((data) => onSubmit({ ...data, avatar_url: avatarUrl || undefined }))} className="space-y-4">
+      {/* รูปนักเรียน */}
+      <div className="space-y-2">
+        <Label>รูปนักเรียน</Label>
+        <div className="flex items-center gap-4">
+          {avatarUrl ? (
+            <div className="relative">
+              <img src={avatarUrl} alt="Student" className="size-16 rounded-full object-cover border" />
+              <button
+                type="button"
+                className="absolute -top-1 -right-1 rounded-full bg-destructive text-destructive-foreground p-0.5"
+                onClick={() => setAvatarUrl('')}
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="size-16 rounded-full border border-dashed flex items-center justify-center text-muted-foreground">
+              <ImageIcon className="size-6" />
+            </div>
+          )}
+          <label className="cursor-pointer">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+              {uploadingAvatar ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Upload className="size-4" />
+              )}
+              <span>{uploadingAvatar ? 'กำลังอัปโหลด...' : 'เลือกรูปภาพ'}</span>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploadingAvatar}
+              onChange={handleAvatarUpload}
+            />
+          </label>
+        </div>
+      </div>
+
       {/* Prefix + First Name + Last Name */}
       <div className="space-y-2">
         <Label>คำนำหน้า / ชื่อ-นามสกุล *</Label>
@@ -240,16 +309,16 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
         </div>
       </div>
 
-      {/* รหัสประจำตัวนักเรียน */}
+      {/* เลขที่ในห้องเรียน */}
       <div className="space-y-2">
-        <Label htmlFor="class_number">รหัสประจำตัว *</Label>
+        <Label htmlFor="class_number">เลขที่ในห้อง</Label>
         <Input
           id="class_number"
           type="number"
           min={1}
-          max={99999}
+          max={50}
           {...register('class_number', { valueAsNumber: true })}
-          placeholder="เช่น 12345"
+          placeholder="เช่น 15"
         />
         {errors.class_number && <p className="text-xs text-destructive">{errors.class_number.message}</p>}
       </div>

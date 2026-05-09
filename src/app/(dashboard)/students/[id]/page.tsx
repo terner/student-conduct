@@ -84,7 +84,7 @@ export default function StudentDetailPage() {
     }
   };
 
-  const handleEditStudent = async (formData: StudentInput) => {
+  const handleEditStudent = async (formData: StudentInput & { avatar_url?: string }) => {
     if (!student) return;
     const result = await editStudent(student.id, {
       prefix: formData.prefix,
@@ -94,6 +94,7 @@ export default function StudentDetailPage() {
       classroom_id: formData.classroom_id,
       current_status: formData.current_status,
       class_number: formData.class_number,
+      avatar_url: formData.avatar_url,
     });
 
     if (result.success) {
