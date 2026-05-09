@@ -32,10 +32,11 @@ export async function POST(request: Request) {
     });
 
     if (error) {
+      console.error('[Login API] signInWithPassword error:', error.message, error.status);
       const message = error.message === 'Invalid login credentials'
         ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
-        : 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
-      return NextResponse.json({ error: message }, { status: 401 });
+        : error.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
+      return NextResponse.json({ error: message, details: error.message }, { status: 401 });
     }
 
     if (!data.session) {
