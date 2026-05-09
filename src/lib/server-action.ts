@@ -51,7 +51,7 @@ export async function withAuth<T>(
         },
       };
     }
-    return handler(profile);
+    return await handler(profile);
   } catch (err) {
     return {
       success: false,
