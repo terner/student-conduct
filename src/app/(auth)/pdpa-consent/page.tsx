@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Check, X } from 'lucide-react';
+import { Shield, Check, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { acceptPDPA, getCurrentUserRole } from '@/lib/actions/dashboard.action';
@@ -10,6 +10,7 @@ import { acceptPDPA, getCurrentUserRole } from '@/lib/actions/dashboard.action';
 export default function PdpaConsentPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -17,24 +18,29 @@ export default function PdpaConsentPage() {
     getCurrentUserRole().then((res) => {
       if (res.success && res.data) {
         setUserRole(res.data.role);
+      } else {
+        setError('ไม่สามารถตรวจสอบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบอีกครั้ง');
       }
     });
   }, []);
 
   async function handleAccept() {
     setLoading(true);
+    setError('');
     try {
       const res = await acceptPDPA();
       if (res.success) {
+        // Redirect based on role
         if (userRole === 'student') {
-          router.push('/student/dashboard');
+          window.location.href = '/student/dashboard';
         } else {
-          router.push('/dashboard');
+          window.location.href = '/dashboard';
         }
-        router.refresh();
+      } else {
+        setError(res.error?.message || 'เกิดข้อผิดพลาดในการบันทึก');
       }
-    } catch {
-      // handled silently
+    } catch (err) {
+      setError('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
     } finally {
       setLoading(false);
     }
@@ -53,6 +59,12 @@ export default function PdpaConsentPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted-foreground">
+          {error && (
+            <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
           <p>
             โรงเรียนจัดเก็บข้อมูลส่วนบุคคลของท่านเพื่อใช้ในการดำเนินการด้านการศึกษา
             การบันทึกคะแนนความประพฤติ และการติดต่อสื่อสารที่เกี่ยวข้อง
