@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Bell, BellDot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { createClient } from '@/lib/supabase/client';
 
 interface Notification {
   id: string;
@@ -21,31 +20,26 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
 
   const load = useCallback(async () => {
-    const supabase = createClient();
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', (await supabase.auth.getUser()).data?.user?.id)
-      .single();
-    if (!profile) return;
-
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('recipient_id', profile.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    if (data) {
+    try {
+      const res = await fetch('/api/notifications');
+      if (!res.ok) return;
+      const json = await res.json();
+      const data = json.data ?? [];
       setNotifications(data);
-      setUnreadCount(data.filter((n) => !n.read_at).length);
+      setUnreadCount(data.filter((n: Notification) => !n.read_at).length);
+    } catch {
+      // silently fail — user may not be authenticated
     }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   async function markRead(id: string) {
-    const supabase = createClient();
-    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id);
+    await fetch('/api/notifications', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n)));
     setUnreadCount((prev) => Math.max(0, prev - 1));
   }
