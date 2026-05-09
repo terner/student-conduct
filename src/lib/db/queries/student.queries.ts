@@ -139,6 +139,19 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
 export async function getStudentScoreSummary(studentId: string, academicYearId?: string) {
   const supabase = await createClient();
 
+  // Get base score from academic year
+  let baseScore = 100;
+  if (academicYearId) {
+    const { data: acYear } = await supabase
+      .from('academic_years')
+      .select('base_score')
+      .eq('id', academicYearId)
+      .single();
+    if (acYear?.base_score) {
+      baseScore = acYear.base_score;
+    }
+  }
+
   let query = supabase
     .from('score_transactions')
     .select('points, status')
@@ -164,7 +177,8 @@ export async function getStudentScoreSummary(studentId: string, academicYearId?:
   return {
     total_deducted: totalDeducted,
     total_added: totalAdded,
-    current_score: 100 - totalDeducted + totalAdded,
+    current_score: baseScore - totalDeducted + totalAdded,
+    base_score: baseScore,
   };
 }
 
