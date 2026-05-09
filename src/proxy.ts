@@ -13,7 +13,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 🔧 DEV MODE: Allow all page access without auth
+  // Auth is enforced by server actions (withAuth wrapper) on each data request.
+  // Pages render the UI shell and server actions return UNAUTHORIZED if not logged in.
   return NextResponse.next();
 }
 
