@@ -86,7 +86,7 @@ export default function PdpaConsentPage() {
           </label>
         </CardContent>
         <CardFooter className="flex gap-2 justify-end">
-          <Button variant="outline" disabled={loading} render={<a href="/pdpa-rejected" />}>
+          <Button variant="outline" nativeButton={false} disabled={loading} render={<a href="/pdpa-rejected" />}>
             <X className="mr-2 h-4 w-4" />
             ไม่ยอมรับ
           </Button>

@@ -104,7 +104,7 @@ export default function ThresholdReportPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{s.threshold_action}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" render={<Link href={`/students/${s.student_id}`} />}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" nativeButton={false} render={<Link href={`/students/${s.student_id}`} />}>
                         <Eye className="h-3 w-3" />
                       </Button>
                     </TableCell>

@@ -46,7 +46,7 @@ export default function LoginPage() {
 
       console.log('[Login] Success! Redirecting...');
       // Full page redirect so cookies are sent with the request
-      window.location.href = '/';
+      window.location.href = '/dashboard';
     } catch (err) {
       console.error('[Login] Caught error:', err);
       setError('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');

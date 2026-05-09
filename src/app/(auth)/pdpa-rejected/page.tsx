@@ -26,7 +26,7 @@ export default function PdpaRejectedPage() {
           </p>
         </CardContent>
         <CardFooter className="justify-center">
-          <Button variant="outline" render={<Link href="/pdpa-consent" />}>
+          <Button variant="outline" nativeButton={false} render={<Link href="/pdpa-consent" />}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             กลับไปหน้ายินยอม
           </Button>

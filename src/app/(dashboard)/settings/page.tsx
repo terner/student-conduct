@@ -182,7 +182,7 @@ export default function SettingsPage() {
               <CardDescription>นำเข้าและส่งออกข้อมูล</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button variant="outline" render={<a href="/settings/import" />}>
+              <Button variant="outline" nativeButton={false} render={<a href="/settings/import" />}>
                 <Download className="mr-2 h-4 w-4" />
                 นำเข้านักเรียนจาก CSV
               </Button>
