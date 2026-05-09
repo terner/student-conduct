@@ -5,16 +5,16 @@ import { withAuth, getAuthProfile, checkPermission } from '../server-action';
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockEq = vi.fn();
-const mockSingle = vi.fn();
+const mockMaybeSingle = vi.fn();
 
 const mockSupabase = {
   from: mockFrom,
 };
 
-// Helper to build a chain: .from('table').select().eq('col', val).single()
+// Helper to build a chain: .from('table').select().eq('col', val).maybeSingle()
 function buildChain(result: unknown) {
-  mockSingle.mockResolvedValue({ data: result, error: null });
-  mockEq.mockReturnValue({ single: mockSingle });
+  mockMaybeSingle.mockResolvedValue({ data: result, error: null });
+  mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
   mockSelect.mockReturnValue({ eq: mockEq });
   mockFrom.mockReturnValue({ select: mockSelect });
 }
@@ -72,9 +72,22 @@ describe('getAuthProfile', () => {
     expect(result.error).toBe('UNAUTHORIZED');
   });
 
+  it('returns UNAUTHORIZED when user exists but has no id (prevents user_id=eq.undefined)', async () => {
+    // Simulate the edge case where setSession() returns a user object without id
+    const mod = await import('@/lib/supabase/server');
+    vi.mocked(mod.createClientWithUser).mockResolvedValueOnce({
+      supabase: mockSupabase,
+      user: { email: 'test@school.com' } as any, // missing id!
+    });
+
+    const result = await getAuthProfile();
+    expect(result.profile).toBeNull();
+    expect(result.error).toBe('UNAUTHORIZED');
+  });
+
   it('returns FORBIDDEN when profile not found', async () => {
-    mockSingle.mockResolvedValue({ data: null, error: null });
-    mockEq.mockReturnValue({ single: mockSingle });
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ select: mockSelect });
 
@@ -190,9 +203,16 @@ describe('checkPermission', () => {
     vi.clearAllMocks();
   });
 
+  beforeEach(() => {
+    mockMaybeSingle.mockReset();
+    mockEq.mockReset();
+    mockSelect.mockReset();
+    mockFrom.mockReset();
+  });
+
   it('returns true for admin role', async () => {
-    mockSingle.mockResolvedValue({ data: { role: 'admin' }, error: null });
-    mockEq.mockReturnValue({ single: mockSingle });
+    mockMaybeSingle.mockResolvedValue({ data: { role: 'admin' }, error: null });
+    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ select: mockSelect });
 
@@ -201,8 +221,8 @@ describe('checkPermission', () => {
   });
 
   it('returns true for teacher with explicit permission', async () => {
-    mockSingle.mockResolvedValue({ data: { role: 'teacher' }, error: null });
-    mockEq.mockReturnValue({ single: mockSingle });
+    mockMaybeSingle.mockResolvedValue({ data: { role: 'teacher' }, error: null });
+    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ select: mockSelect });
 
@@ -211,8 +231,8 @@ describe('checkPermission', () => {
   });
 
   it('returns false for teacher without permission', async () => {
-    mockSingle.mockResolvedValue({ data: { role: 'teacher' }, error: null });
-    mockEq.mockReturnValue({ single: mockSingle });
+    mockMaybeSingle.mockResolvedValue({ data: { role: 'teacher' }, error: null });
+    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ select: mockSelect });
 
@@ -221,8 +241,8 @@ describe('checkPermission', () => {
   });
 
   it('returns false for student with admin permission', async () => {
-    mockSingle.mockResolvedValue({ data: { role: 'student' }, error: null });
-    mockEq.mockReturnValue({ single: mockSingle });
+    mockMaybeSingle.mockResolvedValue({ data: { role: 'student' }, error: null });
+    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ select: mockSelect });
 
@@ -231,8 +251,8 @@ describe('checkPermission', () => {
   });
 
   it('returns true for student viewing own', async () => {
-    mockSingle.mockResolvedValue({ data: { role: 'student' }, error: null });
-    mockEq.mockReturnValue({ single: mockSingle });
+    mockMaybeSingle.mockResolvedValue({ data: { role: 'student' }, error: null });
+    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ select: mockSelect });
 
@@ -241,8 +261,8 @@ describe('checkPermission', () => {
   });
 
   it('returns false when profile not found', async () => {
-    mockSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
-    mockEq.mockReturnValue({ single: mockSingle });
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
+    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ select: mockSelect });
 

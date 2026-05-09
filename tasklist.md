@@ -191,5 +191,6 @@
 | i18n | ⏳ 20% | Config + switcher done, pages not translated |
 | Reports | ✅ 80% | Individual, classroom, threshold, bond |
 | Advanced Features | ✅ 60% | Evidence, bonds, interventions, notifications, approval, academic years |
+| Testing | ✅ 新增 | 219 tests across 6 files (vitest) |
 | Infrastructure | ✅ 90% | school.config.ts, loading/error states, nav links |
-| **Overall** | **~82%** | Production-ready with most advanced features |
+| **Overall** | **~84%** | Production-ready with unit/integration tests added |

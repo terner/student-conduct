@@ -21,11 +21,16 @@ export async function getAuthProfile() {
     return { profile: null, error: 'UNAUTHORIZED' as const };
   }
 
+  // Defensive: user object exists but id is undefined (edge case from setSession)
+  if (!user.id) {
+    return { profile: null, error: 'UNAUTHORIZED' as const };
+  }
+
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('user_id', user.id)
-    .single();
+    .maybeSingle();
 
   if (!profile || !profile.is_active) {
     return { profile: null, error: 'FORBIDDEN' as const };
@@ -77,7 +82,7 @@ export async function checkPermission(
     .from('profiles')
     .select('role')
     .eq('id', profileId)
-    .single();
+    .maybeSingle();
 
   if (!profile) return false;
   if (profile.role === 'admin') return true;

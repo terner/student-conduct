@@ -30,17 +30,29 @@ export async function getDashboard() {
 /**
  * Check if the current user has accepted PDPA consent.
  * Returns the consent status or null if not found.
+ *
+ * Uses admin client (service_role_key) to bypass RLS because:
+ *  - The user is already authenticated via withAuth()
+ *  - In the custom cookie auth flow, supabase.setSession() may not
+ *    properly propagate the JWT to the REST API, causing auth.uid()
+ *    to be undefined in RLS policies (resulting in user_id=eq.undefined)
+ *  - Application-level auth is sufficient here — withAuth already verified
+ *    the user's identity before this function runs
  */
 export async function checkPDPAConsent() {
   return withAuth(async (profile) => {
-    const supabase = await createClient();
-    const { data } = await supabase
+    const adminClient = await createAdminClient();
+    const { data, error } = await adminClient
       .from('pdpa_consents')
       .select('accepted, created_at')
       .eq('subject_id', profile.id)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    if (error) {
+      return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    }
 
     if (!data) {
       return { success: true, data: { consented: false } };
