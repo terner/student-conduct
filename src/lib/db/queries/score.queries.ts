@@ -8,6 +8,7 @@ export interface ScoreTransactionWithDetails extends ScoreTransaction {
   category_type?: 'deduct' | 'add';
   recorded_by_name?: string;
   classroom_name?: string;
+  classroom_grade?: number;
 }
 
 export interface ScoreListParams {
@@ -55,7 +56,11 @@ export async function listScoreTransactions(params: ScoreListParams = {}) {
     .from('score_transactions')
     .select(`
       *,
-      students!inner(student_id_number),
+      students!inner(
+        student_id_number,
+        profiles!students_profile_id_fkey(full_name),
+        classrooms!inner(name, grade_level)
+      ),
       score_categories!inner(name, type),
       profiles!score_transactions_recorded_by_fkey(full_name)
     `, { count: 'exact' });
@@ -102,6 +107,9 @@ export async function listScoreTransactions(params: ScoreListParams = {}) {
     voided_at: t.voided_at as string | undefined,
     void_reason: t.void_reason as string | undefined,
     student_id_number: (t.students as Record<string, unknown>)?.student_id_number as string || '',
+    student_name: ((t.students as Record<string, unknown>)?.profiles as Record<string, unknown>)?.full_name as string || '',
+    classroom_name: ((t.students as Record<string, unknown>)?.classrooms as Record<string, unknown>)?.name as string || '',
+    classroom_grade: ((t.students as Record<string, unknown>)?.classrooms as Record<string, unknown>)?.grade_level as number || 0,
     category_name: (t.score_categories as Record<string, unknown>)?.name as string || '',
     category_type: (t.score_categories as Record<string, unknown>)?.type as 'deduct' | 'add' || 'deduct',
     recorded_by_name: (t.profiles as Record<string, unknown>)?.full_name as string || '',

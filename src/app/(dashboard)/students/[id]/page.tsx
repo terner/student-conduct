@@ -2,24 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, AlertCircle, Edit3 } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Edit3, ClipboardPlus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { StudentDetail } from '@/components/features/students/student-detail';
 import { StudentForm } from '@/components/features/students/student-form';
 import { getStudent, editStudent } from '@/lib/actions/student.action';
-import { getStudentSummary } from '@/lib/actions/score.action';
+import { getStudentSummary, getCategories, recordScore } from '@/lib/actions/score.action';
 import { getIndividualReport } from '@/lib/actions/report.action';
 import { toast } from 'sonner';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 import type { StudentInput } from '@/lib/validation/schemas';
+import type { ScoreCategory } from '@/types';
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'กำลังศึกษา' },
@@ -38,6 +42,12 @@ export default function StudentDetailPage() {
   const [error, setError] = useState('');
   const [showEditForm, setShowEditForm] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
+  const [categories, setCategories] = useState<ScoreCategory[]>([]);
+  const [showRecordDialog, setShowRecordDialog] = useState(false);
+  const [recordCategory, setRecordCategory] = useState('');
+  const [recordPoints, setRecordPoints] = useState(5);
+  const [recordNote, setRecordNote] = useState('');
+  const [recording, setRecording] = useState(false);
 
   const loadData = async () => {
     const id = params.id as string;
@@ -60,10 +70,42 @@ export default function StudentDetailPage() {
   useEffect(() => {
     async function load() {
       await loadData();
+      // Load categories for score recording
+      const catRes = await getCategories();
+      if (catRes.success && catRes.data) setCategories(catRes.data);
       setLoading(false);
     }
     load();
   }, [params.id]);
+
+  const handleRecordScore = async () => {
+    if (!student || !recordCategory || recordPoints <= 0) return;
+    setRecording(true);
+    try {
+      const cat = categories.find(c => c.id === recordCategory);
+      const points = cat?.type === 'deduct' ? -Math.abs(recordPoints) : Math.abs(recordPoints);
+      const res = await recordScore({
+        student_id: student.id,
+        category_id: recordCategory,
+        points,
+        note: recordNote || undefined,
+      });
+      if (res.success) {
+        toast('บันทึกคะแนนสำเร็จ');
+        setShowRecordDialog(false);
+        setRecordCategory('');
+        setRecordPoints(5);
+        setRecordNote('');
+        await loadData();
+      } else {
+        toast('เกิดข้อผิดพลาด', { description: res.error?.message });
+      }
+    } catch {
+      toast('เกิดข้อผิดพลาด');
+    } finally {
+      setRecording(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus: string | null) => {
     if (!newStatus) return;
@@ -142,10 +184,16 @@ export default function StudentDetailPage() {
             <p className="text-muted-foreground text-sm">รหัสนักเรียน: {student.student_id_number}</p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => setShowEditForm(true)}>
-          <Edit3 className="mr-2 h-4 w-4" />
-          แก้ไขข้อมูล
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => { setRecordCategory(''); setRecordPoints(5); setRecordNote(''); setShowRecordDialog(true); }}>
+            <ClipboardPlus className="mr-2 h-4 w-4" />
+            บันทึกคะแนน
+          </Button>
+          <Button variant="outline" onClick={() => setShowEditForm(true)}>
+            <Edit3 className="mr-2 h-4 w-4" />
+            แก้ไขข้อมูล
+          </Button>
+        </div>
       </div>
 
       <StudentDetail student={student} scoreSummary={reportData?.summary} />
@@ -232,6 +280,93 @@ export default function StudentDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Record Score Dialog */}
+      <Dialog open={showRecordDialog} onOpenChange={setShowRecordDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>บันทึกคะแนน</DialogTitle>
+            <DialogDescription>
+              {student?.prefix}{student?.first_name} {student?.last_name} ({student?.student_id_number})
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs font-medium text-destructive">หักคะแนน</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {categories.filter(c => c.type === 'deduct').map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { setRecordCategory(c.id); setRecordPoints(Math.abs(c.default_points)); }}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-all ${
+                      recordCategory === c.id
+                        ? 'border-destructive bg-destructive/5 text-destructive font-medium'
+                        : 'hover:bg-accent'
+                    }`}
+                  >
+                    <span className="flex-1 text-left truncate">{c.name}</span>
+                    <span className="font-mono shrink-0">-{Math.abs(c.default_points)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-medium text-green-600">เพิ่มคะแนน</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {categories.filter(c => c.type === 'add').map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { setRecordCategory(c.id); setRecordPoints(Math.abs(c.default_points)); }}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-all ${
+                      recordCategory === c.id
+                        ? 'border-green-600 bg-green-50 text-green-700 font-medium'
+                        : 'hover:bg-accent'
+                    }`}
+                  >
+                    <span className="flex-1 text-left truncate">{c.name}</span>
+                    <span className="font-mono shrink-0">+{Math.abs(c.default_points)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>คะแนน</Label>
+              <Input
+                type="number"
+                min={1}
+                max={999}
+                value={recordPoints}
+                onChange={e => setRecordPoints(Number(e.target.value))}
+                className="w-24"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>หมายเหตุ</Label>
+              <Textarea
+                value={recordNote}
+                onChange={e => setRecordNote(e.target.value)}
+                placeholder="รายละเอียดเพิ่มเติม..."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowRecordDialog(false)}>
+              ยกเลิก
+            </Button>
+            <Button onClick={handleRecordScore} disabled={!recordCategory || recordPoints <= 0 || recording}>
+              {recording && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              บันทึก
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={showEditForm} onOpenChange={(open) => !open && setShowEditForm(false)}>

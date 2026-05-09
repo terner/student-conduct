@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, FileText, UserCheck, Ban, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,6 +12,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import type { ScoreTransactionWithDetails } from '@/lib/db/queries/score.queries';
 
 interface ScoreTransactionTableProps {
@@ -39,6 +40,7 @@ export function ScoreTransactionTable({
   const [voidDialog, setVoidDialog] = useState<{ open: boolean; transactionId: string }>({ open: false, transactionId: '' });
   const [voidReason, setVoidReason] = useState('');
   const [voidLoading, setVoidLoading] = useState(false);
+  const [detailTx, setDetailTx] = useState<ScoreTransactionWithDetails | null>(null);
 
   if (loading) {
     return (
@@ -95,7 +97,11 @@ export function ScoreTransactionTable({
             {data.map((t) => {
               const StatusIcon = statusConfig[t.status]?.icon;
               return (
-                <TableRow key={t.id}>
+                <TableRow
+                  key={t.id}
+                  className="cursor-pointer hover:bg-accent/50"
+                  onClick={() => setDetailTx(t)}
+                >
                   <TableCell className="text-xs whitespace-nowrap">
                     {new Date(t.recorded_at).toLocaleDateString('th-TH')}
                   </TableCell>
@@ -117,7 +123,7 @@ export function ScoreTransactionTable({
                     </Badge>
                   </TableCell>
                   {showActions && (
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
                         {t.status === 'pending' && onApprove && (
                           <Button
@@ -130,7 +136,7 @@ export function ScoreTransactionTable({
                             <CheckCircle className="h-4 w-4" />
                           </Button>
                         )}
-                        {t.status === 'approved' && onVoid && (
+                        {t.status === 'pending' && onVoid && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -183,6 +189,187 @@ export function ScoreTransactionTable({
               {voidLoading ? 'กำลังดำเนินการ...' : 'ยืนยันยกเลิก'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!detailTx} onOpenChange={(open) => { if (!open) setDetailTx(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              รายละเอียดรายการคะแนน
+            </DialogTitle>
+          </DialogHeader>
+          {detailTx && (
+            <div className="space-y-4">
+              {/* Status badge */}
+              <div className="flex justify-between items-center">
+                <Badge variant="outline" className={statusConfig[detailTx.status]?.color || ''}>
+                  {statusConfig[detailTx.status]?.icon && (() => { const Icon = statusConfig[detailTx.status].icon; return <Icon className="mr-1 h-3 w-3 inline" />; })()}
+                  {statusConfig[detailTx.status]?.label || detailTx.status}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  ID: {detailTx.id.slice(0, 8)}...
+                </span>
+              </div>
+
+              <Separator />
+
+              {/* Student info */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <User className="h-3.5 w-3.5" />
+                    <span>ชื่อ-นามสกุล</span>
+                  </div>
+                  <p className="text-sm font-medium">{detailTx.student_name || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Hash className="h-3.5 w-3.5" />
+                    <span>รหัสนักเรียน</span>
+                  </div>
+                  <p className="text-sm font-mono">{detailTx.student_id_number || '-'}</p>
+                </div>
+              </div>
+
+              {/* Classroom */}
+              {(detailTx.classroom_name || detailTx.classroom_grade) && (
+                <div className="flex items-center gap-1.5 text-sm">
+                  <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">ห้องเรียน:</span>
+                  <span className="font-medium">{detailTx.classroom_name || ''} {detailTx.classroom_grade ? `(ป.${detailTx.classroom_grade})` : ''}</span>
+                </div>
+              )}
+
+              <Separator />
+
+              {/* Score details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>หมวดคะแนน</span>
+                  </div>
+                  <p className="text-sm font-medium">{detailTx.category_name}</p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span>ประเภท</span>
+                  </div>
+                  <Badge variant="outline" className={detailTx.category_type === 'deduct' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}>
+                    {detailTx.category_type === 'deduct' ? 'ตัดคะแนน' : 'เพิ่มคะแนน'}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <span>คะแนน</span>
+                </div>
+                <p className={`text-xl font-bold ${(detailTx.points || 0) > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  {(detailTx.points || 0) > 0 ? `+${detailTx.points}` : detailTx.points}
+                  {' '}คะแนน
+                </p>
+              </div>
+
+              {detailTx.note && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>หมายเหตุ</span>
+                  </div>
+                  <p className="text-sm bg-muted/50 rounded-md p-2">{detailTx.note}</p>
+                </div>
+              )}
+
+              <Separator />
+
+              {/* Timestamps */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>บันทึกเมื่อ</span>
+                  </div>
+                  <p>{new Date(detailTx.recorded_at).toLocaleString('th-TH')}</p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <User className="h-3.5 w-3.5" />
+                    <span>บันทึกโดย</span>
+                  </div>
+                  <p>{detailTx.recorded_by_name || '-'}</p>
+                </div>
+              </div>
+
+              {detailTx.status === 'approved' && detailTx.approved_at && (
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span>อนุมัติเมื่อ</span>
+                    </div>
+                    <p>{new Date(detailTx.approved_at).toLocaleString('th-TH')}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <UserCheck className="h-3.5 w-3.5" />
+                      <span>อนุมัติโดย</span>
+                    </div>
+                    <p>{detailTx.approved_by || '-'}</p>
+                  </div>
+                </div>
+              )}
+
+              {detailTx.status === 'voided' && (
+                <div className="space-y-2 rounded-md bg-destructive/5 p-3">
+                  <div className="flex items-center gap-1.5 text-sm text-destructive">
+                    <Ban className="h-3.5 w-3.5" />
+                    <span className="font-medium">รายการถูกยกเลิก</span>
+                  </div>
+                  {detailTx.void_reason && (
+                    <p className="text-sm text-muted-foreground ml-5">เหตุผล: {detailTx.void_reason}</p>
+                  )}
+                  {detailTx.voided_at && (
+                    <p className="text-xs text-muted-foreground ml-5">
+                      เมื่อ {new Date(detailTx.voided_at).toLocaleString('th-TH')}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <DialogFooter className="gap-2">
+                {detailTx.status === 'pending' && (
+                  <>
+                    {onApprove && (
+                      <Button
+                        variant="default"
+                        onClick={() => { onApprove(detailTx.id); setDetailTx(null); }}
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        อนุมัติ
+                      </Button>
+                    )}
+                    {onVoid && (
+                      <Button
+                        variant="destructive"
+                        onClick={() => { setVoidDialog({ open: true, transactionId: detailTx.id }); setDetailTx(null); }}
+                      >
+                        <XCircle className="mr-2 h-4 w-4" />
+                        ปฏิเสธ
+                      </Button>
+                    )}
+                  </>
+                )}
+                <Button variant="outline" onClick={() => setDetailTx(null)}>
+                  ปิด
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

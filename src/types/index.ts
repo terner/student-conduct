@@ -54,7 +54,7 @@ export interface Student {
   last_name?: string;
   classroom_name?: string;
   grade_level?: number;
-  education_stage?: 'primary' | 'secondary';
+  education_stage_name?: string;
 }
 
 export interface StudentEnrollment {
@@ -72,7 +72,8 @@ export interface StudentEnrollment {
 export interface Classroom {
   id: string;
   name: string;
-  education_stage: 'primary' | 'secondary';
+  education_stage_id: string;
+  education_stage_name?: string;
   grade_level: number;
   academic_year: string;
 }

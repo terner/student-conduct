@@ -14,7 +14,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // Use @supabase/supabase-js directly for authentication
+    // Create admin client for user lookup (uses SERVICE_ROLE_KEY)
+    const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false,
+        },
+      }
+    );
+
+    // Create anon client for sign-in
     const supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_ANON_KEY!,
@@ -32,7 +45,7 @@ export async function POST(request: Request) {
     let loginEmail = email;
     if (student_id) {
       // Look up the student's profile by their student_id_number
-      const { data: studentData, error: studentError } = await supabase
+      const { data: studentData, error: studentError } = await supabaseAdmin
         .from('students')
         .select('profile_id')
         .eq('student_id_number', student_id)
@@ -45,8 +58,8 @@ export async function POST(request: Request) {
         );
       }
 
-      // Get the email from auth.users via profiles
-      const { data: profileData, error: profileError } = await supabase
+      // Get the profile's user_id
+      const { data: profileData, error: profileError } = await supabaseAdmin
         .from('profiles')
         .select('user_id')
         .eq('id', studentData.profile_id)
@@ -59,8 +72,8 @@ export async function POST(request: Request) {
         );
       }
 
-      // Get the user's email from auth.users (admin API)
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(profileData.user_id);
+      // Get the user's email from auth.users (requires service_role key)
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(profileData.user_id);
       if (userError || !userData?.user?.email) {
         return NextResponse.json(
           { error: 'ไม่พบอีเมลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ' },
@@ -91,18 +104,6 @@ export async function POST(request: Request) {
     }
 
     // Look up the user's profile for role and must_change_password
-    const supabaseAdmin = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-          detectSessionInUrl: false,
-        },
-      }
-    );
-
     const { data: profileData } = await supabaseAdmin
       .from('profiles')
       .select('id, role, is_active, must_change_password, full_name')
@@ -151,7 +152,7 @@ export async function POST(request: Request) {
       path: '/',
       maxAge,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: request.headers.get('x-forwarded-proto') === 'https',
       httpOnly: false,
     });
 

@@ -10,7 +10,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let schoolLogo: string | undefined = undefined
   let firstName: string | undefined
   let lastName: string | undefined
-  let role: string | undefined
+  let role: string | string[] | undefined
   let email: string | undefined
 
   try {
@@ -56,7 +56,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <SidebarProvider>
-      <AppSidebar schoolName={schoolName} schoolLogo={schoolLogo} />
+      <AppSidebar schoolName={schoolName} schoolLogo={schoolLogo} role={role} />
       <SidebarInset className="flex flex-1 flex-col">
         <TopBar title="แดชบอร์ด" firstName={firstName} lastName={lastName} role={role} email={email} />
         <main className="flex-1 overflow-y-auto">{children}</main>

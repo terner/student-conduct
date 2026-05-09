@@ -58,7 +58,7 @@ export default function ClassroomDetailPage() {
         <div>
           <h1 className="text-2xl font-bold">{classroom?.name}</h1>
           <p className="text-muted-foreground text-sm">
-            {classroom?.education_stage === 'primary' ? 'ประถมศึกษา' : 'มัธยมศึกษา'} · ป.{classroom?.grade_level} · {classroom?.student_count} คน
+            {classroom?.education_stage_name || 'ไม่ระบุ'} · ชั้น {classroom?.grade_level} · {classroom?.student_count} คน
           </p>
         </div>
       </div>

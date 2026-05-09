@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
@@ -10,10 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { studentSchema, studentPrefixEnum, type StudentInput } from '@/lib/validation/schemas';
 import { getAcademicYears, getClassroomsForSelect } from '@/lib/actions/student.action';
+import { getEducationStages } from '@/lib/actions/education-stage.action';
 
 interface StudentFormProps {
   defaultValues?: Partial<StudentInput> & { avatar_url?: string };
-  classrooms?: { id: string; name: string; grade_level: number; education_stage?: string; academic_year_id?: string }[];
+  classrooms?: { id: string; name: string; grade_level: number; education_stage_id?: string; academic_year_id?: string }[];
   onSubmit: (data: StudentInput & { avatar_url?: string }) => Promise<void>;
   onCancel?: () => void;
   loading?: boolean;
@@ -29,8 +30,13 @@ interface ClassroomOption {
   id: string;
   name: string;
   grade_level: number;
-  education_stage?: string;
+  education_stage_id: string;
   academic_year_id?: string;
+}
+
+interface StageOption {
+  id: string;
+  name_th: string;
 }
 
 const PREFIX_LABELS: Record<string, string> = {
@@ -44,6 +50,7 @@ const PREFIX_LABELS: Record<string, string> = {
 export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmit, onCancel, loading }: StudentFormProps) {
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [availableClassrooms, setAvailableClassrooms] = useState<ClassroomOption[]>([]);
+  const [stages, setStages] = useState<StageOption[]>([]);
   const [selectedYearId, setSelectedYearId] = useState<string>('');
   const [selectedGradeLevel, setSelectedGradeLevel] = useState<number | null>(null);
   const [loadingClassrooms, setLoadingClassrooms] = useState(false);
@@ -85,6 +92,13 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     ? displayClassrooms.filter(c => c.grade_level === selectedGradeLevel)
     : displayClassrooms;
 
+  // Stage name map for display
+  const stageNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    stages.forEach(s => map.set(s.id, s.name_th));
+    return map;
+  }, [stages]);
+
   // Safe value for Base UI Select: null when no valid classroom is selected
   const safeClassroomValue = classroomId && filteredClassrooms.some(c => c.id === classroomId)
     ? classroomId
@@ -98,24 +112,30 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     ? watch('current_status')
     : null;
 
-  // Get stage label for a given grade level
+  // Get stage label for a given grade level using stage name
   function formatGradeLabel(gradeLevel: number): string {
     const classroom = displayClassrooms.find(c => c.grade_level === gradeLevel);
-    const stage = classroom?.education_stage || 'primary';
-    return stage === 'primary' ? `ประถมศึกษาปีที่ ${gradeLevel}` : `มัธยมศึกษาปีที่ ${gradeLevel}`;
+    const stageName = classroom?.education_stage_id ? stageNameMap.get(classroom.education_stage_id) : '';
+    return stageName ? `${stageName} ชั้น ${gradeLevel}` : `ชั้น ${gradeLevel}`;
   }
 
-  // Load academic years on mount, auto-select current year
+  // Load academic years and stages on mount, auto-select current year
   useEffect(() => {
-    getAcademicYears().then((res) => {
-      if (res.success && res.data) {
-        setAcademicYears(res.data);
-        const current = res.data.find((y: AcademicYear) => y.is_current);
+    Promise.all([
+      getAcademicYears(),
+      getEducationStages(),
+    ]).then(([yearRes, stageRes]) => {
+      if (yearRes.success && yearRes.data) {
+        setAcademicYears(yearRes.data);
+        const current = yearRes.data.find((y: AcademicYear) => y.is_current);
         if (current) {
           setSelectedYearId(current.id);
-        } else if (res.data.length > 0) {
-          setSelectedYearId(res.data[0].id);
+        } else if (yearRes.data.length > 0) {
+          setSelectedYearId(yearRes.data[0].id);
         }
+      }
+      if (stageRes.success && stageRes.data) {
+        setStages(stageRes.data);
       }
     });
   }, []);

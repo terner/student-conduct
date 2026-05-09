@@ -14,7 +14,7 @@ export const errorMessages = {
   invalidStudentId: 'รหัสนักเรียนต้องเป็นตัวเลข 10 หลัก',
   invalidName: 'ชื่อต้องเป็นภาษาไทยหรือภาษาอังกฤษเท่านั้น',
   invalidPoints: 'คะแนนต้องอยู่ระหว่าง 1-999',
-  invalidGradeLevel: 'ชั้นปีต้องอยู่ระหว่าง 1-6',
+  invalidGradeLevel: 'ชั้นปีต้องอยู่ระหว่าง 1-12',
   invalidClassNumber: 'เลขที่ต้องอยู่ระหว่าง 1-50',
   invalidUrl: 'รูปแบบ URL ไม่ถูกต้อง',
   passwordTooWeak: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร ประกอบด้วยพิมพ์เล็ก พิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ',
@@ -114,8 +114,8 @@ export const studentImportSchema = z.object({
   class_number: z.coerce.number().int().min(1).max(50),
   first_name: z.string().min(2).max(50),
   last_name: z.string().min(2).max(50),
-  education_stage: z.enum(['primary', 'secondary']),
-  grade_level: z.coerce.number().int().min(1, errorMessages.invalidGradeLevel).max(6, errorMessages.invalidGradeLevel),
+  education_stage_id: z.string().uuid(),
+  grade_level: z.coerce.number().int().min(1, errorMessages.invalidGradeLevel).max(12, errorMessages.invalidGradeLevel),
   classroom: z.string().min(1),
   status: z.enum(['active', 'inactive']).default('active'),
 });
@@ -183,12 +183,12 @@ export const classroomSchema = z.object({
     .string()
     .min(3, errorMessages.tooShort(3))
     .max(20, errorMessages.tooLong(20)),
-  education_stage: z.enum(['primary', 'secondary']),
+  education_stage_id: z.string().uuid(),
   grade_level: z
     .number()
     .int()
     .min(1, errorMessages.invalidGradeLevel)
-    .max(6, errorMessages.invalidGradeLevel),
+    .max(12, errorMessages.invalidGradeLevel),
   academic_year: z.string().min(4, 'ปีการศึกษาไม่ถูกต้อง'),
 });
 

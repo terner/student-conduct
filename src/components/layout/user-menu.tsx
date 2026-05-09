@@ -7,11 +7,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { LogOut, User, Settings, Lock } from 'lucide-react'
 import Link from 'next/link'
+import { displayRole } from '@/lib/security/roles'
 
 interface UserMenuProps {
   firstName?: string
   lastName?: string
-  role?: string
+  role?: string | string[]
   email?: string
 }
 
@@ -19,6 +20,10 @@ export function UserMenu({ firstName, lastName, role, email }: UserMenuProps) {
   // Use name initials; fall back to email first char
   const displayName = [firstName, lastName].filter(Boolean).join(' ') || email?.split('@')[0] || ''
   const initials = `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}` || email?.charAt(0).toUpperCase() || 'U'
+
+  // Handle both string and string[] role
+  const roles = Array.isArray(role) ? role : role ? [role] : []
+  const isAdmin = roles.includes('admin')
 
   return (
     <DropdownMenu>
@@ -32,7 +37,7 @@ export function UserMenu({ firstName, lastName, role, email }: UserMenuProps) {
           <DropdownMenuLabel>
             <div className="flex flex-col">
               <span>{displayName}</span>
-              {role && <span className="text-xs text-muted-foreground capitalize">{role}</span>}
+              {role && <span className="text-xs text-muted-foreground">{displayRole(role)}</span>}
               {email && <span className="text-xs text-muted-foreground">{email}</span>}
             </div>
           </DropdownMenuLabel>
@@ -44,7 +49,7 @@ export function UserMenu({ firstName, lastName, role, email }: UserMenuProps) {
         <DropdownMenuItem render={<Link href="/change-password" />}>
           <Lock className="mr-2 size-4" />เปลี่ยนรหัสผ่าน
         </DropdownMenuItem>
-        {role === 'admin' && (
+        {isAdmin && (
           <DropdownMenuItem render={<Link href="/settings" />}>
             <Settings className="mr-2 size-4" />ตั้งค่าระบบ
           </DropdownMenuItem>

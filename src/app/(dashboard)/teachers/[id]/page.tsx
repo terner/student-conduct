@@ -103,7 +103,7 @@ export default function TeacherDetailPage() {
                       <div>
                         <p className="text-sm font-medium">{c.classroom_name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {c.education_stage === 'primary' ? 'ประถม' : 'มัธยม'}ศึกษา ป.{c.grade_level}
+                          {c.education_stage_name || '-'} ชั้น {c.grade_level}
                         </p>
                       </div>
                     </div>

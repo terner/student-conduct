@@ -61,7 +61,7 @@ export default function ClassroomsPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>{editItem ? 'แก้ไขห้องเรียน' : 'เพิ่มห้องเรียน'}</DialogTitle></DialogHeader>
           <ClassroomForm
-            defaultValues={editItem ? { name: editItem.name, education_stage: editItem.education_stage, grade_level: editItem.grade_level, academic_year: editItem.academic_year } : undefined}
+            defaultValues={editItem ? { name: editItem.name, education_stage_id: editItem.education_stage_id, grade_level: editItem.grade_level, academic_year: editItem.academic_year } : undefined}
             onSubmit={handleSubmit}
             onCancel={() => { setShowForm(false); setEditItem(null); }}
           />

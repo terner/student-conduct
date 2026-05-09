@@ -124,7 +124,7 @@ export async function getIndividualReport(studentId: string) {
       .select(`
         *,
         profiles!inner(full_name),
-        classrooms!inner(name, grade_level, education_stage)
+        classrooms!inner(name, grade_level, education_stage_id)
       `)
       .eq('id', studentId)
       .single();
@@ -157,7 +157,7 @@ export async function getIndividualReport(studentId: string) {
           student_id_number: student.student_id_number,
           classroom_name: (student.classrooms as any)?.name || '',
           grade_level: (student.classrooms as any)?.grade_level,
-          education_stage: (student.classrooms as any)?.education_stage,
+          education_stage_id: (student.classrooms as any)?.education_stage_id,
         },
         academic_year: acYear?.name || '',
         base_score: acYear?.base_score || 100,
@@ -219,7 +219,7 @@ export async function getClassroomReport(classroomId: string) {
           classroom: {
             id: (classroom as any).id,
             name: (classroom as any).name,
-            education_stage: (classroom as any).education_stage,
+            education_stage_id: (classroom as any).education_stage_id,
             grade_level: (classroom as any).grade_level,
           },
           academic_year: acYear?.name || '',
@@ -293,7 +293,7 @@ export async function getClassroomReport(classroomId: string) {
         classroom: {
           id: (classroom as any).id,
           name: (classroom as any).name,
-          education_stage: (classroom as any).education_stage,
+          education_stage_id: (classroom as any).education_stage_id,
           grade_level: (classroom as any).grade_level,
         },
         academic_year: acYear?.name || '',

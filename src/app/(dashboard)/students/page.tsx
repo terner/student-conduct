@@ -119,7 +119,7 @@ export default function StudentsPage() {
       s.last_name,
       s.classroom_name,
       String(s.grade_level),
-      s.education_stage === 'primary' ? 'ประถม' : 'มัธยม',
+      s.education_stage_name || '-',
       s.current_status === 'active' ? 'กำลังศึกษา' : s.current_status,
     ]);
 

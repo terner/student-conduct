@@ -1,6 +1,7 @@
 'use server';
 
 import { withAuth, type ActionResult } from '@/lib/server-action';
+import { hasRole } from '@/lib/security/roles';
 import { listStudents, getStudentById, createStudent, updateStudent, archiveStudent, getStudentScoreSummary, getStudentEnrollments } from '@/lib/db';
 import { studentSchema, paginationSchema, studentImportSchema } from '@/lib/validation/schemas';
 import { validateXSS } from '@/lib/security/validate-input';
@@ -12,7 +13,7 @@ export async function getStudents(params: {
   search?: string;
   classroom_id?: string;
   grade_level?: number;
-  education_stage?: 'primary' | 'secondary';
+  education_stage_id?: string;
   status?: string;
 }) {
   return withAuth(async (profile) => {
@@ -115,7 +116,7 @@ export async function getClassroomsForSelect(academicYearId?: string) {
     const supabase = await createClient();
     let query = supabase
       .from('classrooms')
-      .select('id, name, grade_level, education_stage, academic_year_id')
+      .select('id, name, grade_level, education_stage_id, academic_year_id')
       .order('grade_level')
       .order('name');
 
@@ -154,7 +155,7 @@ export async function getStudentDashboard() {
     // Get student record linked to this profile
     const { data: student } = await supabase
       .from('students')
-      .select('id, student_id_number, profiles!inner(full_name), classrooms!inner(name, grade_level, education_stage)')
+      .select('id, student_id_number, profiles!inner(full_name), classrooms!inner(name, grade_level, education_stage_id)')
       .eq('profile_id', profile.id)
       .single();
 
@@ -184,7 +185,7 @@ export async function getStudentDashboard() {
           student_id_number: student.student_id_number,
           classroom_name: (student.classrooms as any)?.name || '',
           grade_level: (student.classrooms as any)?.grade_level,
-          education_stage: (student.classrooms as any)?.education_stage,
+          education_stage_id: (student.classrooms as any)?.education_stage_id,
         },
         summary: {
           current_score: baseScore - totalDeducted + totalAdded,
@@ -212,7 +213,7 @@ export async function getStudentDashboard() {
  */
 export async function deleteStudent(id: string) {
   return withAuth(async (profile) => {
-    if (profile.role !== 'admin' && profile.role !== 'teacher') {
+    if (!hasRole(profile, 'admin') && !hasRole(profile, 'teacher')) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบและครูเท่านั้นที่สามารถลบข้อมูลนักเรียน' } };
     }
 
@@ -230,7 +231,7 @@ export async function getStudentListForSelect() {
         id,
         student_id_number,
         profiles!inner(full_name),
-        classrooms!inner(name)
+        classrooms!inner(name, grade_level, education_stage_id)
       `)
       .eq('current_status', 'active')
       .order('profiles(full_name)');
@@ -242,6 +243,8 @@ export async function getStudentListForSelect() {
         student_id_number: s.student_id_number as string,
         full_name: (s.profiles as Record<string, unknown>)?.full_name as string || '',
         classroom_name: (s.classrooms as Record<string, unknown>)?.name as string || '',
+        grade_level: (s.classrooms as Record<string, unknown>)?.grade_level as number || 0,
+        education_stage_id: (s.classrooms as Record<string, unknown>)?.education_stage_id as string || '',
       })),
     };
   });
@@ -253,7 +256,7 @@ export async function getStudentListForSelect() {
  */
 export async function importStudentsCsv(rows: Record<string, unknown>[]) {
   return withAuth(async (profile) => {
-    if (profile.role !== 'admin') {
+    if (!hasRole(profile, 'admin')) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
     }
 

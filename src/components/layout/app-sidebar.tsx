@@ -2,43 +2,66 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen,
   ClipboardPlus, FileText, Settings, School, AlertTriangle,
   LogOut, Tags, CheckCircle2, FileSignature, Phone,
-  CalendarDays,
+  CalendarDays, History,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
   SidebarGroupContent, SidebarGroupLabel, SidebarHeader,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { getRoles } from '@/lib/security/roles'
 
-const navigation = [
-  { label: 'แดชบอร์ด', icon: LayoutDashboard, href: '/dashboard' },
-  { label: 'นักเรียน', icon: Users, href: '/students' },
-  { label: 'ห้องเรียน', icon: GraduationCap, href: '/classrooms' },
-  { label: 'บันทึกคะแนน', icon: ClipboardPlus, href: '/score/record' },
-  { label: 'หมวดหมู่คะแนน', icon: Tags, href: '/score/categories' },
-  { label: 'รออนุมัติ', icon: CheckCircle2, href: '/score/approval' },
-  { label: 'รายงาน', icon: FileText, href: '/reports' },
-  { label: 'ครู', icon: BookOpen, href: '/teachers' },
-  { label: 'บันทึกติดต่อ', icon: Phone, href: '/interventions' },
-  { label: 'ทัณฑ์บน', icon: FileSignature, href: '/reports/bond' },
-  { label: 'ตั้งค่า', icon: Settings, href: '/settings' },
-] as const
-
-const alertItems = [
-  { label: 'นักเรียนถึงเกณฑ์', icon: AlertTriangle, href: '/reports/threshold' },
-] as const
+interface NavItem {
+  label: string
+  icon: any
+  href: string
+  group: 'main' | 'alert'
+  /** Which roles can see this item. Omit = everyone (admin+teacher). */
+  roles?: ('admin' | 'teacher')[]
+}
 
 interface AppSidebarProps {
   schoolName?: string
   schoolLogo?: string
+  role?: string | string[] | null
 }
 
-export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo }: AppSidebarProps) {
+export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo, role }: AppSidebarProps) {
   const pathname = usePathname()
+  const t = useTranslations('nav')
+  const userRoles = getRoles(role ? { role } : { role: undefined })
+
+  /** Check if the current user has access based on item role requirements */
+  function hasAccess(itemRoles?: ('admin' | 'teacher')[]): boolean {
+    if (!itemRoles || itemRoles.length === 0) return true // no restriction = admin+teacher
+    return itemRoles.some(r => userRoles.includes(r))
+  }
+
+  const allNavigation: (NavItem & { group: 'main' | 'alert' })[] = [
+    // Main menu — visible to both admin + teacher unless roles specified
+    { label: t('dashboard'), icon: LayoutDashboard, href: '/dashboard', roles: ['admin'], group: 'main' },
+    { label: t('students'), icon: Users, href: '/students', roles: ['admin'], group: 'main' },
+    { label: t('classrooms'), icon: GraduationCap, href: '/classrooms', roles: ['admin'], group: 'main' },
+    { label: t('recordScore'), icon: ClipboardPlus, href: '/score/record', group: 'main' },
+    { label: t('scoreHistory'), icon: History, href: '/score/history', group: 'main' },
+    { label: t('scoreCategories'), icon: Tags, href: '/score/categories', roles: ['admin'], group: 'main' },
+    { label: t('pendingApproval'), icon: CheckCircle2, href: '/score/approval', roles: ['admin'], group: 'main' },
+    { label: t('reports'), icon: FileText, href: '/reports', group: 'main' },
+    { label: t('teachers'), icon: BookOpen, href: '/teachers', roles: ['admin'], group: 'main' },
+    { label: t('contactLog'), icon: Phone, href: '/interventions', group: 'main' },
+    { label: t('bond'), icon: FileSignature, href: '/reports/bond', roles: ['admin'], group: 'main' },
+    { label: t('settings'), icon: Settings, href: '/settings', roles: ['admin'], group: 'main' },
+    // Alert group
+    { label: t('threshold'), icon: AlertTriangle, href: '/reports/threshold', group: 'alert' },
+  ]
+
+  const mainNavItems = allNavigation.filter(i => i.group === 'main' && hasAccess(i.roles))
+  const alertNavItems = allNavigation.filter(i => i.group === 'alert' && hasAccess(i.roles))
 
   return (
     <Sidebar collapsible="icon">
@@ -55,7 +78,7 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
                 <span className="font-semibold truncate max-w-[140px]">{schoolName}</span>
-                <span className="text-xs text-sidebar-foreground/60">ระบบความประพฤติ</span>
+                <span className="text-xs text-sidebar-foreground/60">{t('subtitle')}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -64,10 +87,10 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>เมนูหลัก</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('mainMenu')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigation.map((item) => {
+              {mainNavItems.map((item) => {
                 const Icon = item.icon
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
                 return (
@@ -84,10 +107,10 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>การแจ้งเตือน</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('alerts')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {alertItems.map((item) => {
+              {alertNavItems.map((item) => {
                 const Icon = item.icon
                 const isActive = pathname === item.href
                 return (
@@ -107,9 +130,9 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="ออกจากระบบ" render={<Link href="/api/auth/logout" prefetch={false} />}>
+            <SidebarMenuButton tooltip={t('logout')} render={<Link href="/api/auth/logout" prefetch={false} />}>
               <LogOut className="size-4" />
-              <span>ออกจากระบบ</span>
+              <span>{t('logout')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

@@ -7,7 +7,7 @@ export interface TeacherWithProfile extends Teacher {
   assigned_classrooms?: {
     classroom_id: string;
     classroom_name: string;
-    education_stage: string;
+    education_stage_name: string;
     grade_level: number;
     assignment_role: string;
   }[];
@@ -27,7 +27,7 @@ export async function listTeachers(params: { search?: string; department?: strin
       teacher_classrooms(
         classroom_id,
         assignment_role,
-        classrooms(name, education_stage, grade_level)
+        classrooms!inner(name, education_stage_id, grade_level)
       )
     `);
 
@@ -39,6 +39,22 @@ export async function listTeachers(params: { search?: string; department?: strin
 
   if (error) throw error;
 
+  // Resolve education stage names in batch
+  const stageIds = new Set<string>();
+  for (const t of (data || [])) {
+    for (const tc of (t.teacher_classrooms as Array<Record<string, unknown>> || [])) {
+      const stageId = (tc.classrooms as Record<string, unknown>)?.education_stage_id as string;
+      if (stageId) stageIds.add(stageId);
+    }
+  }
+  const { data: stages } = stageIds.size > 0
+    ? await supabase.from('education_stages').select('id, name_th').in('id', Array.from(stageIds))
+    : { data: null };
+  const stageNameMap = new Map<string, string>();
+  if (stages) {
+    for (const s of stages) stageNameMap.set(s.id, s.name_th);
+  }
+
   return (data || []).map((t: Record<string, unknown>) => ({
     id: t.id as string,
     profile_id: t.profile_id as string,
@@ -46,13 +62,16 @@ export async function listTeachers(params: { search?: string; department?: strin
     department: t.department as string | undefined,
     full_name: (t.profiles as Record<string, unknown>)?.full_name as string || '',
     email: '', // Would need auth.users join
-    assigned_classrooms: ((t.teacher_classrooms as Array<Record<string, unknown>>) || []).map((tc: Record<string, unknown>) => ({
-      classroom_id: tc.classroom_id as string,
-      classroom_name: (tc.classrooms as Record<string, unknown>)?.name as string || '',
-      education_stage: (tc.classrooms as Record<string, unknown>)?.education_stage as string || '',
-      grade_level: (tc.classrooms as Record<string, unknown>)?.grade_level as number || 0,
-      assignment_role: tc.assignment_role as string || 'homeroom',
-    })),
+    assigned_classrooms: ((t.teacher_classrooms as Array<Record<string, unknown>>) || []).map((tc: Record<string, unknown>) => {
+      const classroomData = tc.classrooms as Record<string, unknown> || {};
+      return {
+        classroom_id: tc.classroom_id as string,
+        classroom_name: classroomData.name as string || '',
+        education_stage_name: stageNameMap.get(classroomData.education_stage_id as string) || '',
+        grade_level: classroomData.grade_level as number || 0,
+        assignment_role: tc.assignment_role as string || 'homeroom',
+      };
+    }),
   })) as TeacherWithProfile[];
 }
 
@@ -70,13 +89,27 @@ export async function getTeacherById(id: string): Promise<TeacherWithProfile | n
       teacher_classrooms(
         classroom_id,
         assignment_role,
-        classrooms(name, education_stage, grade_level)
+        classrooms!inner(name, education_stage_id, grade_level)
       )
     `)
     .eq('id', id)
     .single();
 
   if (error || !data) return null;
+
+  // Resolve stage names
+  const stageIds = new Set<string>();
+  for (const tc of (data.teacher_classrooms || [])) {
+    const stageId = (tc.classrooms as Record<string, unknown>)?.education_stage_id as string;
+    if (stageId) stageIds.add(stageId);
+  }
+  const { data: stages } = stageIds.size > 0
+    ? await supabase.from('education_stages').select('id, name_th').in('id', Array.from(stageIds))
+    : { data: null };
+  const stageNameMap = new Map<string, string>();
+  if (stages) {
+    for (const s of stages) stageNameMap.set(s.id, s.name_th);
+  }
 
   return {
     id: data.id,
@@ -85,13 +118,16 @@ export async function getTeacherById(id: string): Promise<TeacherWithProfile | n
     department: data.department,
     full_name: data.profiles?.full_name || '',
     email: '',
-    assigned_classrooms: (data.teacher_classrooms || []).map((tc: Record<string, unknown>) => ({
-      classroom_id: tc.classroom_id as string,
-      classroom_name: (tc.classrooms as Record<string, unknown>)?.name as string || '',
-      education_stage: (tc.classrooms as Record<string, unknown>)?.education_stage as string || '',
-      grade_level: (tc.classrooms as Record<string, unknown>)?.grade_level as number || 0,
-      assignment_role: tc.assignment_role as string || 'homeroom',
-    })),
+    assigned_classrooms: (data.teacher_classrooms || []).map((tc: Record<string, unknown>) => {
+      const classroomData = tc.classrooms as Record<string, unknown> || {};
+      return {
+        classroom_id: tc.classroom_id as string,
+        classroom_name: classroomData.name as string || '',
+        education_stage_name: stageNameMap.get(classroomData.education_stage_id as string) || '',
+        grade_level: classroomData.grade_level as number || 0,
+        assignment_role: tc.assignment_role as string || 'homeroom',
+      };
+    }),
   };
 }
 

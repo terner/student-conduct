@@ -1,6 +1,7 @@
 'use server';
 
 import { withAuth } from '@/lib/server-action';
+import { hasRole } from '@/lib/security/roles';
 import {
   listTeachers,
   getTeacherById,
@@ -37,7 +38,7 @@ export async function addTeacher(data: {
   department?: string;
 }) {
   return withAuth(async (profile) => {
-    if (profile.role !== 'admin') {
+    if (!hasRole(profile, 'admin')) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
     }
 
@@ -65,7 +66,7 @@ export async function editTeacher(id: string, data: {
   is_active?: boolean;
 }) {
   return withAuth(async (profile) => {
-    if (profile.role !== 'admin') {
+    if (!hasRole(profile, 'admin')) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
     }
 
@@ -80,7 +81,7 @@ export async function assignClassroom(data: {
   assignment_role?: string;
 }) {
   return withAuth(async (profile) => {
-    if (profile.role !== 'admin') {
+    if (!hasRole(profile, 'admin')) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
     }
 
@@ -96,7 +97,7 @@ export async function assignClassroom(data: {
 
 export async function unassignClassroom(teacherId: string, classroomId: string) {
   return withAuth(async (profile) => {
-    if (profile.role !== 'admin') {
+    if (!hasRole(profile, 'admin')) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
     }
 

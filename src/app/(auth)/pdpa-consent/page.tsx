@@ -12,7 +12,7 @@ export default function PdpaConsentPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [accepted, setAccepted] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | string[] | null>(null);
 
   useEffect(() => {
     getCurrentUserRole().then((res) => {
@@ -30,11 +30,12 @@ export default function PdpaConsentPage() {
     try {
       const res = await acceptPDPA();
       if (res.success) {
-        // Redirect based on role
-        if (userRole === 'student') {
-          window.location.href = '/student/dashboard';
+        // Redirect based on role (role is string[] from DB)
+        const roles = Array.isArray(userRole) ? userRole : userRole ? [userRole] : []
+        if (roles.includes('student') && !roles.includes('admin') && !roles.includes('teacher')) {
+          window.location.href = '/student/dashboard'
         } else {
-          window.location.href = '/dashboard';
+          window.location.href = '/dashboard'
         }
       } else {
         setError(res.error?.message || 'เกิดข้อผิดพลาดในการบันทึก');

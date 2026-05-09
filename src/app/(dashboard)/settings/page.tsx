@@ -253,6 +253,10 @@ export default function SettingsPage() {
                 <CalendarDays className="mr-2 h-4 w-4" />
                 จัดการปีการศึกษา
               </Button>
+              <Button variant="outline" nativeButton={false} render={<a href="/settings/education-stages" />}>
+                <ListChecks className="mr-2 h-4 w-4" />
+                จัดการระดับชั้น
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

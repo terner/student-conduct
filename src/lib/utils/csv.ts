@@ -93,7 +93,7 @@ export function mapCsvRowToStudent(row: Record<string, unknown>) {
     class_number: Number(row['เลขที่ในห้อง'] || row['เลขที่'] || row['class_number'] || 0),
     first_name: String(row['ชื่อ'] || row['first_name'] || ''),
     last_name: String(row['นามสกุล'] || row['last_name'] || ''),
-    education_stage: String(row['ระดับ'] || row['education_stage'] || 'primary'),
+    education_stage_id: String(row['ระดับ'] || row['education_stage_id'] || row['education_stage'] || ''),
     grade_level: Number(row['ชั้นปี'] || row['grade_level'] || 1),
     classroom: String(row['ห้อง'] || row['classroom'] || ''),
     status: String(row['สถานะ'] || row['status'] || 'active'),

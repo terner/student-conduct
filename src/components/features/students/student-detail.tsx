@@ -41,7 +41,7 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
             </div>
             <div>
               <dt className="text-muted-foreground">ระดับ</dt>
-              <dd>{student.education_stage === 'primary' ? 'ประถมศึกษา' : 'มัธยมศึกษา'}</dd>
+              <dd>{student.education_stage_name || '-'}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">สถานะ</dt>

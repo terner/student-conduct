@@ -94,7 +94,7 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
                 </TableCell>
                 <TableCell>{student.classroom_name}</TableCell>
                 <TableCell>{student.grade_level}</TableCell>
-                <TableCell>{student.education_stage === 'primary' ? 'ประถม' : 'มัธยม'}</TableCell>
+                <TableCell>{student.education_stage_name || '-'}</TableCell>
                 <TableCell>
                   <Badge className={statusColors[student.current_status] || ''} variant="outline">
                     {statusLabels[student.current_status] || student.current_status}

@@ -10,7 +10,7 @@ export interface ClassroomWithDetails extends Classroom {
  * List all classrooms
  */
 export async function listClassrooms(params: {
-  education_stage?: 'primary' | 'secondary';
+  education_stage_id?: string;
   grade_level?: number;
   academic_year_id?: string;
 } = {}) {
@@ -19,12 +19,17 @@ export async function listClassrooms(params: {
   let query = supabase
     .from('classrooms')
     .select(`
-      *,
-      academic_years(name)
+      id,
+      name,
+      education_stage_id,
+      grade_level,
+      academic_year_id,
+      academic_years(name),
+      education_stages(name_th)
     `);
 
-  if (params.education_stage) {
-    query = query.eq('education_stage', params.education_stage);
+  if (params.education_stage_id) {
+    query = query.eq('education_stage_id', params.education_stage_id);
   }
   if (params.grade_level) {
     query = query.eq('grade_level', params.grade_level);
@@ -34,32 +39,31 @@ export async function listClassrooms(params: {
   }
 
   const { data, error } = await query
-    .order('education_stage', { ascending: true })
     .order('grade_level', { ascending: true })
     .order('name', { ascending: true });
 
   if (error) throw error;
 
-  // Get student counts for each classroom
   const classrooms: ClassroomWithDetails[] = [];
   for (const c of (data || [])) {
     const { count: studentCount } = await supabase
       .from('students')
       .select('*', { count: 'exact', head: true })
-      .eq('classroom_id', c.id)
+      .eq('classroom_id', c.id as string)
       .eq('current_status', 'active');
 
     const { count: teacherCount } = await supabase
       .from('teacher_classrooms')
       .select('*', { count: 'exact', head: true })
-      .eq('classroom_id', c.id);
+      .eq('classroom_id', c.id as string);
 
     classrooms.push({
-      id: c.id,
-      name: c.name,
-      education_stage: c.education_stage,
-      grade_level: c.grade_level,
-      academic_year: c.academic_years?.name || '',
+      id: c.id as string,
+      name: c.name as string,
+      education_stage_id: c.education_stage_id as string,
+      education_stage_name: ((c.education_stages as unknown as Record<string, unknown>)?.name_th as string) || '',
+      grade_level: c.grade_level as number,
+      academic_year: ((c.academic_years as unknown as Record<string, unknown>)?.name as string) || '',
       student_count: studentCount || 0,
       teacher_count: teacherCount || 0,
     });
@@ -77,8 +81,13 @@ export async function getClassroomById(id: string): Promise<ClassroomWithDetails
   const { data, error } = await supabase
     .from('classrooms')
     .select(`
-      *,
-      academic_years(name)
+      id,
+      name,
+      education_stage_id,
+      grade_level,
+      academic_year_id,
+      academic_years(name),
+      education_stages(name_th)
     `)
     .eq('id', id)
     .single();
@@ -97,11 +106,12 @@ export async function getClassroomById(id: string): Promise<ClassroomWithDetails
     .eq('classroom_id', id);
 
   return {
-    id: data.id,
-    name: data.name,
-    education_stage: data.education_stage,
-    grade_level: data.grade_level,
-    academic_year: data.academic_years?.name || '',
+    id: data.id as string,
+    name: data.name as string,
+    education_stage_id: data.education_stage_id as string,
+    education_stage_name: ((data.education_stages as unknown as Record<string, unknown>)?.name_th as string) || '',
+    grade_level: data.grade_level as number,
+    academic_year: ((data.academic_years as unknown as Record<string, unknown>)?.name as string) || '',
     student_count: studentCount || 0,
     teacher_count: teacherCount || 0,
   };
@@ -112,7 +122,7 @@ export async function getClassroomById(id: string): Promise<ClassroomWithDetails
  */
 export async function createClassroom(data: {
   name: string;
-  education_stage: 'primary' | 'secondary';
+  education_stage_id: string;
   grade_level: number;
   academic_year_id: string;
 }) {
@@ -122,7 +132,7 @@ export async function createClassroom(data: {
     .from('classrooms')
     .insert({
       name: data.name,
-      education_stage: data.education_stage,
+      education_stage_id: data.education_stage_id,
       grade_level: data.grade_level,
       academic_year_id: data.academic_year_id,
     })
@@ -141,7 +151,7 @@ export async function updateClassroom(id: string, data: Partial<Classroom>) {
 
   const updateData: Record<string, unknown> = {};
   if (data.name) updateData.name = data.name;
-  if (data.education_stage) updateData.education_stage = data.education_stage;
+  if (data.education_stage_id) updateData.education_stage_id = data.education_stage_id;
   if (data.grade_level) updateData.grade_level = data.grade_level;
 
   if (Object.keys(updateData).length > 0) {

@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 import { securityHeaders } from "@/lib/security/headers";
+
+const withNextIntl = createNextIntlPlugin();
 
 const nextConfig: NextConfig = {
   // Security headers for all routes
@@ -21,9 +24,9 @@ const nextConfig: NextConfig = {
 
   // Prevent server-side information disclosure
   poweredByHeader: false,
-  
+
   // React strict mode for development safety
   reactStrictMode: true,
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

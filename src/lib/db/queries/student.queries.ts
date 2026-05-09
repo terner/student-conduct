@@ -7,7 +7,7 @@ export type StudentWithProfile = Student & {
   last_name: string;
   classroom_name: string;
   grade_level: number;
-  education_stage: 'primary' | 'secondary';
+  education_stage_name: string;
 };
 
 export interface StudentListParams {
@@ -16,7 +16,7 @@ export interface StudentListParams {
   search?: string;
   classroom_id?: string;
   grade_level?: number;
-  education_stage?: 'primary' | 'secondary';
+  education_stage_id?: string;
   status?: string;
   academic_year?: string;
 }
@@ -29,38 +29,35 @@ export interface PaginatedResult<T> {
   total_pages: number;
 }
 
-/**
- * Helper: extract { prefix, first_name, last_name } from a profile row
- *
- * The profiles table stores full_name as "prefix + firstname + lastname"
- * (e.g. "เด็กชายธนพล ใจดี") and prefix as a separate column.
- */
+// Parse profile full_name into prefix, first_name, last_name
 function parseProfile(profile: Record<string, unknown>): { prefix: string; first_name: string; last_name: string } {
-  const fullName = (profile?.full_name as string) || '';
-  const prefix = (profile?.prefix as string) || '';
+  const fullName = (profile.full_name as string) || '';
+  const prefix = (profile.prefix as string) || '';
   if (!fullName) return { prefix, first_name: '', last_name: '' };
-
-  if (prefix) {
-    // Remove prefix from full_name, then split remaining into first/last
-    const withoutPrefix = fullName.slice(prefix.length).trim();
-    const spaceIdx = withoutPrefix.indexOf(' ');
-    if (spaceIdx > 0) {
-      return {
-        prefix,
-        first_name: withoutPrefix.slice(0, spaceIdx).trim(),
-        last_name: withoutPrefix.slice(spaceIdx + 1).trim(),
-      };
-    }
-    return { prefix, first_name: withoutPrefix, last_name: '' };
-  }
-
-  // Fallback: no prefix, split full_name on first space
   const spaceIdx = fullName.indexOf(' ');
   if (spaceIdx > 0) {
-    return { prefix: '', first_name: fullName.slice(0, spaceIdx).trim(), last_name: fullName.slice(spaceIdx + 1).trim() };
+    return { prefix, first_name: fullName.slice(0, spaceIdx).trim(), last_name: fullName.slice(spaceIdx + 1).trim() };
   }
-  return { prefix: '', first_name: fullName, last_name: '' };
+  return { prefix, first_name: fullName, last_name: '' };
 }
+
+// Cache for education stages lookup
+let stagesCache: Map<string, string> | null = null;
+async function getStageName(stageId: string): Promise<string> {
+  if (!stagesCache) {
+    const supabase = await createClient();
+    const { data } = await supabase.from('education_stages').select('id, name_th');
+    stagesCache = new Map();
+    if (data) {
+      for (const s of data) {
+        stagesCache.set(s.id, s.name_th);
+      }
+    }
+  }
+  return stagesCache.get(stageId) || '';
+}
+// Reset cache (for testing)
+export function resetStagesCache() { stagesCache = null; }
 
 /**
  * List students with pagination, search, and filters
@@ -73,7 +70,7 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
     search,
     classroom_id,
     grade_level,
-    education_stage,
+    education_stage_id,
     status,
     academic_year,
   } = params;
@@ -83,7 +80,7 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
     .select(`
       *,
       profiles!inner(full_name),
-      classrooms!inner(name, grade_level, education_stage, academic_year_id)
+      classrooms!inner(name, grade_level, education_stage_id, academic_year_id)
     `, { count: 'exact' });
 
   // Filters
@@ -96,8 +93,8 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
   if (grade_level) {
     query = query.eq('classrooms.grade_level', grade_level);
   }
-  if (education_stage) {
-    query = query.eq('classrooms.education_stage', education_stage);
+  if (education_stage_id) {
+    query = query.eq('classrooms.education_stage_id', education_stage_id);
   }
   if (status) {
     query = query.eq('current_status', status);
@@ -115,9 +112,11 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
 
   if (error) throw error;
 
-  const mapped: StudentWithProfile[] = (data || []).map((s: Record<string, unknown>) => {
+  const mapped: StudentWithProfile[] = await Promise.all((data || []).map(async (s: Record<string, unknown>) => {
     const profile = s.profiles as Record<string, unknown> || {};
     const { prefix, first_name, last_name } = parseProfile(profile);
+    const classroom = s.classrooms as Record<string, unknown> || {};
+    const stageId = classroom.education_stage_id as string || '';
     return {
       id: s.id as string,
       profile_id: s.profile_id as string,
@@ -127,11 +126,11 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
       prefix,
       first_name,
       last_name,
-      classroom_name: (s.classrooms as Record<string, unknown>)?.name as string || '',
-      grade_level: (s.classrooms as Record<string, unknown>)?.grade_level as number || 0,
-      education_stage: (s.classrooms as Record<string, unknown>)?.education_stage as 'primary' | 'secondary' || 'primary',
+      classroom_name: classroom.name as string || '',
+      grade_level: classroom.grade_level as number || 0,
+      education_stage_name: stageId ? await getStageName(stageId) : '',
     };
-  });
+  }));
 
   return {
     data: mapped,
@@ -153,7 +152,7 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
     .select(`
       *,
       profiles!inner(full_name),
-      classrooms!inner(name, grade_level, education_stage)
+      classrooms!inner(name, grade_level, education_stage_id)
     `)
     .eq('id', id)
     .single();
@@ -163,6 +162,8 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
 
   const profiles = data.profiles as Record<string, unknown> || {};
   const { prefix, first_name, last_name } = parseProfile(profiles);
+  const classroom = data.classrooms as Record<string, unknown> || {};
+  const stageId = classroom.education_stage_id as string || '';
 
   return {
     id: data.id,
@@ -173,9 +174,9 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
     prefix,
     first_name,
     last_name,
-    classroom_name: data.classrooms?.name as string || '',
-    grade_level: data.classrooms?.grade_level as number || 0,
-    education_stage: data.classrooms?.education_stage as 'primary' | 'secondary' || 'primary',
+    classroom_name: classroom.name as string || '',
+    grade_level: classroom.grade_level as number || 0,
+    education_stage_name: stageId ? await getStageName(stageId) : '',
   };
 }
 
@@ -185,7 +186,6 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
 export async function getStudentScoreSummary(studentId: string, academicYearId?: string) {
   const supabase = await createClient();
 
-  // Get base score from academic year
   let baseScore = 100;
   if (academicYearId) {
     const { data: acYear } = await supabase
@@ -238,7 +238,7 @@ export async function getStudentEnrollments(studentId: string) {
     .from('student_enrollments')
     .select(`
       *,
-      classrooms(name, grade_level, education_stage),
+      classrooms(name, grade_level),
       academic_years(name)
     `)
     .eq('student_id', studentId)
@@ -259,17 +259,19 @@ export async function getStudentsByClassroom(classroomId: string): Promise<Stude
     .select(`
       *,
       profiles!inner(full_name),
-      classrooms!inner(name, grade_level, education_stage)
+      classrooms!inner(name, grade_level, education_stage_id)
     `)
     .eq('classroom_id', classroomId)
     .eq('current_status', 'active')
-    .order('student_id_number');
+    .order('profiles(full_name)', { ascending: true });
 
   if (error) throw error;
 
-  return (data || []).map((s: Record<string, unknown>) => {
+  return Promise.all((data || []).map(async (s: Record<string, unknown>) => {
     const profile = s.profiles as Record<string, unknown> || {};
     const { prefix, first_name, last_name } = parseProfile(profile);
+    const classroom = s.classrooms as Record<string, unknown> || {};
+    const stageId = classroom.education_stage_id as string || '';
     return {
       id: s.id as string,
       profile_id: s.profile_id as string,
@@ -279,16 +281,12 @@ export async function getStudentsByClassroom(classroomId: string): Promise<Stude
       prefix,
       first_name,
       last_name,
-      classroom_name: (s.classrooms as Record<string, unknown>)?.name as string || '',
-      grade_level: (s.classrooms as Record<string, unknown>)?.grade_level as number || 0,
-      education_stage: (s.classrooms as Record<string, unknown>)?.education_stage as 'primary' | 'secondary' || 'primary',
+      classroom_name: classroom.name as string || '',
+      grade_level: classroom.grade_level as number || 0,
+      education_stage_name: stageId ? await getStageName(stageId) : '',
     };
-  });
+  }));
 }
-
-/**
- * Create a new student with profile and enrollment
- */
 export async function createStudent(data: {
   prefix?: string;
   first_name: string;

@@ -2,6 +2,7 @@
 
 import { createClient, createClientWithUser } from '@/lib/supabase/server';
 import { validateXSS } from '@/lib/security/validate-input';
+import { hasRole, getRoles } from '@/lib/security/roles';
 import { NextResponse } from 'next/server';
 
 export type ActionResult<T = unknown> =
@@ -69,7 +70,10 @@ export async function withAuth<T>(
 }
 
 /**
- * Check permission helper
+ * Check permission helper — reads from DB `role_permissions` table
+ *
+ * Supports multi-role: checks ALL roles assigned to the user.
+ * If any role has 'admin', all permissions are granted.
  */
 export async function checkPermission(
   profileId: string,
@@ -77,7 +81,6 @@ export async function checkPermission(
 ): Promise<boolean> {
   const supabase = await createClient();
 
-  // MVP: check role directly
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
@@ -85,21 +88,22 @@ export async function checkPermission(
     .maybeSingle();
 
   if (!profile) return false;
-  if (profile.role === 'admin') return true;
 
-  const permissionMap: Record<string, string[]> = {
-    admin: ['*'],
-    teacher: [
-      'score.record', 'score.record_bulk', 'score.view_own',
-      'student.view_all', 'report.view_monthly', 'report.view_at_risk', 'report.view_threshold',
-      'intervention.create', 'notification.view',
-    ],
-    student: [
-      'score.view_own', 'student.view_own', 'notification.view',
-    ],
-  };
+  const roles = getRoles(profile);
 
-  return permissionMap[profile.role]?.includes('*') ||
-         permissionMap[profile.role]?.includes(permissionCode) ||
-         false;
+  // Admin role grants all permissions
+  if (roles.includes('admin')) return true;
+
+  // Query DB for the specific permission across all user roles
+  const { data: perms } = await supabase
+    .from('role_permissions')
+    .select('permissions!inner(code), is_granted')
+    .in('role', roles)
+    .eq('is_granted', true);
+
+  if (!perms || perms.length === 0) return false;
+
+  return perms.some(
+    (p: any) => p.permissions?.code === permissionCode
+  );
 }

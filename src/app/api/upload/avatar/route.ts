@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClientWithUser, createAdminClient } from '@/lib/supabase/server';
 
+function hasRole(role: string | string[] | null, target: string): boolean {
+  if (!role) return false;
+  return Array.isArray(role) ? role.includes(target) : role === target;
+}
+
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await createClientWithUser();
@@ -14,7 +19,7 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'teacher')) {
+    if (!profile || (!hasRole(profile.role, 'admin') && !hasRole(profile.role, 'teacher'))) {
       return NextResponse.json({ error: 'ไม่มีสิทธิ์อัปโหลด' }, { status: 403 });
     }
 

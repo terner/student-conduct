@@ -127,7 +127,7 @@ describe('mapCsvRowToStudent', () => {
     expect(result.class_number).toBe(15);
     expect(result.first_name).toBe('ธนพล');
     expect(result.last_name).toBe('ใจดี');
-    expect(result.education_stage).toBe('primary');
+    expect(result.education_stage_id).toBe('primary');
     expect(result.grade_level).toBe(1);
     expect(result.classroom).toBe('ป.1/1');
   });
@@ -167,7 +167,7 @@ describe('mapCsvRowToStudent', () => {
     };
     const result = mapCsvRowToStudent(row);
     expect(result.status).toBe('active');
-    expect(result.education_stage).toBe('primary');
+    expect(result.education_stage_id).toBe('');
   });
 
   it('handles empty row gracefully', () => {

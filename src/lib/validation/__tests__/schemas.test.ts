@@ -379,10 +379,12 @@ describe('scoreVoidSchema', () => {
 });
 
 describe('classroomSchema', () => {
+  const testStageId = '550e8400-e29b-41d4-a716-446655440000';
+
   it('accepts valid classroom', () => {
     const result = classroomSchema.safeParse({
       name: 'ป.1/1',
-      education_stage: 'primary',
+      education_stage_id: testStageId,
       grade_level: 1,
       academic_year: '2568',
     });
@@ -392,18 +394,18 @@ describe('classroomSchema', () => {
   it('rejects grade_level 0', () => {
     const result = classroomSchema.safeParse({
       name: 'ป.1/1',
-      education_stage: 'primary',
+      education_stage_id: testStageId,
       grade_level: 0,
       academic_year: '2568',
     });
     expect(result.success).toBe(false);
   });
 
-  it('rejects grade_level 7', () => {
+  it('rejects grade_level 13', () => {
     const result = classroomSchema.safeParse({
       name: 'ป.1/1',
-      education_stage: 'primary',
-      grade_level: 7,
+      education_stage_id: testStageId,
+      grade_level: 13,
       academic_year: '2568',
     });
     expect(result.success).toBe(false);
@@ -701,6 +703,8 @@ describe('csvImportSchema', () => {
 });
 
 describe('studentImportSchema', () => {
+  const testStageId = '550e8400-e29b-41d4-a716-446655440000';
+
   it('accepts valid import row', () => {
     const result = studentImportSchema.safeParse({
       academic_year: '2568',
@@ -708,7 +712,7 @@ describe('studentImportSchema', () => {
       class_number: 15,
       first_name: 'ธนพล',
       last_name: 'ใจดี',
-      education_stage: 'primary',
+      education_stage_id: testStageId,
       grade_level: 1,
       classroom: 'ป.1/1',
     });
@@ -722,7 +726,7 @@ describe('studentImportSchema', () => {
       class_number: '15',
       first_name: 'ธนพล',
       last_name: 'ใจดี',
-      education_stage: 'primary',
+      education_stage_id: testStageId,
       grade_level: '1',
       classroom: 'ป.1/1',
     });

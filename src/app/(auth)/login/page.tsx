@@ -3,13 +3,55 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { School, LogIn, AlertCircle, UserIcon, Mail } from 'lucide-react';
+import { School, LogIn, AlertCircle, UserIcon, Mail, ShieldCheck, GraduationCap, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { loginEmailSchema, loginStudentSchema, type LoginEmailInput, type LoginStudentInput } from '@/lib/validation/schemas';
+
+type QuickUser = {
+  label: string;
+  email?: string;
+  studentId?: string;
+  password: string;
+  icon: any;
+};
+
+const staffQuickUsers: QuickUser[] = [
+  { label: 'ผู้ดูแลระบบ', email: 'admin@school.com', password: 'Admin123!', icon: ShieldCheck },
+  { label: 'ครูสมชาย ใจดี', email: 'teacher1@school.com', password: 'Teacher@123', icon: GraduationCap },
+];
+
+const studentQuickUsers: QuickUser[] = [
+  { label: 'ธนพล ใจดี (ป.4/1)', studentId: '2025001', password: 'Student@123', icon: UserRound },
+  { label: 'มานิตา สดใส (ป.4/1)', studentId: '2025002', password: 'Student@123', icon: UserRound },
+  { label: 'ภูวนาท แข็งแรง (ป.4/2)', studentId: '2025005', password: 'Student@123', icon: UserRound },
+  { label: 'ศุภโชค มั่งมี (ป.5/1)', studentId: '2025009', password: 'Student@123', icon: UserRound },
+];
+
+async function quickLogin(body: Record<string, string>) {
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || 'เข้าสู่ระบบไม่สำเร็จ');
+  if (result.must_change_password) {
+    window.location.href = '/change-password';
+    return;
+  }
+  const roles = Array.isArray(result.role) ? result.role : [result.role];
+  if (roles.includes('student') && !roles.includes('admin') && !roles.includes('teacher')) {
+    window.location.href = '/student/dashboard';
+  } else if (roles.includes('teacher') && !roles.includes('admin')) {
+    window.location.href = '/score/record';
+  } else {
+    window.location.href = '/dashboard';
+  }
+}
 
 export default function LoginPage() {
   const [error, setError] = useState('');
@@ -29,41 +71,10 @@ export default function LoginPage() {
   async function onSubmitStaff(data: LoginEmailInput) {
     setLoading(true);
     setError('');
-
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, password: data.password }),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        setError(result.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
-        return;
-      }
-
-      // Handle must_change_password
-      if (result.must_change_password) {
-        window.location.href = '/change-password';
-        return;
-      }
-
-      // Role-based redirect
-      switch (result.role) {
-        case 'student':
-          window.location.href = '/student/dashboard';
-          break;
-        case 'admin':
-        case 'teacher':
-        default:
-          window.location.href = '/dashboard';
-          break;
-      }
-    } catch (err) {
-      console.error('[Login] Caught error:', err);
-      setError('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+      await quickLogin({ email: data.email, password: data.password });
+    } catch (err: any) {
+      setError(err.message || 'เกิดข้อผิดพลาด');
     } finally {
       setLoading(false);
     }
@@ -72,33 +83,26 @@ export default function LoginPage() {
   async function onSubmitStudent(data: LoginStudentInput) {
     setLoading(true);
     setError('');
-
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_id: data.student_id, password: data.password }),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        setError(result.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
-        return;
-      }
-
-      // Handle must_change_password
-      if (result.must_change_password) {
-        window.location.href = '/change-password';
-        return;
-      }
-
-      // Student always goes to student dashboard
-      window.location.href = '/student/dashboard';
-    } catch (err) {
-      console.error('[Login] Caught error:', err);
-      setError('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+      await quickLogin({ student_id: data.student_id, password: data.password });
+    } catch (err: any) {
+      setError(err.message || 'เกิดข้อผิดพลาด');
     } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleQuickLogin(user: QuickUser) {
+    setLoading(true);
+    setError('');
+    try {
+      if (user.email) {
+        await quickLogin({ email: user.email, password: user.password });
+      } else if (user.studentId) {
+        await quickLogin({ student_id: user.studentId, password: user.password });
+      }
+    } catch (err: any) {
+      setError(err.message || 'เกิดข้อผิดพลาด');
       setLoading(false);
     }
   }
@@ -111,7 +115,7 @@ export default function LoginPage() {
             <School className="h-6 w-6 text-primary" />
           </div>
           <CardTitle className="text-xl">ระบบคะแนนความประพฤตินักเรียน</CardTitle>
-          <CardDescription>เข้าสู่ระบบเพื่อจัดการข้อมูล</CardDescription>
+          <CardDescription>เลือกบัญชีทดสอบด้านล่างเพื่อเข้าใช้ทันที</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={loginMode} onValueChange={(v) => { setLoginMode(v as 'staff' | 'student'); setError(''); }} className="w-full">
@@ -127,6 +131,37 @@ export default function LoginPage() {
             </TabsList>
 
             <TabsContent value="staff">
+              {/* Quick login buttons */}
+              <div className="space-y-2 mb-4">
+                <p className="text-xs text-muted-foreground font-medium">เลือกเพื่อเข้าสู่ระบบทันที:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {staffQuickUsers.map((user) => {
+                    const Icon = user.icon;
+                    return (
+                      <button
+                        key={user.email}
+                        type="button"
+                        disabled={loading}
+                        onClick={() => handleQuickLogin(user)}
+                        className="flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50"
+                      >
+                        <Icon className="h-5 w-5 text-primary" />
+                        <span className="text-xs font-medium leading-tight">{user.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="relative mb-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-card px-2 text-muted-foreground">หรือกรอกด้วยตนเอง</span>
+                </div>
+              </div>
+
               <form onSubmit={emailForm.handleSubmit(onSubmitStaff)} className="space-y-4">
                 {error && (
                   <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
@@ -167,18 +202,41 @@ export default function LoginPage() {
                   <LogIn className="mr-2 h-4 w-4" />
                   {loading ? 'กำลังเข้า...' : 'เข้าสู่ระบบ'}
                 </Button>
-
-                <p className="text-center text-xs text-muted-foreground">
-                  สำหรับครู/ผู้ดูแลระบบเท่านั้น
-                </p>
-                <div className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
-                  <p className="text-center font-medium">ทดสอบระบบ</p>
-                  <p className="text-center">admin@school.com / Admin123!</p>
-                </div>
               </form>
             </TabsContent>
 
             <TabsContent value="student">
+              {/* Quick login buttons */}
+              <div className="space-y-2 mb-4">
+                <p className="text-xs text-muted-foreground font-medium">เลือกเพื่อเข้าสู่ระบบทันที:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {studentQuickUsers.map((user) => {
+                    const Icon = user.icon;
+                    return (
+                      <button
+                        key={user.studentId}
+                        type="button"
+                        disabled={loading}
+                        onClick={() => handleQuickLogin(user)}
+                        className="flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50"
+                      >
+                        <Icon className="h-5 w-5 text-primary" />
+                        <span className="text-xs font-medium leading-tight">{user.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="relative mb-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-card px-2 text-muted-foreground">หรือกรอกด้วยตนเอง</span>
+                </div>
+              </div>
+
               <form onSubmit={studentForm.handleSubmit(onSubmitStudent)} className="space-y-4">
                 {error && (
                   <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
@@ -220,10 +278,6 @@ export default function LoginPage() {
                   <LogIn className="mr-2 h-4 w-4" />
                   {loading ? 'กำลังเข้า...' : 'เข้าสู่ระบบ'}
                 </Button>
-
-                <p className="text-center text-xs text-muted-foreground">
-                  สำหรับนักเรียนเท่านั้น
-                </p>
               </form>
             </TabsContent>
           </Tabs>

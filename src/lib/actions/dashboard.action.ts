@@ -1,6 +1,7 @@
 'use server';
 
 import { withAuth } from '@/lib/server-action';
+import { hasRole, getRoles } from '@/lib/security/roles';
 import { getDashboardData } from '@/lib/db';
 import { createClient, createAdminClient, createClientWithUser } from '@/lib/supabase/server';
 
@@ -81,7 +82,7 @@ export async function acceptPDPA() {
   return withAuth(async (profile) => {
     const adminClient = await createAdminClient();
     const { error } = await adminClient.from('pdpa_consents').insert({
-      subject_type: profile.role === 'student' ? 'student' : profile.role === 'teacher' ? 'teacher' : 'admin',
+      subject_type: hasRole(profile, 'student') ? 'student' : hasRole(profile, 'teacher') ? 'teacher' : 'admin',
       subject_id: profile.id,
       consent_type: 'general',
       version: '1.0',
@@ -104,7 +105,7 @@ export async function getCurrentUserRole() {
     return {
       success: true,
       data: {
-        role: profile.role,
+        role: getRoles(profile),
         full_name: profile.full_name,
         email: user?.email || null,
       },

@@ -1,13 +1,14 @@
 'use server';
 
 import { withAuth, type ActionResult } from '@/lib/server-action';
+import { hasRole } from '@/lib/security/roles';
 import { listClassrooms, getClassroomById, createClassroom, updateClassroom, deleteClassroom } from '@/lib/db';
 import { classroomSchema } from '@/lib/validation/schemas';
 import { validateXSS } from '@/lib/security/validate-input';
 import { createClient } from '@/lib/supabase/server';
 
 export async function getClassrooms(params?: {
-  education_stage?: 'primary' | 'secondary';
+  education_stage_id?: string;
   grade_level?: number;
 }) {
   return withAuth(async () => {
@@ -28,7 +29,7 @@ export async function getClassroom(id: string) {
 
 export async function addClassroom(data: {
   name: string;
-  education_stage: 'primary' | 'secondary';
+  education_stage_id: string;
   grade_level: number;
 }) {
   return withAuth(async () => {
@@ -47,7 +48,9 @@ export async function addClassroom(data: {
       .single();
 
     const result = await createClassroom({
-      ...validated,
+      name: validated.name,
+      education_stage_id: validated.education_stage_id,
+      grade_level: validated.grade_level,
       academic_year_id: acYear?.id || '',
     });
 
@@ -57,11 +60,11 @@ export async function addClassroom(data: {
 
 export async function editClassroom(id: string, data: {
   name?: string;
-  education_stage?: 'primary' | 'secondary';
+  education_stage_id?: string;
   grade_level?: number;
 }) {
   return withAuth(async (profile) => {
-    if (profile.role !== 'admin') {
+    if (!hasRole(profile, 'admin')) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
     }
 
@@ -72,7 +75,7 @@ export async function editClassroom(id: string, data: {
 
 export async function removeClassroom(id: string) {
   return withAuth(async (profile) => {
-    if (profile.role !== 'admin') {
+    if (!hasRole(profile, 'admin')) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
     }
 

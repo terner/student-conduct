@@ -52,9 +52,9 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
                 </Link>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{c.education_stage === 'primary' ? 'ประถม' : 'มัธยม'}</Badge>
+                <Badge variant="outline">{c.education_stage_name || 'ไม่ระบุ'}</Badge>
               </TableCell>
-              <TableCell>ป.{c.grade_level}</TableCell>
+              <TableCell>{c.grade_level}</TableCell>
               <TableCell>
                 <span className="flex items-center gap-1">
                   <Users className="h-3 w-3 text-muted-foreground" />

@@ -11,6 +11,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
 import { getCurrentUserRole, changeProfileName } from '@/lib/actions/dashboard.action';
 import Link from 'next/link';
+import { displayRole } from '@/lib/security/roles';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<{
     full_name?: string;
-    role?: string;
+    role?: string | string[];
     email?: string | null;
   }>({});
 
@@ -104,7 +105,11 @@ export default function ProfilePage() {
             </div>
             <div className="space-y-2">
               <Label>บทบาท</Label>
-              <Input value={profile.role || ''} disabled className="bg-muted capitalize" />
+              <Input
+                value={displayRole(profile.role)}
+                disabled
+                className="bg-muted"
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
