@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
-import { createClient } from '@/lib/supabase/client';
+import { getStudentDashboard } from '@/lib/actions/student.action';
 
 export default function StudentDashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -15,54 +15,12 @@ export default function StudentDashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-
-      // Get profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile) { setLoading(false); return; }
-
-      // Get student record
-      const { data: student } = await supabase
-        .from('students')
-        .select('id, student_id_number, classrooms(name, grade_level, education_stage)')
-        .eq('profile_id', profile.id)
-        .single();
-
-      if (!student) { setLoading(false); return; }
-      setStudentInfo(student);
-
-      // Get academic year
-      const { data: acYear } = await supabase
-        .from('academic_years')
-        .select('id, base_score')
-        .eq('is_current', true)
-        .single();
-
-      const baseScore = acYear?.base_score || 100;
-
-      // Get score summary
-      const { data: scores } = await supabase
-        .from('score_transactions')
-        .select('points, status, recorded_at, note, score_categories(name, type), profiles!score_transactions_recorded_by_fkey(full_name)')
-        .eq('student_id', student.id)
-        .eq('academic_year_id', acYear?.id)
-        .eq('status', 'approved')
-        .order('recorded_at', { ascending: false });
-
-      if (scores) {
-        const totalDeducted = scores.filter(t => t.points < 0).reduce((s, t) => s + Math.abs(t.points), 0);
-        const totalAdded = scores.filter(t => t.points > 0).reduce((s, t) => s + t.points, 0);
-        setSummary({ current_score: baseScore - totalDeducted + totalAdded, total_deducted: totalDeducted, total_added: totalAdded });
-        setTransactions(scores);
+      const res = await getStudentDashboard();
+      if (res.success && res.data) {
+        setStudentInfo(res.data.student);
+        setSummary(res.data.summary);
+        setTransactions(res.data.transactions || []);
       }
-
       setLoading(false);
     }
     load();

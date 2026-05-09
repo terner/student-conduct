@@ -35,17 +35,11 @@ export default function StudentsPage() {
   }, [page, fetchData]);
 
   useEffect(() => {
-    // Load classrooms for the form
+    // Load classrooms for the form via server action
     async function loadClassrooms() {
-      const res = await fetch('/classrooms?format=select');
-      // In a real app, use the server action directly
-      const supabase = (await import('@/lib/supabase/client')).createClient();
-      const { data: rooms } = await supabase
-        .from('classrooms')
-        .select('id, name, grade_level, education_stage')
-        .order('grade_level')
-        .order('name');
-      if (rooms) setClassrooms(rooms);
+      const { getClassroomsForSelect } = await import('@/lib/actions/student.action');
+      const res = await getClassroomsForSelect();
+      if (res.success && res.data) setClassrooms(res.data);
     }
     loadClassrooms();
   }, []);

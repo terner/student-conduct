@@ -99,6 +99,84 @@ export async function getStudentScoreInfo(studentId: string) {
   });
 }
 
+export async function getClassroomsForSelect() {
+  return withAuth(async () => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('classrooms')
+      .select('id, name, grade_level, education_stage')
+      .order('grade_level')
+      .order('name');
+    return { success: true, data: data || [] };
+  });
+}
+
+export async function getStudentDashboard() {
+  return withAuth(async (profile) => {
+    const supabase = await createClient();
+
+    // Get current academic year
+    const { data: acYear } = await supabase
+      .from('academic_years')
+      .select('id, base_score')
+      .eq('is_current', true)
+      .single();
+    const baseScore = acYear?.base_score || 100;
+
+    // Get student record linked to this profile
+    const { data: student } = await supabase
+      .from('students')
+      .select('id, student_id_number, profiles!inner(full_name), classrooms!inner(name, grade_level, education_stage)')
+      .eq('profile_id', profile.id)
+      .single();
+
+    if (!student) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลนักเรียน' } };
+    }
+
+    // Get score transactions
+    const { data: scores } = await supabase
+      .from('score_transactions')
+      .select('id, points, status, recorded_at, note, score_categories(name, type), profiles!score_transactions_recorded_by_fkey(full_name)')
+      .eq('student_id', student.id)
+      .eq('academic_year_id', acYear?.id)
+      .eq('status', 'approved')
+      .order('recorded_at', { ascending: false });
+
+    const totalDeducted = (scores || []).filter((t: any) => t.points < 0).reduce((s: number, t: any) => s + Math.abs(t.points), 0);
+    const totalAdded = (scores || []).filter((t: any) => t.points > 0).reduce((s: number, t: any) => s + t.points, 0);
+
+    return {
+      success: true,
+      data: {
+        student: {
+          id: student.id,
+          full_name: (student.profiles as any)?.full_name || '',
+          student_id_number: student.student_id_number,
+          classroom_name: (student.classrooms as any)?.name || '',
+          grade_level: (student.classrooms as any)?.grade_level,
+          education_stage: (student.classrooms as any)?.education_stage,
+        },
+        summary: {
+          current_score: baseScore - totalDeducted + totalAdded,
+          total_deducted: totalDeducted,
+          total_added: totalAdded,
+          base_score: baseScore,
+        },
+        transactions: (scores || []).map((t: any) => ({
+          id: t.id,
+          points: t.points,
+          note: t.note,
+          recorded_at: t.recorded_at,
+          category_name: t.score_categories?.name || '',
+          category_type: t.score_categories?.type || '',
+          recorded_by_name: t.profiles?.full_name || '',
+        })),
+      },
+    };
+  });
+}
+
 export async function getStudentListForSelect() {
   return withAuth(async () => {
     const supabase = await createClient();

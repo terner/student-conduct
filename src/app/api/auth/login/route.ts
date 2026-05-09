@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -12,22 +12,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create supabase client that reads cookies from request
-    const supabase = createServerClient(
+    // Use @supabase/supabase-js directly for authentication
+    const supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_ANON_KEY!,
       {
-        cookies: {
-          getAll() {
-            const cookieHeader = request.headers.get('cookie') || '';
-            return cookieHeader.split('; ').filter(Boolean).map(c => {
-              const [name, ...rest] = c.split('=');
-              return { name: name?.trim() || '', value: rest.join('=') || '' };
-            });
-          },
-          setAll() {
-            // Cookies will be set manually in the response below
-          },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false,
+          flowType: 'pkce',
         },
       }
     );
@@ -54,8 +48,7 @@ export async function POST(request: Request) {
     // Build the response
     const response = NextResponse.json({ success: true });
 
-    // Manually set the auth cookie with correct encoding
-    // @supabase/ssr uses: base64-<base64url(sessionJSON)>
+    // Encode session as base64url cookie (matching our custom server.ts decoder)
     const maxAge = 400 * 24 * 60 * 60; // 400 days
     const sessionJson = JSON.stringify(data.session);
     const base64url = Buffer.from(sessionJson)
