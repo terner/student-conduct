@@ -43,11 +43,22 @@ export default function ScoreRecordPage() {
     init();
   }, [fetchTransactions]);
 
-  const handleRecordScore = async (data: ScoreRecordInput) => {
+  const handleRecordScore = async (data: ScoreRecordInput, evidenceFiles?: File[]) => {
     setRecording(true);
     try {
       const result = await recordScore(data);
       if (!result.success) throw new Error(result.error?.message);
+
+      // Upload evidence if any
+      if (evidenceFiles && evidenceFiles.length > 0 && result.data?.id) {
+        const formData = new FormData();
+        for (const file of evidenceFiles) {
+          formData.append('files', file);
+        }
+        formData.append('transaction_id', result.data.id);
+        await fetch('/api/upload/evidence', { method: 'POST', body: formData }).catch(() => {});
+      }
+
       await fetchTransactions(1);
     } finally {
       setRecording(false);

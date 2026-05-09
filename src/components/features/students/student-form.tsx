@@ -134,13 +134,14 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
             <Select
               value={prefixValue}
               onValueChange={(v) => v && setValue('prefix', v as StudentInput['prefix'])}
+              itemToStringLabel={(value) => PREFIX_LABELS[value] || String(value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="คำนำหน้า" />
               </SelectTrigger>
               <SelectContent>
                 {studentPrefixEnum.map((p) => (
-                  <SelectItem key={p} value={p}>
+                  <SelectItem key={p} value={p} label={PREFIX_LABELS[p]}>
                     {PREFIX_LABELS[p]}
                   </SelectItem>
                 ))}
@@ -170,13 +171,17 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
         <Select
           value={yearValue}
           onValueChange={(v) => v && setSelectedYearId(v)}
+          itemToStringLabel={(value) => {
+            const y = academicYears.find(y => y.id === value);
+            return y ? `${y.name}${y.is_current ? ' (ปัจจุบัน)' : ''}` : String(value);
+          }}
         >
           <SelectTrigger>
             <SelectValue placeholder="เลือกปีการศึกษา" />
           </SelectTrigger>
           <SelectContent>
             {academicYears.map((y) => (
-              <SelectItem key={y.id} value={y.id}>
+              <SelectItem key={y.id} value={y.id} label={`${y.name}${y.is_current ? ' (ปัจจุบัน)' : ''}`}>
                 {y.name}{y.is_current ? ' (ปัจจุบัน)' : ''}
               </SelectItem>
             ))}
@@ -193,13 +198,17 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
             if (v) setValue('classroom_id', v, { shouldValidate: true });
           }}
           disabled={!selectedYearId || loadingClassrooms}
+          itemToStringLabel={(value) => {
+            const c = displayClassrooms.find(c => c.id === value);
+            return c ? c.name : String(value);
+          }}
         >
           <SelectTrigger>
             <SelectValue placeholder={loadingClassrooms ? 'กำลังโหลด...' : (!selectedYearId ? 'เลือกปีการศึกษาก่อน' : 'เลือกห้องเรียน')} />
           </SelectTrigger>
           <SelectContent>
             {displayClassrooms.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
+              <SelectItem key={c.id} value={c.id} label={c.name}>
                 {c.name}
               </SelectItem>
             ))}
@@ -227,16 +236,20 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
           <Select
             value={statusValue}
             onValueChange={(v) => v && setValue('current_status', v as StudentInput['current_status'])}
+            itemToStringLabel={(value) => {
+              const labels: Record<string, string> = { active: 'กำลังศึกษา', inactive: 'ไม่ Active', transferred: 'ย้ายออก', graduated: 'จบการศึกษา', suspended: 'พักการเรียน' };
+              return labels[value] || String(value);
+            }}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="active">กำลังศึกษา</SelectItem>
-              <SelectItem value="inactive">ไม่ Active</SelectItem>
-              <SelectItem value="transferred">ย้ายออก</SelectItem>
-              <SelectItem value="graduated">จบการศึกษา</SelectItem>
-              <SelectItem value="suspended">พักการเรียน</SelectItem>
+              <SelectItem value="active" label="กำลังศึกษา">กำลังศึกษา</SelectItem>
+              <SelectItem value="inactive" label="ไม่ Active">ไม่ Active</SelectItem>
+              <SelectItem value="transferred" label="ย้ายออก">ย้ายออก</SelectItem>
+              <SelectItem value="graduated" label="จบการศึกษา">จบการศึกษา</SelectItem>
+              <SelectItem value="suspended" label="พักการเรียน">พักการเรียน</SelectItem>
             </SelectContent>
           </Select>
         </div>

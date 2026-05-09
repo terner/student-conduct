@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Users, GraduationCap, BookOpen, AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
-import { getDashboard } from '@/lib/actions/dashboard.action';
+import { getDashboard, checkPDPAConsent, checkMustChangePassword } from '@/lib/actions/dashboard.action';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [recentTx, setRecentTx] = useState<any[]>([]);
   const [atRisk, setAtRisk] = useState<any[]>([]);
@@ -15,7 +17,21 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
-      // Single consolidated call — replaces 3 separate server actions
+      // Check must_change_password first
+      const passwordRes = await checkMustChangePassword();
+      if (passwordRes.success && passwordRes.data?.must_change_password) {
+        router.replace('/change-password');
+        return;
+      }
+
+      // Check PDPA consent
+      const consentRes = await checkPDPAConsent();
+      if (consentRes.success && consentRes.data && !consentRes.data.consented) {
+        router.replace('/pdpa-consent');
+        return;
+      }
+
+      // Single consolidated call
       const res = await getDashboard();
       if (res.success) {
         setStats(res.data.stats);
@@ -25,7 +41,7 @@ export default function DashboardPage() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [router]);
 
   if (loading) return <div className="flex justify-center items-center min-h-[400px]"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div></div>;
 
@@ -80,7 +96,7 @@ export default function DashboardPage() {
                 { label: 'ดีเยี่ยม (100+)', count: dist.excellent, color: 'bg-green-500' },
                 { label: 'ดี (80-99)', count: dist.good, color: 'bg-blue-500' },
                 { label: 'พอใช้ (60-79)', count: dist.fair, color: 'bg-yellow-500' },
-                { label: 'ควรปรับปรุง (&lt;60)', count: dist.poor, color: 'bg-red-500' },
+                { label: 'ควรปรับปรุง (<60)', count: dist.poor, color: 'bg-red-500' },
               ].map((item) => (
                 <div key={item.label} className="space-y-1">
                   <div className="flex justify-between text-sm">

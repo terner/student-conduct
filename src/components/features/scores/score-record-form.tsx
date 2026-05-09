@@ -12,17 +12,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { scoreRecordSchema, type ScoreRecordInput } from '@/lib/validation/schemas';
 import type { ScoreCategory } from '@/types';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
+import { EvidenceUploader } from './evidence-uploader';
 
 interface ScoreRecordFormProps {
   students: { id: string; full_name: string; student_id_number: string; classroom_name: string }[];
   categories: ScoreCategory[];
-  onSubmit: (data: ScoreRecordInput) => Promise<void>;
+  onSubmit: (data: ScoreRecordInput, evidenceFiles?: File[]) => Promise<void>;
   loading?: boolean;
 }
 
 export function ScoreRecordForm({ students, categories, onSubmit, loading }: ScoreRecordFormProps) {
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ScoreCategory | null>(null);
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
 
   const {
     register,
@@ -57,8 +59,12 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
     }
   };
 
+  const handleFormSubmit = (formData: ScoreRecordInput) => {
+    onSubmit(formData, evidenceFiles);
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
       <div className="space-y-2">
         <Label>นักเรียน *</Label>
         <Input
@@ -97,20 +103,26 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
 
       <div className="space-y-2">
         <Label>ประเภทคะแนน *</Label>
-        <Select value={categoryId} onValueChange={handleCategorySelect}>
+        <Select value={categoryId} onValueChange={handleCategorySelect}
+          itemToStringLabel={(value) => {
+            const cat = categories.find(c => c.id === value);
+            if (cat) return cat.type === 'deduct' ? `${cat.name} (${cat.default_points})` : `${cat.name} (+${Math.abs(cat.default_points)})`;
+            return String(value);
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="เลือกประเภท" />
           </SelectTrigger>
           <SelectContent>
             <div className="p-2 text-xs font-medium text-muted-foreground">หักคะแนน</div>
             {deductCategories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
+              <SelectItem key={c.id} value={c.id} label={`${c.name} (${c.default_points})`}>
                 {c.name} ({c.default_points})
               </SelectItem>
             ))}
             <div className="p-2 text-xs font-medium text-muted-foreground mt-2">เพิ่มคะแนน</div>
             {addCategories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
+              <SelectItem key={c.id} value={c.id} label={`${c.name} (+${Math.abs(c.default_points)})`}>
                 {c.name} (+{Math.abs(c.default_points)})
               </SelectItem>
             ))}
@@ -148,6 +160,20 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
         />
         {errors.note && <p className="text-xs text-destructive">{errors.note.message}</p>}
       </div>
+
+      {selectedCategory?.requires_evidence && (
+        <div className="space-y-2">
+          <Label>หลักฐาน * (จำเป็นสำหรับหมวดนี้)</Label>
+          <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} />
+        </div>
+      )}
+
+      {!selectedCategory?.requires_evidence && evidenceFiles.length > 0 && (
+        <div className="space-y-2">
+          <Label>หลักฐาน (ไม่บังคับ)</Label>
+          <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} />
+        </div>
+      )}
 
       <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
         {isSubmitting || loading ? (

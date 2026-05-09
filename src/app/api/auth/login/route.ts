@@ -3,11 +3,13 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const body = await request.json();
+    const { email, password, student_id } = body;
 
-    if (!email || !password) {
+    // Validate: must have either email+password or student_id+password
+    if ((!email || !password) && (!student_id || !password)) {
       return NextResponse.json(
-        { error: 'กรุณากรอกอีเมลและรหัสผ่าน' },
+        { error: 'กรุณากรอกอีเมล/รหัสนักเรียนและรหัสผ่าน' },
         { status: 400 }
       );
     }
@@ -26,8 +28,50 @@ export async function POST(request: Request) {
       }
     );
 
+    // For student login, resolve student_id_number to email first
+    let loginEmail = email;
+    if (student_id) {
+      // Look up the student's profile by their student_id_number
+      const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .select('profile_id')
+        .eq('student_id_number', student_id)
+        .single();
+
+      if (studentError || !studentData) {
+        return NextResponse.json(
+          { error: 'ไม่พบรหัสนักเรียนนี้ในระบบ' },
+          { status: 401 }
+        );
+      }
+
+      // Get the email from auth.users via profiles
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('id', studentData.profile_id)
+        .single();
+
+      if (profileError || !profileData?.user_id) {
+        return NextResponse.json(
+          { error: 'ไม่พบข้อมูลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ' },
+          { status: 401 }
+        );
+      }
+
+      // Get the user's email from auth.users (admin API)
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(profileData.user_id);
+      if (userError || !userData?.user?.email) {
+        return NextResponse.json(
+          { error: 'ไม่พบอีเมลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ' },
+          { status: 401 }
+        );
+      }
+      loginEmail = userData.user.email;
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: loginEmail,
       password,
     });
 
@@ -46,8 +90,52 @@ export async function POST(request: Request) {
       );
     }
 
-    // Build the response
-    const response = NextResponse.json({ success: true });
+    // Look up the user's profile for role and must_change_password
+    const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false,
+        },
+      }
+    );
+
+    const { data: profileData } = await supabaseAdmin
+      .from('profiles')
+      .select('id, role, is_active, must_change_password, full_name')
+      .eq('user_id', data.user.id)
+      .single();
+
+    if (!profileData) {
+      return NextResponse.json(
+        { error: 'ไม่พบข้อมูลผู้ใช้ในระบบ กรุณาติดต่อผู้ดูแลระบบ' },
+        { status: 401 }
+      );
+    }
+
+    if (!profileData.is_active) {
+      return NextResponse.json(
+        { error: 'บัญชีผู้ใช้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ' },
+        { status: 403 }
+      );
+    }
+
+    // Update last_login_at
+    await supabaseAdmin
+      .from('profiles')
+      .update({ last_login_at: new Date().toISOString() })
+      .eq('id', profileData.id);
+
+    // Build the response with role info
+    const response = NextResponse.json({
+      success: true,
+      role: profileData.role,
+      must_change_password: profileData.must_change_password,
+      full_name: profileData.full_name,
+    });
 
     // Encode session as base64url cookie (matching our custom server.ts decoder)
     const maxAge = 400 * 24 * 60 * 60; // 400 days

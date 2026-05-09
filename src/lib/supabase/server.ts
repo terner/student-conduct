@@ -12,10 +12,7 @@ function decodeCookieValue(value: string): string | null {
     const b64 = value.slice(BASE64_PREFIX.length);
     // Convert base64url to base64
     const standard = b64.replace(/-/g, '+').replace(/_/g, '/');
-    const binStr = atob(standard);
-    const bytes = new Uint8Array(binStr.length);
-    for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
-    const decoded = new TextDecoder().decode(bytes);
+    const decoded = Buffer.from(standard, 'base64').toString('utf-8');
     // Validate JSON
     JSON.parse(decoded);
     return decoded;
@@ -92,4 +89,22 @@ export async function createClientWithUser(): Promise<{
   user: User | null;
 }> {
   return buildClient();
+}
+
+/**
+ * Create a Supabase admin client using the service role key for operations
+ * that bypass RLS (e.g., storage admin, user management).
+ */
+export async function createAdminClient(): Promise<SupabaseClient<any, 'public', any>> {
+  return createSupabaseClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    }
+  );
 }

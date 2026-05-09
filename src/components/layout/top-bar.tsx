@@ -4,6 +4,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { LanguageSwitcher } from './language-switcher'
 import { UserMenu } from './user-menu'
+import { NotificationBell } from './notification-bell'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/components/ui/breadcrumb'
 
 interface TopBarProps {
@@ -28,6 +29,7 @@ export function TopBar({ title, firstName, lastName, role }: TopBarProps) {
         </Breadcrumb>
       )}
       <div className="ml-auto flex items-center gap-1">
+        <NotificationBell />
         <LanguageSwitcher />
         <UserMenu firstName={firstName} lastName={lastName} role={role} />
       </div>

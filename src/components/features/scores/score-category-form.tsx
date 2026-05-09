@@ -60,13 +60,14 @@ export function ScoreCategoryForm({ defaultValues, onSubmit, onCancel }: ScoreCa
         <Select
           value={type}
           onValueChange={(v) => v && setValue('type', v as 'deduct' | 'add')}
+          itemToStringLabel={(value) => value === 'deduct' ? 'หักคะแนน' : value === 'add' ? 'เพิ่มคะแนน' : String(value)}
         >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="deduct">หักคะแนน</SelectItem>
-            <SelectItem value="add">เพิ่มคะแนน</SelectItem>
+            <SelectItem value="deduct" label="หักคะแนน">หักคะแนน</SelectItem>
+            <SelectItem value="add" label="เพิ่มคะแนน">เพิ่มคะแนน</SelectItem>
           </SelectContent>
         </Select>
       </div>

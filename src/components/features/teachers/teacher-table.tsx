@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Edit, Eye, MoreHorizontal, Trash2, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,8 +61,9 @@ export function TeacherTable({ data, loading, onEdit, onDelete }: TeacherTablePr
                     <MoreHorizontal className="h-4 w-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem render={<Link href={`/teachers/${t.id}`} />}><Eye className="mr-2 h-4 w-4" />ดูรายละเอียด</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEdit?.(t)}><Edit className="mr-2 h-4 w-4" />แก้ไข</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(t)}><Trash2 className="mr-2 h-4 w-4" />ลบ</DropdownMenuItem>
+                    {onDelete && <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(t)}><Trash2 className="mr-2 h-4 w-4" />ลบ</DropdownMenuItem>}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

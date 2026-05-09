@@ -55,9 +55,17 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
   }, [selectedYearId]);
 
   // If classrooms provided via props, use those (filtered by year)
-  const displayClassrooms = propClassrooms && propClassrooms.length > 0
+  const displayClassrooms = (propClassrooms && propClassrooms.length > 0
     ? propClassrooms.filter(c => !selectedYearId || c.academic_year_id === selectedYearId)
-    : filteredClassrooms;
+    : filteredClassrooms
+  ).filter(c => {
+    if (gradeLevel) {
+      const g = parseInt(gradeLevel);
+      if (c.grade_level !== g) return false;
+    }
+    if (educationStage && c.education_stage !== educationStage) return false;
+    return true;
+  });
 
   const handleSearch = useCallback(() => {
     onSearch({
@@ -94,13 +102,18 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
 
       {/* Academic Year */}
       <div className="w-[140px]">
-        <Select value={selectedYearId} onValueChange={(v) => v !== null && setSelectedYearId(v)}>
+        <Select value={selectedYearId} onValueChange={(v) => v !== null && setSelectedYearId(v)}
+          itemToStringLabel={(value) => {
+            const y = academicYears.find(y => y.id === value);
+            return y ? `${y.name}${y.is_current ? ' (ปัจจุบัน)' : ''}` : String(value);
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="ปีการศึกษา" />
           </SelectTrigger>
           <SelectContent>
             {academicYears.map((y) => (
-              <SelectItem key={y.id} value={y.id}>
+              <SelectItem key={y.id} value={y.id} label={`${y.name}${y.is_current ? ' (ปัจจุบัน)' : ''}`}>
                 {y.name}{y.is_current ? ' (ปัจจุบัน)' : ''}
               </SelectItem>
             ))}
@@ -109,7 +122,10 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
       </div>
 
       <div className="w-[140px]">
-        <Select value={educationStage} onValueChange={(v) => v !== null && setEducationStage(v)}>
+        <Select value={educationStage} onValueChange={(v) => v !== null && (setEducationStage(v), setClassroomId(''))}
+
+          itemToStringLabel={(value) => value === 'primary' ? 'ประถม' : value === 'secondary' ? 'มัธยม' : value === '' ? 'ทั้งหมด' : String(value)}
+        >
           <SelectTrigger>
             <SelectValue placeholder="ระดับ" />
           </SelectTrigger>
@@ -122,7 +138,15 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
       </div>
 
       <div className="w-[120px]">
-        <Select value={gradeLevel} onValueChange={(v) => v !== null && setGradeLevel(v)}>
+        <Select value={gradeLevel} onValueChange={(v) => v !== null && (setGradeLevel(v), setClassroomId(''))}
+          itemToStringLabel={(value) => {
+            if (!value) return 'ทั้งหมด';
+            const g = parseInt(value);
+            if (g >= 1 && g <= 6) return `ป.${g}`;
+            if (g >= 7 && g <= 9) return `ม.${g - 6}`;
+            return String(value);
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="ชั้นปี" />
           </SelectTrigger>
@@ -148,6 +172,11 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
             value={classroomId}
             onValueChange={(v) => v !== null && setClassroomId(v)}
             disabled={!selectedYearId || loadingClassrooms}
+            itemToStringLabel={(value) => {
+              if (!value) return 'ทั้งหมด';
+              const c = displayClassrooms.find(c => c.id === value);
+              return c ? c.name : String(value);
+            }}
           >
             <SelectTrigger>
               <SelectValue placeholder={loadingClassrooms ? 'โหลด...' : 'ห้องเรียน'} />
@@ -165,7 +194,12 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
       )}
 
       <div className="w-[120px]">
-        <Select value={status} onValueChange={(v) => v !== null && setStatus(v)}>
+        <Select value={status} onValueChange={(v) => v !== null && setStatus(v)}
+          itemToStringLabel={(value) => {
+            const labels: Record<string, string> = { '': 'ทั้งหมด', active: 'กำลังศึกษา', inactive: 'ไม่ active', transferred: 'ย้ายออก', graduated: 'จบการศึกษา', suspended: 'พักการเรียน' };
+            return labels[value] || String(value);
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="สถานะ" />
           </SelectTrigger>

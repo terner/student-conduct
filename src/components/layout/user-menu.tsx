@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { LogOut, User, Settings } from 'lucide-react'
+import { LogOut, User, Settings, Lock } from 'lucide-react'
 import Link from 'next/link'
 
 interface UserMenuProps {
@@ -43,6 +43,9 @@ export function UserMenu({ firstName, lastName, role }: UserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem render={<Link href="/settings" />}>
           <User className="mr-2 size-4" />โปรไฟล์
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href="/change-password" />}>
+          <Lock className="mr-2 size-4" />เปลี่ยนรหัสผ่าน
         </DropdownMenuItem>
         {role === 'admin' && (
           <DropdownMenuItem render={<Link href="/settings" />}>

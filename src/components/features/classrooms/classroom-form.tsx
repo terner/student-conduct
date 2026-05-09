@@ -31,11 +31,13 @@ export function ClassroomForm({ defaultValues, onSubmit, onCancel }: ClassroomFo
 
       <div className="space-y-2">
         <Label>ระดับ *</Label>
-        <Select value={watch('education_stage')} onValueChange={(v) => v && setValue('education_stage', v as 'primary' | 'secondary')}>
+        <Select value={watch('education_stage')} onValueChange={(v) => v && setValue('education_stage', v as 'primary' | 'secondary')}
+          itemToStringLabel={(value) => value === 'primary' ? 'ประถมศึกษา' : value === 'secondary' ? 'มัธยมศึกษา' : String(value)}
+        >
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="primary">ประถมศึกษา</SelectItem>
-            <SelectItem value="secondary">มัธยมศึกษา</SelectItem>
+            <SelectItem value="primary" label="ประถมศึกษา">ประถมศึกษา</SelectItem>
+            <SelectItem value="secondary" label="มัธยมศึกษา">มัธยมศึกษา</SelectItem>
           </SelectContent>
         </Select>
       </div>

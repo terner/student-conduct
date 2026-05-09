@@ -39,11 +39,16 @@ export default function ClassroomReportPage() {
       <div className="flex gap-2 items-end">
         <div className="w-64 space-y-1">
           <label className="text-sm font-medium">เลือกห้องเรียน</label>
-          <Select value={selectedId} onValueChange={(v) => v && setSelectedId(v)}>
+          <Select value={selectedId} onValueChange={(v) => v && setSelectedId(v)}
+            itemToStringLabel={(value) => {
+              const c = classrooms.find(c => c.id === value);
+              return c ? c.name : String(value);
+            }}
+          >
             <SelectTrigger><SelectValue placeholder="เลือกห้องเรียน" /></SelectTrigger>
             <SelectContent>
               {classrooms.map(c => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                <SelectItem key={c.id} value={c.id} label={c.name}>{c.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>

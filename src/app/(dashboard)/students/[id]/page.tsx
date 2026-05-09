@@ -160,13 +160,17 @@ export default function StudentDetailPage() {
               value={student.current_status}
               onValueChange={handleStatusChange}
               disabled={changingStatus}
+              itemToStringLabel={(value) => {
+                const opt = STATUS_OPTIONS.find(o => o.value === value);
+                return opt ? opt.label : String(value);
+              }}
             >
               <SelectTrigger className="w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
+                  <SelectItem key={opt.value} value={opt.value} label={opt.label}>
                     {opt.label}
                   </SelectItem>
                 ))}

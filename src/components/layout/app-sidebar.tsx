@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen,
   ClipboardPlus, FileText, Settings, School, AlertTriangle,
-  LogOut,
+  LogOut, Tags, CheckCircle2, FileSignature, Phone,
+  CalendarDays,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -18,8 +19,12 @@ const navigation = [
   { label: 'นักเรียน', icon: Users, href: '/students' },
   { label: 'ห้องเรียน', icon: GraduationCap, href: '/classrooms' },
   { label: 'บันทึกคะแนน', icon: ClipboardPlus, href: '/score/record' },
+  { label: 'หมวดหมู่คะแนน', icon: Tags, href: '/score/categories' },
+  { label: 'รออนุมัติ', icon: CheckCircle2, href: '/score/approval' },
   { label: 'รายงาน', icon: FileText, href: '/reports' },
   { label: 'ครู', icon: BookOpen, href: '/teachers' },
+  { label: 'บันทึกติดต่อ', icon: Phone, href: '/interventions' },
+  { label: 'ทัณฑ์บน', icon: FileSignature, href: '/reports/bond' },
   { label: 'ตั้งค่า', icon: Settings, href: '/settings' },
 ] as const
 

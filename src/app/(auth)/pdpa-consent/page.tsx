@@ -1,43 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { createClient } from '@/lib/supabase/client';
+import { acceptPDPA, getCurrentUserRole } from '@/lib/actions/dashboard.action';
 
 export default function PdpaConsentPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    getCurrentUserRole().then((res) => {
+      if (res.success && res.data) {
+        setUserRole(res.data.role);
+      }
+    });
+  }, []);
 
   async function handleAccept() {
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profile) {
-        await supabase.from('pdpa_consents').insert({
-          subject_type: profile.role === 'student' ? 'student' : profile.role === 'teacher' ? 'teacher' : 'admin',
-          subject_id: profile.id,
-          consent_type: 'general',
-          version: '1.0',
-          accepted: true,
-          accepted_by: profile.id,
-        });
+      const res = await acceptPDPA();
+      if (res.success) {
+        if (userRole === 'student') {
+          router.push('/student/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
+        router.refresh();
       }
-
-      router.push('/dashboard');
-      router.refresh();
     } catch {
       // handled silently
     } finally {

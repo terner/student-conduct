@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Plus, Trash2, Download } from 'lucide-react';
+import { Save, Plus, Trash2, Download, ListChecks, Upload, Image as ImageIcon, X, CalendarDays, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +39,7 @@ export default function SettingsPage() {
     const updates = [
       ['school_name', settings.school_name],
       ['school_name_en', settings.school_name_en],
+      ['school_logo', settings.school_logo],
       ['base_score', settings.base_score],
       ['score_floor', settings.score_floor],
       ['thresholds', thresholds],
@@ -94,6 +95,64 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label>ชื่อโรงเรียน (ภาษาอังกฤษ)</Label>
                 <Input value={settings.school_name_en || ''} onChange={e => setSettings({...settings, school_name_en: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>โลโก้โรงเรียน</Label>
+                <div className="flex items-center gap-4">
+                  {settings.school_logo ? (
+                    <div className="relative">
+                      <img src={settings.school_logo} alt="Logo" className="size-12 rounded-lg object-cover border" />
+                      <button
+                        type="button"
+                        className="absolute -top-1 -right-1 rounded-full bg-destructive text-destructive-foreground p-0.5"
+                        onClick={() => setSettings({...settings, school_logo: ''})}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="size-12 rounded-lg border border-dashed flex items-center justify-center text-muted-foreground">
+                      <ImageIcon className="size-5" />
+                    </div>
+                  )}
+                  <label className="cursor-pointer">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+                      <Upload className="size-4" />
+                      <span>เลือกรูปภาพ</span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={saving}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 2 * 1024 * 1024) {
+                          alert('ไฟล์ต้องมีขนาดไม่เกิน 2MB');
+                          return;
+                        }
+                        setSaving(true);
+                        try {
+                          const formData = new FormData();
+                          formData.append('file', file);
+                          const res = await fetch('/api/upload/logo', { method: 'POST', body: formData });
+                          const result = await res.json();
+                          if (res.ok && result.url) {
+                            setSettings({...settings, school_logo: result.url});
+                          } else {
+                            alert(result.error || 'อัปโหลดไม่สำเร็จ');
+                          }
+                        } catch {
+                          alert('เกิดข้อผิดพลาดในการอัปโหลด');
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-muted-foreground">รองรับไฟล์ PNG, JPG, GIF ขนาดไม่เกิน 2MB</p>
               </div>
             </CardContent>
           </Card>
@@ -185,6 +244,14 @@ export default function SettingsPage() {
               <Button variant="outline" nativeButton={false} render={<a href="/settings/import" />}>
                 <Download className="mr-2 h-4 w-4" />
                 นำเข้านักเรียนจาก CSV
+              </Button>
+              <Button variant="outline" nativeButton={false} render={<a href="/settings/logs" />}>
+                <ListChecks className="mr-2 h-4 w-4" />
+                ดู Audit Log
+              </Button>
+              <Button variant="outline" nativeButton={false} render={<a href="/settings/academic-years" />}>
+                <CalendarDays className="mr-2 h-4 w-4" />
+                จัดการปีการศึกษา
               </Button>
             </CardContent>
           </Card>

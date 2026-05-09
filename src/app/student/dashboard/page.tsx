@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { getStudentDashboard } from '@/lib/actions/student.action';
+import { checkMustChangePassword, checkPDPAConsent } from '@/lib/actions/dashboard.action';
 
 export default function StudentDashboardPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [studentInfo, setStudentInfo] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
@@ -15,6 +18,20 @@ export default function StudentDashboardPage() {
 
   useEffect(() => {
     async function load() {
+      // Check must_change_password first
+      const passwordRes = await checkMustChangePassword();
+      if (passwordRes.success && passwordRes.data?.must_change_password) {
+        router.replace('/change-password');
+        return;
+      }
+
+      // Check PDPA consent
+      const consentRes = await checkPDPAConsent();
+      if (consentRes.success && consentRes.data && !consentRes.data.consented) {
+        router.replace('/pdpa-consent');
+        return;
+      }
+
       const res = await getStudentDashboard();
       if (res.success && res.data) {
         setStudentInfo(res.data.student);
@@ -24,7 +41,7 @@ export default function StudentDashboardPage() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [router]);
 
   if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div></div>;
 
