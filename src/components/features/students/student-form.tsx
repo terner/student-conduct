@@ -45,6 +45,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [availableClassrooms, setAvailableClassrooms] = useState<ClassroomOption[]>([]);
   const [selectedYearId, setSelectedYearId] = useState<string>('');
+  const [selectedGradeLevel, setSelectedGradeLevel] = useState<number | null>(null);
   const [loadingClassrooms, setLoadingClassrooms] = useState(false);
 
   const {
@@ -70,13 +71,20 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   const selectedClassroom = availableClassrooms.find(c => c.id === classroomId);
 
   // If classrooms are provided via props (backward compat), use those
-  // but year filter still applies
   const displayClassrooms = propClassrooms && propClassrooms.length > 0
     ? propClassrooms.filter(c => !selectedYearId || c.academic_year_id === selectedYearId)
     : availableClassrooms;
 
+  // Unique grade levels from classrooms, sorted
+  const gradeLevels = Array.from(new Set(displayClassrooms.map(c => c.grade_level))).sort((a, b) => a - b);
+
+  // Filter classrooms by selected grade level
+  const filteredClassrooms = selectedGradeLevel
+    ? displayClassrooms.filter(c => c.grade_level === selectedGradeLevel)
+    : displayClassrooms;
+
   // Safe value for Base UI Select: null when no valid classroom is selected
-  const safeClassroomValue = classroomId && displayClassrooms.some(c => c.id === classroomId)
+  const safeClassroomValue = classroomId && filteredClassrooms.some(c => c.id === classroomId)
     ? classroomId
     : null;
 
@@ -87,14 +95,19 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   const statusValue = (['active', 'inactive', 'transferred', 'graduated', 'suspended'] as string[]).includes(watch('current_status') || '')
     ? watch('current_status')
     : null;
-  const yearValue = academicYears.some(y => y.id === selectedYearId) ? selectedYearId : null;
 
-  // Load academic years on mount
+  // Get stage label for a given grade level
+  function formatGradeLabel(gradeLevel: number): string {
+    const classroom = displayClassrooms.find(c => c.grade_level === gradeLevel);
+    const stage = classroom?.education_stage || 'primary';
+    return stage === 'primary' ? `ประถมศึกษาปีที่ ${gradeLevel}` : `มัธยมศึกษาปีที่ ${gradeLevel}`;
+  }
+
+  // Load academic years on mount, auto-select current year
   useEffect(() => {
     getAcademicYears().then((res) => {
       if (res.success && res.data) {
         setAcademicYears(res.data);
-        // Auto-select current year
         const current = res.data.find((y: AcademicYear) => y.is_current);
         if (current) {
           setSelectedYearId(current.id);
@@ -165,67 +178,78 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
         {errors.student_id_number && <p className="text-xs text-destructive">{errors.student_id_number.message}</p>}
       </div>
 
-      {/* Academic Year — must select first */}
-      <div className="space-y-2">
-        <Label>ปีการศึกษา *</Label>
-        <Select
-          value={yearValue}
-          onValueChange={(v) => v && setSelectedYearId(v)}
-          itemToStringLabel={(value) => {
-            const y = academicYears.find(y => y.id === value);
-            return y ? `${y.name}${y.is_current ? ' (ปัจจุบัน)' : ''}` : String(value);
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="เลือกปีการศึกษา" />
-          </SelectTrigger>
-          <SelectContent>
-            {academicYears.map((y) => (
-              <SelectItem key={y.id} value={y.id} label={`${y.name}${y.is_current ? ' (ปัจจุบัน)' : ''}`}>
-                {y.name}{y.is_current ? ' (ปัจจุบัน)' : ''}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* เลือกชั้นปีก่อน แล้วค่อยเลือกห้อง */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>ชั้นปี *</Label>
+          <Select
+            value={selectedGradeLevel !== null ? String(selectedGradeLevel) : null}
+            onValueChange={(v) => {
+              if (v) {
+                setSelectedGradeLevel(Number(v));
+                setValue('classroom_id', '', { shouldValidate: true });
+              }
+            }}
+            disabled={loadingClassrooms || gradeLevels.length === 0}
+            itemToStringLabel={(value) => {
+              const gl = Number(value);
+              return gl ? formatGradeLabel(gl) : String(value);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={loadingClassrooms ? 'กำลังโหลด...' : 'เลือกชั้นปี'} />
+            </SelectTrigger>
+            <SelectContent>
+              {gradeLevels.map((gl) => (
+                <SelectItem key={gl} value={String(gl)} label={formatGradeLabel(gl)}>
+                  {formatGradeLabel(gl)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>ห้อง *</Label>
+          <Select
+            value={safeClassroomValue}
+            onValueChange={(v) => {
+              if (v) setValue('classroom_id', v, { shouldValidate: true });
+            }}
+            disabled={!selectedGradeLevel || filteredClassrooms.length === 0}
+            itemToStringLabel={(value) => {
+              const c = filteredClassrooms.find(c => c.id === value);
+              return c ? `ห้อง ${c.name}` : String(value);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={!selectedGradeLevel ? 'เลือกชั้นปีก่อน' : 'เลือกห้อง'} />
+            </SelectTrigger>
+            <SelectContent>
+              {filteredClassrooms.map((c) => {
+                const label = `ห้อง ${c.name}`;
+                return (
+                  <SelectItem key={c.id} value={c.id} label={label}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+          {errors.classroom_id && <p className="text-xs text-destructive">{errors.classroom_id.message}</p>}
+        </div>
       </div>
 
-      {/* Classroom — depends on selected year */}
+      {/* รหัสประจำตัวนักเรียน */}
       <div className="space-y-2">
-        <Label>ห้องเรียน *</Label>
-        <Select
-          value={safeClassroomValue}
-          onValueChange={(v) => {
-            if (v) setValue('classroom_id', v, { shouldValidate: true });
-          }}
-          disabled={!selectedYearId || loadingClassrooms}
-          itemToStringLabel={(value) => {
-            const c = displayClassrooms.find(c => c.id === value);
-            return c ? c.name : String(value);
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={loadingClassrooms ? 'กำลังโหลด...' : (!selectedYearId ? 'เลือกปีการศึกษาก่อน' : 'เลือกห้องเรียน')} />
-          </SelectTrigger>
-          <SelectContent>
-            {displayClassrooms.map((c) => (
-              <SelectItem key={c.id} value={c.id} label={c.name}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.classroom_id && <p className="text-xs text-destructive">{errors.classroom_id.message}</p>}
-      </div>
-
-      {/* Class Number — after classroom */}
-      <div className="space-y-2">
-        <Label htmlFor="class_number">เลขที่ *</Label>
+        <Label htmlFor="class_number">รหัสประจำตัว *</Label>
         <Input
           id="class_number"
           type="number"
           min={1}
-          max={50}
+          max={99999}
           {...register('class_number', { valueAsNumber: true })}
+          placeholder="เช่น 12345"
         />
         {errors.class_number && <p className="text-xs text-destructive">{errors.class_number.message}</p>}
       </div>
