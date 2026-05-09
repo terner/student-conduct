@@ -16,7 +16,7 @@ function decodeSessionCookie(value: string): { user_id?: string } | null {
 
 const publicRoutes = ['/login', '/pdpa-consent', '/pdpa-rejected', '/change-password'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes, static files, and API routes (no auth needed)

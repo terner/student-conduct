@@ -11,6 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let firstName: string | undefined
   let lastName: string | undefined
   let role: string | undefined
+  let email: string | undefined
 
   try {
     const { supabase, user } = await createClientWithUser()
@@ -45,13 +46,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
         firstName = profileResult.data.full_name
       }
     }
+
+    // Fallback: use email prefix if no full_name set
+    if (!firstName && user?.email) {
+      email = user.email
+      firstName = user.email.split('@')[0]
+    }
   } catch { /* use defaults */ }
 
   return (
     <SidebarProvider>
       <AppSidebar schoolName={schoolName} schoolLogo={schoolLogo} />
       <SidebarInset className="flex flex-1 flex-col">
-        <TopBar title="แดชบอร์ด" firstName={firstName} lastName={lastName} role={role} />
+        <TopBar title="แดชบอร์ด" firstName={firstName} lastName={lastName} role={role} email={email} />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>

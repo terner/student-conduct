@@ -2,7 +2,7 @@
 
 import { withAuth } from '@/lib/server-action';
 import { getDashboardData } from '@/lib/db';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient, createClientWithUser } from '@/lib/supabase/server';
 
 /**
  * Consolidated dashboard data fetch.
@@ -96,13 +96,37 @@ export async function acceptPDPA() {
 }
 
 /**
- * Get current user profile info (role)
+ * Get current user profile info (role, name, email)
  */
 export async function getCurrentUserRole() {
   return withAuth(async (profile) => {
+    const { user } = await createClientWithUser();
     return {
       success: true,
-      data: { role: profile.role, full_name: profile.full_name },
+      data: {
+        role: profile.role,
+        full_name: profile.full_name,
+        email: user?.email || null,
+      },
     };
+  });
+}
+
+/**
+ * Update profile name (first_name + last_name → full_name)
+ */
+export async function changeProfileName(firstName: string, lastName: string) {
+  return withAuth(async (profile) => {
+    const fullName = `${firstName} ${lastName}`.trim();
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: fullName })
+      .eq('id', profile.id);
+
+    if (error) {
+      return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    }
+    return { success: true, data: { full_name: fullName } };
   });
 }

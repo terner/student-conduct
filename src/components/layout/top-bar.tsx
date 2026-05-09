@@ -12,9 +12,10 @@ interface TopBarProps {
   firstName?: string
   lastName?: string
   role?: string
+  email?: string
 }
 
-export function TopBar({ title, firstName, lastName, role }: TopBarProps) {
+export function TopBar({ title, firstName, lastName, role, email }: TopBarProps) {
   return (
     <header className="flex h-16 items-center gap-3 border-b border-border px-4">
       <SidebarTrigger />
@@ -31,7 +32,7 @@ export function TopBar({ title, firstName, lastName, role }: TopBarProps) {
       <div className="ml-auto flex items-center gap-1">
         <NotificationBell />
         <LanguageSwitcher />
-        <UserMenu firstName={firstName} lastName={lastName} role={role} />
+        <UserMenu firstName={firstName} lastName={lastName} role={role} email={email} />
       </div>
     </header>
   )

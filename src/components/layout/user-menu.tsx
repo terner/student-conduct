@@ -12,29 +12,33 @@ interface UserMenuProps {
   firstName?: string
   lastName?: string
   role?: string
+  email?: string
 }
 
-export function UserMenu({ firstName, lastName, role }: UserMenuProps) {
-  const initials = `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`
+export function UserMenu({ firstName, lastName, role, email }: UserMenuProps) {
+  // Use name initials; fall back to email first char
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || email?.split('@')[0] || ''
+  const initials = `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}` || email?.charAt(0).toUpperCase() || 'U'
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" className="size-8 rounded-full p-0" />}>
           <Avatar className="size-8">
-            <AvatarFallback className="text-xs">{initials || 'U'}</AvatarFallback>
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>
             <div className="flex flex-col">
-              <span>{firstName} {lastName}</span>
-              <span className="text-xs text-muted-foreground capitalize">{role}</span>
+              <span>{displayName}</span>
+              {role && <span className="text-xs text-muted-foreground capitalize">{role}</span>}
+              {email && <span className="text-xs text-muted-foreground">{email}</span>}
             </div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link href="/settings" />}>
+        <DropdownMenuItem render={<Link href="/settings/profile" />}>
           <User className="mr-2 size-4" />โปรไฟล์
         </DropdownMenuItem>
         <DropdownMenuItem render={<Link href="/change-password" />}>
