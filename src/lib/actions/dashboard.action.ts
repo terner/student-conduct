@@ -2,7 +2,7 @@
 
 import { withAuth } from '@/lib/server-action';
 import { getDashboardData } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 /**
  * Consolidated dashboard data fetch.
@@ -63,11 +63,12 @@ export async function checkMustChangePassword() {
 
 /**
  * Accept PDPA consent for the current user.
+ * Uses admin client to bypass RLS (user is already authenticated via withAuth).
  */
 export async function acceptPDPA() {
   return withAuth(async (profile) => {
-    const supabase = await createClient();
-    const { error } = await supabase.from('pdpa_consents').insert({
+    const adminClient = await createAdminClient();
+    const { error } = await adminClient.from('pdpa_consents').insert({
       subject_type: profile.role === 'student' ? 'student' : profile.role === 'teacher' ? 'teacher' : 'admin',
       subject_id: profile.id,
       consent_type: 'general',
