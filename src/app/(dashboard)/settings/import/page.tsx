@@ -3,13 +3,10 @@
 import { useState, useRef } from 'react';
 import { Upload, AlertCircle, CheckCircle2, Download, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { createClient } from '@/lib/supabase/client';
-import { parseCsvFile, mapCsvRowToStudent } from '@/lib/utils/csv';
+import { parseCsvFile } from '@/lib/utils/csv';
+import { importStudentsCsv } from '@/lib/actions/student.action';
 
 export default function ImportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,102 +21,15 @@ export default function ImportPage() {
 
     try {
       const parsed = await parseCsvFile(file);
-      const importErrors: { row: number; message: string }[] = [];
-      let imported = 0;
-
-      const supabase = createClient();
-
-      // Get current academic year
-      const { data: acYear } = await supabase
-        .from('academic_years')
-        .select('id')
-        .eq('is_current', true)
-        .single();
-
-      for (let i = 0; i < parsed.data.length; i++) {
-        try {
-          const row = parsed.data[i];
-          const mapped = mapCsvRowToStudent(row);
-
-          // Find or create classroom
-          const { data: classroom } = await supabase
-            .from('classrooms')
-            .select('id')
-            .eq('name', mapped.classroom)
-            .eq('grade_level', mapped.grade_level)
-            .single();
-
-          if (!classroom) {
-            importErrors.push({ row: i + 1, message: `ไม่พบห้องเรียน ${mapped.classroom}` });
-            continue;
-          }
-
-          // Create auth user
-          const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-            email: `${mapped.student_id}@student.school.com`,
-            password: 'Student@123',
-            email_confirm: true,
-            user_metadata: { full_name: `${mapped.first_name} ${mapped.last_name}`, role: 'student' },
-          });
-
-          if (authError || !authUser?.user) {
-            importErrors.push({ row: i + 1, message: 'สร้างบัญชีผู้ใช้ไม่สำเร็จ' });
-            continue;
-          }
-
-          // Create profile
-          const { data: profile } = await supabase
-            .from('profiles')
-            .insert({
-              user_id: authUser.user.id,
-              role: 'student',
-              full_name: `${mapped.first_name} ${mapped.last_name}`,
-              is_active: true,
-            })
-            .select('id')
-            .single();
-
-          if (!profile) {
-            await supabase.auth.admin.deleteUser(authUser.user.id);
-            importErrors.push({ row: i + 1, message: 'สร้างโปรไฟล์ไม่สำเร็จ' });
-            continue;
-          }
-
-          // Create student
-          const { error: studentError } = await supabase
-            .from('students')
-            .insert({
-              profile_id: profile.id,
-              student_id_number: mapped.student_id,
-              classroom_id: classroom.id,
-              current_status: mapped.status === 'active' ? 'active' : 'inactive',
-            });
-
-          if (studentError) {
-            await supabase.auth.admin.deleteUser(authUser.user.id);
-            importErrors.push({ row: i + 1, message: studentError.message });
-            continue;
-          }
-
-          // Create enrollment
-          await supabase.from('student_enrollments').insert({
-            student_id: mapped.student_id,
-            classroom_id: classroom.id,
-            class_number: mapped.class_number,
-            enrollment_status: 'active',
-            source: 'annual_import',
-          });
-
-          imported++;
-        } catch (err) {
-          importErrors.push({ row: i + 1, message: err instanceof Error ? err.message : 'ข้อผิดพลาดไม่ทราบสาเหตุ' });
-        }
+      const res = await importStudentsCsv(parsed.data);
+      if (res.success) {
+        setResult({
+          success: res.data.imported,
+          errors: [...parsed.errors, ...res.data.errors],
+        });
+      } else {
+        setResult({ success: 0, errors: [{ row: 0, message: res.error?.message || 'เกิดข้อผิดพลาด' }] });
       }
-
-      setResult({
-        success: imported,
-        errors: [...parsed.errors, ...importErrors],
-      });
     } catch (err) {
       setResult({ success: 0, errors: [{ row: 0, message: err instanceof Error ? err.message : 'ไม่สามารถอ่านไฟล์ CSV ได้' }] });
     } finally {

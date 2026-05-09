@@ -2,9 +2,9 @@
 
 import { withAuth, type ActionResult } from '@/lib/server-action';
 import { listStudents, getStudentById, createStudent, updateStudent, archiveStudent, getStudentScoreSummary, getStudentEnrollments } from '@/lib/db';
-import { studentSchema, paginationSchema } from '@/lib/validation/schemas';
+import { studentSchema, paginationSchema, studentImportSchema } from '@/lib/validation/schemas';
 import { validateXSS } from '@/lib/security/validate-input';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 export async function getStudents(params: {
   page?: number;
@@ -244,5 +244,127 @@ export async function getStudentListForSelect() {
         classroom_name: (s.classrooms as Record<string, unknown>)?.name as string || '',
       })),
     };
+  });
+}
+
+/**
+ * Import students from CSV data (parsed server-side)
+ * Uses admin client to bypass RLS and create auth users
+ */
+export async function importStudentsCsv(rows: Record<string, unknown>[]) {
+  return withAuth(async (profile) => {
+    if (profile.role !== 'admin') {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
+    }
+
+    const adminClient = await createAdminClient();
+    const errors: { row: number; message: string }[] = [];
+    let imported = 0;
+
+    // Get current academic year
+    const { data: acYear } = await adminClient
+      .from('academic_years')
+      .select('id')
+      .eq('is_current', true)
+      .maybeSingle();
+
+    for (let i = 0; i < rows.length; i++) {
+      try {
+        const row = rows[i];
+        const studentId = String(row['รหัสนักเรียน'] || row['student_id'] || row['student_id_number'] || '');
+        const firstName = String(row['ชื่อ'] || row['first_name'] || '');
+        const lastName = String(row['นามสกุล'] || row['last_name'] || '');
+        const gradeLevel = Number(row['ชั้นปี'] || row['grade_level'] || 1);
+        const classroomName = String(row['ห้อง'] || row['classroom'] || '');
+        const classNum = row['เลขที่'] || row['class_number'];
+        const classNumber = classNum !== undefined && classNum !== '' ? Number(classNum) : undefined;
+        const status = String(row['สถานะ'] || row['status'] || 'active');
+
+        if (!studentId || !firstName || !lastName || !classroomName) {
+          errors.push({ row: i + 1, message: 'ข้อมูลไม่ครบ (รหัส, ชื่อ, นามสกุล, ห้อง)' });
+          continue;
+        }
+
+        // Find classroom
+        const { data: classroom } = await adminClient
+          .from('classrooms')
+          .select('id')
+          .eq('name', classroomName)
+          .eq('grade_level', gradeLevel)
+          .maybeSingle();
+
+        if (!classroom) {
+          errors.push({ row: i + 1, message: `ไม่พบห้องเรียน "${classroomName}" ชั้นปี ${gradeLevel}` });
+          continue;
+        }
+
+        // Create auth user
+        const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+          email: `${studentId}@student.school.com`,
+          password: 'Student@123',
+          email_confirm: true,
+          user_metadata: { full_name: `${firstName} ${lastName}`, role: 'student' },
+        });
+
+        if (authError || !authUser?.user) {
+          errors.push({ row: i + 1, message: 'สร้างบัญชีผู้ใช้ไม่สำเร็จ' });
+          continue;
+        }
+
+        // Create profile
+        const { data: profile } = await adminClient
+          .from('profiles')
+          .insert({
+            user_id: authUser.user.id,
+            role: 'student',
+            full_name: `${firstName} ${lastName}`,
+            is_active: status === 'active',
+          })
+          .select('id')
+          .single();
+
+        if (!profile) {
+          await adminClient.auth.admin.deleteUser(authUser.user.id);
+          errors.push({ row: i + 1, message: 'สร้างโปรไฟล์ไม่สำเร็จ' });
+          continue;
+        }
+
+        // Create student
+        const { data: studentRecord } = await adminClient
+          .from('students')
+          .insert({
+            profile_id: profile.id,
+            student_id_number: studentId,
+            classroom_id: classroom.id,
+            current_status: status === 'active' ? 'active' : 'inactive',
+          })
+          .select('id')
+          .single();
+
+        if (!studentRecord) {
+          await adminClient.auth.admin.deleteUser(authUser.user.id);
+          errors.push({ row: i + 1, message: 'สร้างข้อมูลนักเรียนไม่สำเร็จ' });
+          continue;
+        }
+
+        // Create enrollment
+        const enrollmentData: Record<string, unknown> = {
+          student_id: studentRecord.id,
+          classroom_id: classroom.id,
+          enrollment_status: 'active',
+          source: 'annual_import',
+        };
+        if (classNumber !== undefined) {
+          enrollmentData.class_number = classNumber;
+        }
+        await adminClient.from('student_enrollments').insert(enrollmentData);
+
+        imported++;
+      } catch (err) {
+        errors.push({ row: i + 1, message: err instanceof Error ? err.message : 'ข้อผิดพลาดไม่ทราบสาเหตุ' });
+      }
+    }
+
+    return { success: true, data: { imported, errors } };
   });
 }
