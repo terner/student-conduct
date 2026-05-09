@@ -67,6 +67,40 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 
 ## 2. Multi-Agent Workflow
 
+### Agent T — Tester & Code Reviewer
+
+เพิ่มบทบาท **Tester/Reviewer** เพื่อตรวจสอบโค้ดก่อน merge:
+
+```
+ตรวจก่อน merge (ใช้ /review command):
+┌─────────────────────────────────────────┐
+│  ✅ Build ผ่าน (npm run build)          │
+│  ✅ TypeScript error (npx tsc --noEmit) │
+│  ✅ Lint ผ่าน (npm run lint)            │
+│  ✅ XSS sanitization ครบทุก input       │
+│  ✅ Zod validate ทุก server action      │
+│  ✅ ไม่มี SERVICE_ROLE_KEY ใน client    │
+│  ✅ ใช้ i18n message keys (ไม่ hardcode) │
+│  ✅ Loading + empty state ครบ           │
+│  ✅ Error boundary ครอบ section          │
+└─────────────────────────────────────────┘
+
+🚫 Security Red Flags (ต้อง reject ทันที):
+│  🔴 dangerouslySetInnerHTML โดยไม่ใช้ SafeHtml
+│  🔴 SERVICE_ROLE_KEY ใน client component
+│  🔴 eval() หรือ new Function()
+│  🔴 import createAdminClient ใน page component
+│  🔴 env ไม่มี NEXT_PUBLIC_ ใช้ใน client
+└─────────────────────────────────────────┘
+```
+
+Branch: `agent/tester`
+Agent definition: `.claude/agents/tester.md` (ใช้ Claude Code sub-agent system)
+Command: `/review` — รัน checklist เต็มรูปแบบ
+Rules: `.claude/rules/04-security.md` — security red flags
+
+---
+
 ### หลักการ
 
 ทำงานแบบ **batch generation** — สร้างหลายไฟล์พร้อมกันในแต่ละรอบ แบ่งตาม **Agent (กลุ่มงาน)** ที่ independent กัน:

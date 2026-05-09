@@ -116,19 +116,36 @@
 - [x] Supabase MCP connected
 - [x] school.config.example.ts + .env.example
 - [x] req.md + project-plan.md + tasklist.md
+- [x] **CLAUD.md structure: split into `.claude/rules/*.md` (4 files)**
+- [x] **Custom commands: `/build-check`, `/review`, `/agent-start`**
+- [x] **Skills: `server-action`, `supabase-query`, `component-table`, `form-validation`**
+- [x] **Migrate tester → `.claude/agents/tester.md` (sub-agent format)**
+
+---
+
+### Tester — Code Review (ทุก Agent ก่อน merge)
+
+- [ ] `agent/0-foundation` — review + merge
+- [ ] `agent/1-students` — review + merge
+- [ ] `agent/2-scores` — review + merge
+- [ ] `agent/3-classroom-teacher` — review + merge
+- [ ] `agent/4-dashboard-reports` — review + merge
+- [ ] `agent/5-settings` — review + merge
 
 ---
 
 ## 📊 Progress
 
-| Agent | Files | Status |
-|-------|-------|--------|
-| Foundation (setup) | 60+ files | ✅ Done |
-| Agent 0 (Server/DB) | 11 files | ❌ Not started |
-| Agent 1 (Students) | 7 files | ❌ Not started |
-| Agent 2 (Score) | 9 files | ❌ Not started |
-| Agent 3 (Classroom/Teacher) | 9 files | ❌ Not started |
-| Agent 4 (Dashboard/Reports) | 9 files | ❌ Not started |
-| Agent 5 (Settings) | 9 files | ❌ Not started |
-| Auth & PDPA | 4 files | ❌ Not started |
-| **Total remaining** | **58 files** | |
+| Agent | Files | Branch | Status |
+|-------|-------|--------|--------|
+| Foundation (setup) | 60+ files | `main` | ✅ Done |
+| Infrastructure & Workflow | 12 files (rules/agents/commands/skills) | `main` | ✅ Done |
+| Agent 0 (Server/DB) | 11 files | `agent/0-foundation` | ❌ Not started |
+| Agent 1 (Students) | 7 files | `agent/1-students` | ❌ Not started |
+| Agent 2 (Score) | 9 files | `agent/2-scores` | ❌ Not started |
+| Agent 3 (Classroom/Teacher) | 9 files | `agent/3-classroom-teacher` | ❌ Not started |
+| Agent 4 (Dashboard/Reports) | 9 files | `agent/4-dashboard-reports` | ❌ Not started |
+| Agent 5 (Settings) | 9 files | `agent/5-settings` | ❌ Not started |
+| Auth & PDPA | 4 files | `main` (ใหม่) | ❌ Not started |
+| **Tester/Reviewer** | — | `agent/tester` | ⏳ Review flow |
+| **Total remaining** | **58 files** | | |
