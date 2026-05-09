@@ -1,7 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -17,14 +15,7 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ firstName, lastName, role }: UserMenuProps) {
-  const router = useRouter()
-  const supabase = createClient()
   const initials = `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
 
   return (
     <DropdownMenu>
@@ -53,7 +44,7 @@ export function UserMenu({ firstName, lastName, role }: UserMenuProps) {
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
+        <DropdownMenuItem render={<Link href="/api/auth/logout" prefetch={false} />}>
           <LogOut className="mr-2 size-4" />ออกจากระบบ
         </DropdownMenuItem>
       </DropdownMenuContent>
