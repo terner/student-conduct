@@ -91,15 +91,15 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <Link href="/dashboard" className="flex flex-col items-center gap-3">
-          <div className="flex aspect-square size-24 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-md">
+        <Link href="/dashboard" className="flex flex-col items-center gap-3 group-data-[collapsible=icon]:gap-0">
+          <div className="flex aspect-square size-24 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-md group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:shadow-none">
             {schoolLogo ? (
-              <img src={schoolLogo} alt="" className="size-20 rounded-lg object-contain" />
+              <img src={schoolLogo} alt="" className="size-20 rounded-lg object-contain group-data-[collapsible=icon]:size-6" />
             ) : (
-              <School className="size-12" />
+              <School className="size-12 group-data-[collapsible=icon]:size-4" />
             )}
           </div>
-          <div className="flex flex-col items-center gap-0.5 leading-none text-center">
+          <div className="flex flex-col items-center gap-0.5 leading-none text-center group-data-[collapsible=icon]:hidden">
             <span className="font-semibold text-base truncate max-w-[180px]">{schoolName}</span>
             <span className="text-xs text-sidebar-foreground/60">{t('subtitle')}</span>
           </div>
