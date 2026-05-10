@@ -90,24 +90,20 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex aspect-square size-10 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                {schoolLogo ? (
-                  <img src={schoolLogo} alt="" className="size-8 rounded object-contain" />
-                ) : (
-                  <School className="size-5" />
-                )}
-              </div>
-              <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-semibold truncate max-w-[140px]">{schoolName}</span>
-                <span className="text-xs text-sidebar-foreground/60">{t('subtitle')}</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarHeader className="p-4">
+        <Link href="/dashboard" className="flex flex-col items-center gap-3">
+          <div className="flex aspect-square size-24 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-md">
+            {schoolLogo ? (
+              <img src={schoolLogo} alt="" className="size-20 rounded-lg object-contain" />
+            ) : (
+              <School className="size-12" />
+            )}
+          </div>
+          <div className="flex flex-col items-center gap-0.5 leading-none text-center">
+            <span className="font-semibold text-base truncate max-w-[180px]">{schoolName}</span>
+            <span className="text-xs text-sidebar-foreground/60">{t('subtitle')}</span>
+          </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
