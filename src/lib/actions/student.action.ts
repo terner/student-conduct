@@ -611,17 +611,23 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         const { data: acYear } = academicYearName
           ? await adminClient
             .from('academic_years')
-            .select('id, name')
+            .select('id, name, start_date, end_date')
             .eq('name', academicYearName)
             .maybeSingle()
           : await adminClient
             .from('academic_years')
-            .select('id, name')
+            .select('id, name, start_date, end_date')
             .eq('is_current', true)
             .maybeSingle();
 
         if (!acYear?.id) {
           errors.push({ row: i + 1, message: academicYearName ? `ไม่พบปีการศึกษา "${academicYearName}"` : 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' });
+          continue;
+        }
+
+        const closedReason = getAcademicYearClosedReason(acYear);
+        if (closedReason) {
+          errors.push({ row: i + 1, message: `ไม่สามารถนำเข้านักเรียนของปี ${acYear.name || academicYearName} ได้ (${closedReason})` });
           continue;
         }
 

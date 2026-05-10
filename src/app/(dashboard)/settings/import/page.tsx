@@ -1,21 +1,55 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Upload, AlertCircle, CheckCircle2, Download, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { parseCsvFile } from '@/lib/utils/csv';
 import { importStudentsCsv } from '@/lib/actions/student.action';
+import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
+import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 
 export default function ImportPage() {
+  const selectedAcademicYearId = useSelectedAcademicYearId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: number; errors: { row: number; message: string }[] } | null>(null);
+  const [selectedYearOpen, setSelectedYearOpen] = useState(false);
+  const [closedReason, setClosedReason] = useState('');
+
+  useEffect(() => {
+    if (!selectedAcademicYearId) {
+      void Promise.resolve().then(() => {
+        setSelectedYearOpen(false);
+        setClosedReason('กรุณาเลือกปีการศึกษา');
+      });
+      return;
+    }
+
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => getScoreRecordingAvailability(selectedAcademicYearId))
+      .then((availability) => {
+        if (cancelled) return;
+        setSelectedYearOpen(Boolean(availability.success && availability.data?.can_record));
+        setClosedReason(availability.success ? availability.data?.reason || '' : availability.error.message);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSelectedYearOpen(false);
+          setClosedReason('ไม่สามารถตรวจสอบช่วงปีการศึกษาได้');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAcademicYearId]);
 
   async function handleImport() {
-    if (!file) return;
+    if (!file || !selectedYearOpen) return;
     setLoading(true);
     setResult(null);
 
@@ -49,13 +83,17 @@ export default function ImportPage() {
           <CardHeader>
             <CardTitle>อัปโหลดไฟล์ CSV</CardTitle>
             <CardDescription>
-              รองรับไฟล์ CSV ที่มีคอลัมน์: รหัสนักเรียน, คำนำหน้า, ชื่อ, นามสกุล, ชั้นปี, ห้อง, เลขที่ในห้อง, ระดับ, ชื่อผู้ปกครอง, ความสัมพันธ์, เบอร์โทรผู้ปกครอง
+              {selectedYearOpen
+                ? 'รองรับไฟล์ CSV ที่มีคอลัมน์: รหัสนักเรียน, คำนำหน้า, ชื่อ, นามสกุล, ชั้นปี, ห้อง, เลขที่ในห้อง, ระดับ, ชื่อผู้ปกครอง, ความสัมพันธ์, เบอร์โทรผู้ปกครอง'
+                : `ปีการศึกษาที่เลือกไม่เปิดให้นำเข้า${closedReason ? ` (${closedReason})` : ''}`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div
-              className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-accent"
-              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-lg p-8 text-center ${selectedYearOpen ? 'cursor-pointer hover:bg-accent' : 'cursor-not-allowed bg-muted/40 opacity-70'}`}
+              onClick={() => {
+                if (selectedYearOpen) fileInputRef.current?.click();
+              }}
             >
               <FileSpreadsheet className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
               <p className="text-sm font-medium">
@@ -69,6 +107,7 @@ export default function ImportPage() {
                 type="file"
                 accept=".csv"
                 className="hidden"
+                disabled={!selectedYearOpen}
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
             </div>
@@ -76,7 +115,7 @@ export default function ImportPage() {
             <Button
               className="w-full"
               onClick={handleImport}
-              disabled={!file || loading}
+              disabled={!file || loading || !selectedYearOpen}
             >
               {loading ? (
                 'กำลังนำเข้า...'

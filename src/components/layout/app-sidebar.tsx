@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -15,6 +16,8 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { getRoles } from '@/lib/security/roles'
+import { getScoreRecordingAvailability } from '@/lib/actions/score.action'
+import { useSelectedAcademicYearId } from '@/lib/academic-year-selection'
 
 interface NavItem {
   label: string
@@ -34,6 +37,29 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
   const pathname = usePathname()
   const t = useTranslations('nav')
   const userRoles = getRoles(role ? { role } : { role: undefined })
+  const selectedAcademicYearId = useSelectedAcademicYearId()
+  const [selectedYearOpen, setSelectedYearOpen] = useState(false)
+
+  useEffect(() => {
+    if (!selectedAcademicYearId) {
+      void Promise.resolve().then(() => setSelectedYearOpen(false))
+      return
+    }
+
+    let cancelled = false
+    Promise.resolve()
+      .then(() => getScoreRecordingAvailability(selectedAcademicYearId))
+      .then((result) => {
+        if (!cancelled) setSelectedYearOpen(Boolean(result.success && result.data?.can_record))
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedYearOpen(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedAcademicYearId])
 
   /** Check if the current user has access based on item role requirements */
   function hasAccess(itemRoles?: ('superadmin' | 'admin' | 'teacher')[]): boolean {
@@ -58,8 +84,9 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
     { label: t('threshold'), icon: AlertTriangle, href: '/reports/threshold', roles: ['superadmin', 'admin'], group: 'alert' },
   ]
 
-  const mainNavItems = allNavigation.filter(i => i.group === 'main' && hasAccess(i.roles))
-  const alertNavItems = allNavigation.filter(i => i.group === 'alert' && hasAccess(i.roles))
+  const visibleNavigation = allNavigation.filter((item) => item.href !== '/settings/import' || selectedYearOpen)
+  const mainNavItems = visibleNavigation.filter(i => i.group === 'main' && hasAccess(i.roles))
+  const alertNavItems = visibleNavigation.filter(i => i.group === 'alert' && hasAccess(i.roles))
 
   return (
     <Sidebar collapsible="icon">

@@ -10,17 +10,42 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { getSettingsPageData, saveSystemSettings } from '@/lib/actions/settings.action';
+import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
+import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 
 export default function SettingsPage() {
+  const selectedAcademicYearId = useSelectedAcademicYearId();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [roles, setRoles] = useState<string[]>([]);
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [thresholds, setThresholds] = useState<Array<{ deducted: number; action: string; color: string }>>([]);
+  const [selectedYearOpen, setSelectedYearOpen] = useState(false);
 
   useEffect(() => {
     loadAccessAndSettings();
   }, []);
+
+  useEffect(() => {
+    if (!selectedAcademicYearId) {
+      void Promise.resolve().then(() => setSelectedYearOpen(false));
+      return;
+    }
+
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => getScoreRecordingAvailability(selectedAcademicYearId))
+      .then((result) => {
+        if (!cancelled) setSelectedYearOpen(Boolean(result.success && result.data?.can_record));
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedYearOpen(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAcademicYearId]);
 
   async function loadAccessAndSettings() {
     setLoading(true);
@@ -63,20 +88,22 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Upload className="h-5 w-5" />
-                นำเข้าข้อมูล
-              </CardTitle>
-              <CardDescription>นำเข้ารายชื่อนักเรียนจากไฟล์ CSV</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" nativeButton={false} render={<a href="/settings/import" />}>
-                เปิดหน้านำเข้าข้อมูล
-              </Button>
-            </CardContent>
-          </Card>
+          {selectedYearOpen && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Upload className="h-5 w-5" />
+                  นำเข้าข้อมูล
+                </CardTitle>
+                <CardDescription>นำเข้ารายชื่อนักเรียนจากไฟล์ CSV</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" nativeButton={false} render={<a href="/settings/import" />}>
+                  เปิดหน้านำเข้าข้อมูล
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -400,10 +427,12 @@ export default function SettingsPage() {
                 <Tags className="mr-2 h-4 w-4" />
                 ประเภทคะแนน
               </Button>
-              <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/import" />}>
-                <Download className="mr-2 h-4 w-4" />
-                นำเข้านักเรียนจาก CSV
-              </Button>
+              {selectedYearOpen && (
+                <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/import" />}>
+                  <Download className="mr-2 h-4 w-4" />
+                  นำเข้านักเรียนจาก CSV
+                </Button>
+              )}
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/academic-years" />}>
                 <CalendarDays className="mr-2 h-4 w-4" />
                 จัดการปีการศึกษา

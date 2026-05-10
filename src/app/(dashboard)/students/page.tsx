@@ -237,10 +237,12 @@ export default function StudentsPage() {
             <Download className="mr-2 h-4 w-4" />
             {t('exportCsv')}
           </Button>
-          <Button variant="outline" nativeButton={false} render={<a href="/settings/import" />}>
-            <Upload className="mr-2 h-4 w-4" />
-            {t('importCsv')}
-          </Button>
+          {selectedYearOpen && (
+            <Button variant="outline" nativeButton={false} render={<a href="/settings/import" />}>
+              <Upload className="mr-2 h-4 w-4" />
+              {t('importCsv')}
+            </Button>
+          )}
           {selectedYearOpen && (
           <Button onClick={() => setShowAddForm(true)}>
             <Plus className="mr-2 h-4 w-4" />
