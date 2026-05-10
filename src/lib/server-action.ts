@@ -1,9 +1,7 @@
 'use server';
 
-import { createClient, createClientWithUser } from '@/lib/supabase/server';
-import { validateXSS } from '@/lib/security/validate-input';
-import { hasRole, getRoles } from '@/lib/security/roles';
-import { NextResponse } from 'next/server';
+import { createAdminClient, getUserFromCookie } from '@/lib/supabase/server';
+import { getRoles } from '@/lib/security/roles';
 
 export type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -16,7 +14,7 @@ export type ActionResult<T = unknown> =
  * setSession() + getUser() double call pattern.
  */
 export async function getAuthProfile() {
-  const { supabase, user } = await createClientWithUser();
+  const user = await getUserFromCookie();
 
   if (!user) {
     return { profile: null, error: 'UNAUTHORIZED' as const };
@@ -27,7 +25,8 @@ export async function getAuthProfile() {
     return { profile: null, error: 'UNAUTHORIZED' as const };
   }
 
-  const { data: profile } = await supabase
+  const adminClient = await createAdminClient();
+  const { data: profile } = await adminClient
     .from('profiles')
     .select('*')
     .eq('user_id', user.id)
@@ -79,7 +78,7 @@ export async function checkPermission(
   profileId: string,
   permissionCode: string
 ): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -103,7 +102,8 @@ export async function checkPermission(
 
   if (!perms || perms.length === 0) return false;
 
-  return perms.some(
-    (p: any) => p.permissions?.code === permissionCode
-  );
+  return perms.some((permissionRow: Record<string, unknown>) => {
+    const permission = permissionRow.permissions as Record<string, unknown> | null | undefined;
+    return permission?.code === permissionCode;
+  });
 }

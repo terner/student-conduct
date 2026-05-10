@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, createClientWithUser } from '@/lib/supabase/server';
+
+export const runtime = 'nodejs';
 
 function hasRole(role: string | string[] | null, target: string): boolean {
   if (!role) return false;
@@ -10,9 +11,8 @@ function hasRole(role: string | string[] | null, target: string): boolean {
 export async function POST(request: Request) {
   try {
     // Check auth
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { supabase, user } = await createClientWithUser();
+    if (!user?.id) {
       return NextResponse.json({ error: 'ไม่ได้รับอนุญาต' }, { status: 401 });
     }
 
@@ -48,10 +48,10 @@ export async function POST(request: Request) {
     // Upload to Supabase Storage using admin client (bypass RLS)
     const adminClient = await createAdminClient();
     const fileExt = file.name.split('.').pop() || 'png';
-    const fileName = `school-logo.${fileExt}`;
+    const fileName = `school-logo-${Date.now()}.${fileExt}`;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    const { data: uploadData, error: uploadError } = await adminClient
+    const { error: uploadError } = await adminClient
       .storage
       .from('school-logos')
       .upload(fileName, fileBuffer, {
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       .from('school-logos')
       .getPublicUrl(fileName);
 
-    return NextResponse.json({ success: true, url: publicUrl });
+    return NextResponse.json({ success: true, url: `${publicUrl}?v=${Date.now()}` });
   } catch (err) {
     console.error('[Upload Logo] Error:', err);
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }, { status: 500 });

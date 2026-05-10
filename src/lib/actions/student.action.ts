@@ -39,6 +39,22 @@ interface StudentForSelect {
   education_stage_id: string;
 }
 
+interface StudentExportRow {
+  academic_year: string;
+  student_id: string;
+  prefix: string;
+  first_name: string;
+  last_name: string;
+  grade_level: number;
+  classroom: string;
+  class_number: number | '';
+  education_stage: string;
+  status: string;
+  guardian_full_name: string;
+  guardian_relation: string;
+  guardian_phone: string;
+}
+
 function formatProfileFullName(profile: Record<string, unknown> | null | undefined) {
   const prefix = ((profile?.prefix as string) || '').trim();
   const fullName = ((profile?.full_name as string) || '').trim();
@@ -192,6 +208,150 @@ export async function getStudents(params: {
       grade_level: validated.grade_level === '' ? undefined : validated.grade_level,
     });
     return { success: true, data: result };
+  });
+}
+
+export async function getStudentsForCsvExport(params: {
+  search?: string;
+  classroom_id?: string;
+  grade_level_id?: string;
+  grade_level?: number | string;
+  education_stage_id?: string;
+  status?: string;
+  academic_year?: string;
+}) {
+  return withAuth<StudentExportRow[]>(async (profile) => {
+    if (!canManageSchoolData(profile) && !canApproveScores(profile)) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ส่งออกข้อมูลนักเรียน' } };
+    }
+
+    const adminClient = await createAdminClient();
+    const academicYearId = params.academic_year;
+    if (!academicYearId) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'กรุณาเลือกปีการศึกษา' } };
+    }
+
+    let query = adminClient
+      .from('student_enrollments')
+      .select(`
+        class_number,
+        enrollment_status,
+        academic_years!inner(id, name),
+        students!inner(
+          id,
+          student_id_number,
+          current_status,
+          profiles!inner(full_name, prefix),
+          classrooms!inner(
+            id,
+            name,
+            grade_level,
+            grade_level_id,
+            education_stage_id,
+            grade_levels(name, level_no),
+            education_stages(code, name_th)
+          )
+        )
+      `)
+      .eq('academic_year_id', academicYearId);
+
+    if (params.classroom_id) query = query.eq('classroom_id', params.classroom_id);
+    if (params.status) query = query.eq('enrollment_status', params.status);
+    const { data, error } = await query.order('class_number', { ascending: true });
+    if (error) {
+      return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    }
+
+    const rows = (data || [])
+      .map((enrollment: Record<string, unknown>) => {
+        const student = enrollment.students as Record<string, unknown> | null;
+        const classroom = student?.classrooms as Record<string, unknown> | null;
+        if (!student || !classroom) return null;
+        if (params.grade_level && String(classroom.grade_level || '') !== String(params.grade_level)) return null;
+        if (params.grade_level_id && classroom.grade_level_id !== params.grade_level_id) return null;
+        if (params.education_stage_id && classroom.education_stage_id !== params.education_stage_id) return null;
+        return { enrollment, student, classroom };
+      })
+      .filter((row): row is {
+        enrollment: Record<string, unknown>;
+        student: Record<string, unknown>;
+        classroom: Record<string, unknown>;
+      } => Boolean(row));
+
+    const studentIds = rows.map((row) => row.student.id as string);
+    const guardianByStudentId = new Map<string, { full_name: string; relation: string; phone: string }>();
+    if (studentIds.length > 0) {
+      const { data: guardians } = await adminClient
+        .from('student_guardians')
+        .select('student_id, relation, is_primary, guardians(full_name, phone)')
+        .in('student_id', studentIds)
+        .order('is_primary', { ascending: false });
+
+      for (const guardianRow of guardians || []) {
+        const studentId = guardianRow.student_id as string;
+        if (guardianByStudentId.has(studentId)) continue;
+        const guardianValue = guardianRow.guardians as unknown;
+        const guardian = (Array.isArray(guardianValue) ? guardianValue[0] : guardianValue) as Record<string, unknown> | null;
+        guardianByStudentId.set(studentId, {
+          full_name: (guardian?.full_name as string) || '',
+          relation: (guardianRow.relation as string) || '',
+          phone: (guardian?.phone as string) || '',
+        });
+      }
+    }
+
+    let exportRows: StudentExportRow[] = rows
+      .sort((a, b) => {
+        const classA = String(a.classroom.name || '');
+        const classB = String(b.classroom.name || '');
+        if (classA !== classB) return classA.localeCompare(classB, 'th');
+        return Number(a.enrollment.class_number || 9999) - Number(b.enrollment.class_number || 9999);
+      })
+      .map(({ enrollment, student, classroom }) => {
+        const { prefix, first_name, last_name } = (() => {
+          const profile = student.profiles as Record<string, unknown> | null;
+          const parsed = profile ? formatProfileFullName(profile) : '';
+          const profilePrefix = ((profile?.prefix as string) || '').trim();
+          const nameWithoutPrefix = profilePrefix && parsed.startsWith(profilePrefix)
+            ? parsed.slice(profilePrefix.length).trim()
+            : parsed;
+          const spaceIdx = nameWithoutPrefix.indexOf(' ');
+          return {
+            prefix: profilePrefix,
+            first_name: spaceIdx > 0 ? nameWithoutPrefix.slice(0, spaceIdx).trim() : nameWithoutPrefix,
+            last_name: spaceIdx > 0 ? nameWithoutPrefix.slice(spaceIdx + 1).trim() : '',
+          };
+        })();
+        const year = enrollment.academic_years as Record<string, unknown> | null;
+        const stage = classroom.education_stages as Record<string, unknown> | null;
+        const guardian = guardianByStudentId.get(student.id as string);
+        const classNumber = enrollment.class_number;
+        return {
+          academic_year: (year?.name as string) || '',
+          student_id: (student.student_id_number as string) || '',
+          prefix,
+          first_name,
+          last_name,
+          grade_level: (classroom.grade_level as number) || 0,
+          classroom: (classroom.name as string) || '',
+          class_number: typeof classNumber === 'number' ? classNumber : '',
+          education_stage: (stage?.code as string) || (stage?.name_th as string) || '',
+          status: (enrollment.enrollment_status as string) || (student.current_status as string) || 'active',
+          guardian_full_name: guardian?.full_name || '',
+          guardian_relation: guardian?.relation || '',
+          guardian_phone: guardian?.phone || '',
+        };
+      });
+
+    if (params.search) {
+      const search = params.search.trim().toLowerCase();
+      exportRows = exportRows.filter((row) => (
+        row.student_id.toLowerCase().includes(search)
+        || `${row.prefix}${row.first_name} ${row.last_name}`.toLowerCase().includes(search)
+      ));
+    }
+
+    return { success: true, data: exportRows };
   });
 }
 

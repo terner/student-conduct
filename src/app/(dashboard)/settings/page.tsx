@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { getSettingsPageData, saveSystemSettings } from '@/lib/actions/settings.action';
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
+import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const selectedAcademicYearId = useSelectedAcademicYearId();
@@ -65,6 +66,9 @@ export default function SettingsPage() {
     const result = await saveSystemSettings({ settings, thresholds });
     if (!result.success) {
       alert(result.error.message);
+    } else {
+      toast('บันทึกการตั้งค่าสำเร็จ');
+      await loadAccessAndSettings();
     }
     setSaving(false);
   }
@@ -205,7 +209,15 @@ export default function SettingsPage() {
                           const res = await fetch('/api/upload/logo', { method: 'POST', body: formData });
                           const result = await res.json();
                           if (res.ok && result.url) {
-                            setSettings({...settings, school_logo: result.url});
+                            const updatedSettings = { ...settings, school_logo: result.url };
+                            setSettings(updatedSettings);
+                            const saveResult = await saveSystemSettings({ settings: updatedSettings, thresholds });
+                            if (!saveResult.success) {
+                              alert(saveResult.error.message);
+                            } else {
+                              toast('อัปโหลดโลโก้โรงเรียนสำเร็จ');
+                              await loadAccessAndSettings();
+                            }
                           } else {
                             alert(result.error || 'อัปโหลดไม่สำเร็จ');
                           }
@@ -213,6 +225,7 @@ export default function SettingsPage() {
                           alert('เกิดข้อผิดพลาดในการอัปโหลด');
                         } finally {
                           setSaving(false);
+                          e.currentTarget.value = '';
                         }
                       }}
                     />

@@ -161,9 +161,16 @@ export async function POST(request: Request) {
       full_name: profileData.full_name,
     });
 
-    // Encode session as base64url cookie (matching our custom server.ts decoder)
+    // Store only the fields needed by createClientWithUser(). The full Supabase
+    // session includes user metadata and can exceed browser cookie limits.
     const maxAge = 400 * 24 * 60 * 60; // 400 days
-    const sessionJson = JSON.stringify(data.session);
+    const sessionJson = JSON.stringify({
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_at: data.session.expires_at,
+      expires_in: data.session.expires_in,
+      token_type: data.session.token_type,
+    });
     const base64url = Buffer.from(sessionJson)
       .toString('base64')
       .replace(/\+/g, '-')

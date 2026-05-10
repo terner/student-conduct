@@ -69,7 +69,7 @@ describe('safeParse', () => {
     const result = safeParse(schema, { name: '', age: -1 });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('VALIDATION_ERROR');
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
       expect(result.error.details).toHaveProperty('name');
       expect(result.error.details).toHaveProperty('age');
     }
@@ -150,7 +150,7 @@ describe('validatedAction', () => {
     const result = await validatedAction(schema, handler, { name: '', age: -1 }, mockProfile);
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('VALIDATION_ERROR');
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
     }
     expect(handler).not.toHaveBeenCalled();
   });
@@ -160,7 +160,7 @@ describe('validatedAction', () => {
     const result = await validatedAction(schema, handler, { name: '<script>alert(1)</script>', age: 15 }, mockProfile);
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('XSS_DETECTED');
+      expect(result.error?.code).toBe('XSS_DETECTED');
     }
     expect(handler).not.toHaveBeenCalled();
   });
@@ -170,8 +170,8 @@ describe('validatedAction', () => {
     const result = await validatedAction(schema, handler, { name: 'John', age: 15 }, mockProfile);
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('INTERNAL_ERROR');
-      expect(result.error.message).toContain('DB connection failed');
+      expect(result.error?.code).toBe('INTERNAL_ERROR');
+      expect(result.error?.message).toContain('DB connection failed');
     }
   });
 
@@ -180,7 +180,7 @@ describe('validatedAction', () => {
     const result = await validatedAction(schema, handler, { name: 'John', age: 15 }, mockProfile);
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('INTERNAL_ERROR');
+      expect(result.error?.code).toBe('INTERNAL_ERROR');
     }
   });
 });

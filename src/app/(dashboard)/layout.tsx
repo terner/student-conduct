@@ -1,4 +1,4 @@
-import { createClientWithUser } from '@/lib/supabase/server'
+import { createAdminClient, getUserFromCookie } from '@/lib/supabase/server'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { TopBar } from '@/components/layout/top-bar'
@@ -15,15 +15,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let email: string | undefined
 
   try {
-    const { supabase, user } = await createClientWithUser()
+    const user = await getUserFromCookie()
+    const adminClient = await createAdminClient()
 
     const [settingsResult, profileResult] = await Promise.all([
-      supabase
+      adminClient
         .from('settings')
         .select('key, value')
         .in('key', ['school_name', 'school_logo']),
       user?.id
-        ? supabase
+        ? adminClient
             .from('profiles')
             .select('role, full_name')
             .eq('user_id', user.id)

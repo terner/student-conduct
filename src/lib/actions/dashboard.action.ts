@@ -3,7 +3,7 @@
 import { withAuth } from '@/lib/server-action';
 import { hasRole, getRoles } from '@/lib/security/roles';
 import { getDashboardData } from '@/lib/db';
-import { createClient, createAdminClient, createClientWithUser } from '@/lib/supabase/server';
+import { createClient, createAdminClient, getUserFromCookie } from '@/lib/supabase/server';
 
 /**
  * Consolidated dashboard data fetch.
@@ -102,7 +102,7 @@ export async function acceptPDPA() {
  */
 export async function getCurrentUserRole() {
   return withAuth(async (profile) => {
-    const { user } = await createClientWithUser();
+    const user = await getUserFromCookie();
     return {
       success: true,
       data: {

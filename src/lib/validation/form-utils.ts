@@ -1,10 +1,14 @@
 import { z } from 'zod';
 import type { ApiResponse } from '@/types';
 
+type ValidationError = NonNullable<ApiResponse<never>['error']> & {
+  details: Record<string, string[]>;
+};
+
 /**
  * Format Zod errors to our ApiResponse format
  */
-export function formatZodError<T>(error: z.ZodError<T>): ApiResponse<never>['error'] {
+export function formatZodError<T>(error: z.ZodError<T>): ValidationError {
   const details: Record<string, string[]> = {};
 
   for (const issue of error.issues) {
@@ -31,7 +35,7 @@ export function formatZodError<T>(error: z.ZodError<T>): ApiResponse<never>['err
 export function safeParse<T>(
   schema: z.ZodSchema<T>,
   data: unknown
-): { success: true; data: T } | { success: false; error: ApiResponse<never>['error'] } {
+): { success: true; data: T } | { success: false; error: ValidationError } {
   const result = schema.safeParse(data);
   if (result.success) {
     return { success: true, data: result.data };

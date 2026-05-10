@@ -1,4 +1,4 @@
-import { createAdminClient, createClientWithUser } from '@/lib/supabase/server';
+import { createAdminClient, getUserFromCookie } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 /**
@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   try {
-    const { supabase, user } = await createClientWithUser();
+    const user = await getUserFromCookie();
     const adminClient = await createAdminClient();
 
     if (!user) {
@@ -17,7 +17,7 @@ export async function GET() {
     }
 
     // Find the student record linked to this profile
-    const { data: profile } = await supabase
+    const { data: profile } = await adminClient
       .from('profiles')
       .select('id')
       .eq('user_id', user.id)

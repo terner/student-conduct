@@ -43,12 +43,7 @@ function buildPermissionCheck(role: string | string[], permissions: string[]) {
 // ── Mock server module ───────────────────────────────────────────
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => mockSupabase),
-  createClientWithUser: vi.fn(() =>
-    Promise.resolve({
-      supabase: mockSupabase,
-      user: { id: 'auth-user-123', email: 'test@school.com', aud: 'authenticated' },
-    })
-  ),
+  getUserFromCookie: vi.fn(() => Promise.resolve({ id: 'auth-user-123', email: 'test@school.com' })),
   createAdminClient: vi.fn(() => mockSupabase),
 }));
 
@@ -81,12 +76,9 @@ describe('getAuthProfile', () => {
   });
 
   it('returns UNAUTHORIZED when no user', async () => {
-    // Override createClientWithUser to return no user
+    // Override getUserFromCookie to return no user
     const mod = await import('@/lib/supabase/server');
-    vi.mocked(mod.createClientWithUser).mockResolvedValueOnce({
-      supabase: mockSupabase,
-      user: null,
-    });
+    vi.mocked(mod.getUserFromCookie).mockResolvedValueOnce(null);
 
     const result = await getAuthProfile();
     expect(result.profile).toBeNull();
@@ -96,10 +88,7 @@ describe('getAuthProfile', () => {
   it('returns UNAUTHORIZED when user exists but has no id (prevents user_id=eq.undefined)', async () => {
     // Simulate the edge case where setSession() returns a user object without id
     const mod = await import('@/lib/supabase/server');
-    vi.mocked(mod.createClientWithUser).mockResolvedValueOnce({
-      supabase: mockSupabase,
-      user: { email: 'test@school.com' } as any, // missing id!
-    });
+    vi.mocked(mod.getUserFromCookie).mockResolvedValueOnce({ email: 'test@school.com' } as unknown as Awaited<ReturnType<typeof mod.getUserFromCookie>>); // missing id!
 
     const result = await getAuthProfile();
     expect(result.profile).toBeNull();
@@ -153,10 +142,7 @@ describe('withAuth', () => {
 
   it('returns UNAUTHORIZED when not authenticated', async () => {
     const mod = await import('@/lib/supabase/server');
-    vi.mocked(mod.createClientWithUser).mockResolvedValueOnce({
-      supabase: mockSupabase,
-      user: null,
-    });
+    vi.mocked(mod.getUserFromCookie).mockResolvedValueOnce(null);
 
     const result = await withAuth(async () => {
       return { success: true as const, data: 'should not reach' };

@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { StudentTable } from '@/components/features/students/student-table';
 import { StudentSearch } from '@/components/features/students/student-search';
 import { StudentForm } from '@/components/features/students/student-form';
-import { getStudents, addStudent, editStudent, deleteStudent } from '@/lib/actions/student.action';
+import { getStudents, getStudentsForCsvExport, addStudent, editStudent, deleteStudent } from '@/lib/actions/student.action';
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 import { studentPrefixEnum, type StudentInput } from '@/lib/validation/schemas';
@@ -28,19 +28,9 @@ export default function StudentsPage() {
   const [deletingStudent, setDeletingStudent] = useState<StudentWithProfile | null>(null);
   const [actionError, setActionError] = useState<{ title: string; message: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [searchParams, setSearchParams] = useState<Record<string, string>>({});
   const [selectedYearOpen, setSelectedYearOpen] = useState(false);
-
-  const formatStudentStatus = useCallback((status: string) => {
-    const labels: Record<string, string> = {
-      active: t('statusActive'),
-      inactive: t('statusInactive'),
-      transferred: t('statusTransferred'),
-      graduated: t('statusGraduated'),
-      suspended: t('statusSuspended'),
-    };
-    return labels[status] || status;
-  }, [t]);
 
   const normalizeStudentPrefix = (value: string): StudentInput['prefix'] => (
     studentPrefixEnum.includes(value as StudentInput['prefix'])
@@ -193,22 +183,36 @@ export default function StudentsPage() {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
+    if (!selectedAcademicYearId || exporting) return;
+    setExporting(true);
+    const result = await getStudentsForCsvExport({
+      ...searchParams,
+      academic_year: selectedAcademicYearId,
+    });
+    setExporting(false);
+    if (!result.success) {
+      toast('ส่งออก CSV ไม่สำเร็จ', { description: result.error.message });
+      return;
+    }
+
     // BOM for Thai characters in Excel
     const BOM = '﻿';
-    const headers = [t('id'), t('prefix'), t('firstName'), t('lastName'), t('classroomFull'), t('gradeLevel'), t('stage'), t('status'), 'ชื่อผู้ปกครอง', 'ความสัมพันธ์', 'เบอร์โทรผู้ปกครอง'];
-    const rows = data.map((s) => [
-      s.student_id_number,
+    const headers = ['ปีการศึกษา', 'รหัสนักเรียน', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'ชั้นปี', 'ห้อง', 'เลขที่ในห้อง', 'ระดับ', 'สถานะ', 'ชื่อผู้ปกครอง', 'ความสัมพันธ์', 'เบอร์โทรผู้ปกครอง'];
+    const rows = result.data.map((s) => [
+      s.academic_year,
+      s.student_id,
       s.prefix,
       s.first_name,
       s.last_name,
-      s.classroom_name,
-      s.grade_level_name || String(s.grade_level),
-      s.education_stage_name || '-',
-      formatStudentStatus(s.current_status),
-      s.guardian_full_name || '',
-      s.guardian_relation || '',
-      s.guardian_phone || '',
+      String(s.grade_level),
+      s.classroom,
+      String(s.class_number),
+      s.education_stage,
+      s.status,
+      s.guardian_full_name,
+      s.guardian_relation,
+      s.guardian_phone,
     ]);
 
     const csvContent = [
@@ -220,7 +224,7 @@ export default function StudentsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `students_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `students_${result.data[0]?.academic_year || 'export'}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -233,9 +237,9 @@ export default function StudentsPage() {
           <p className="text-muted-foreground mt-1">{t('manageDescription')}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportCSV} disabled={data.length === 0}>
+          <Button variant="outline" onClick={handleExportCSV} disabled={data.length === 0 || exporting}>
             <Download className="mr-2 h-4 w-4" />
-            {t('exportCsv')}
+            {exporting ? 'กำลังส่งออก...' : t('exportCsv')}
           </Button>
           {selectedYearOpen && (
             <Button variant="outline" nativeButton={false} render={<a href="/settings/import" />}>
