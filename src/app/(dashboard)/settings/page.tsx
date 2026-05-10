@@ -171,18 +171,18 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-4">
                   {settings.school_logo ? (
                     <div className="relative">
-                      <img src={settings.school_logo} alt="Logo" className="size-12 rounded-lg object-cover border" />
+                      <img src={settings.school_logo} alt="Logo" className="size-24 rounded-xl object-cover border shadow-sm" />
                       <button
                         type="button"
-                        className="absolute -top-1 -right-1 rounded-full bg-destructive text-destructive-foreground p-0.5"
+                        className="absolute -top-1.5 -right-1.5 rounded-full bg-destructive text-destructive-foreground p-1"
                         onClick={() => setSettings({...settings, school_logo: ''})}
                       >
-                        <X className="size-3" />
+                        <X className="size-3.5" />
                       </button>
                     </div>
                   ) : (
-                    <div className="size-12 rounded-lg border border-dashed flex items-center justify-center text-muted-foreground">
-                      <ImageIcon className="size-5" />
+                    <div className="size-24 rounded-xl border-2 border-dashed flex items-center justify-center text-muted-foreground bg-muted/30">
+                      <ImageIcon className="size-8" />
                     </div>
                   )}
                   <label className="cursor-pointer">
@@ -192,7 +192,7 @@ export default function SettingsPage() {
                     </div>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept=".png,.jpg,.jpeg,.gif,.webp"
                       className="hidden"
                       disabled={saving}
                       onChange={async (e) => {
@@ -201,6 +201,29 @@ export default function SettingsPage() {
                         if (file.size > 2 * 1024 * 1024) {
                           alert('ไฟล์ต้องมีขนาดไม่เกิน 2MB');
                           return;
+                        }
+                        // Validate dimensions
+                        const img = new Image();
+                        const url = URL.createObjectURL(file);
+                        try {
+                          await new Promise<void>((resolve, reject) => {
+                            img.onload = () => resolve();
+                            img.onerror = () => reject(new Error('โหลดรูปไม่สำเร็จ'));
+                            img.src = url;
+                          });
+                          // Warn if not roughly square
+                          const ratio = Math.max(img.width, img.height) / Math.min(img.width, img.height);
+                          if (ratio > 1.1) {
+                            if (!confirm('รูปไม่เป็นสี่เหลี่ยมจัตุรัส แนะนำให้ใช้ 512x512px หรือ 1024x1024px\n\nต้องการอัปโหลดต่อหรือไม่?')) {
+                              URL.revokeObjectURL(url);
+                              e.currentTarget.value = '';
+                              return;
+                            }
+                          }
+                        } catch {
+                          // proceed anyway if validation fails
+                        } finally {
+                          URL.revokeObjectURL(url);
                         }
                         setSaving(true);
                         try {
