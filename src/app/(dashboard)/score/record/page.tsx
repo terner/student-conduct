@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { RotateCcw, Search } from 'lucide-react';
+import { RotateCcw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,6 +61,9 @@ export default function ScoreRecordPage() {
   const [filterStageId, setFilterStageId] = useState<string>('');
   const [filterGrade, setFilterGrade] = useState<string>('');
   const [filterClassroom, setFilterClassroom] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -152,6 +155,16 @@ export default function ScoreRecordPage() {
     if (filterClassroom) result = result.filter(s => s.classroom_name === filterClassroom);
     return result;
   }, [students, search, filterStageId, filterGrade, filterClassroom]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filtered.length / pageSize)), [filtered.length]);
+  const pagedStudents = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page]);
+
+  // Reset to page 1 when filters change
+  const prevFilterKey = useMemo(() => `${search}|${filterStageId}|${filterGrade}|${filterClassroom}`, [search, filterStageId, filterGrade, filterClassroom]);
+  useEffect(() => { setPage(1); }, [prevFilterKey]);
 
   const hasFilters = filterStageId || filterGrade || filterClassroom;
 
@@ -291,8 +304,8 @@ export default function ScoreRecordPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              พบ {filtered.length} คน
-              {(search || hasFilters) && ` จากทั้งหมด ${students.length} คน`}
+              พบทั้งหมด {students.length} คน แสดง {pageSize * (page - 1) + 1}–{Math.min(page * pageSize, filtered.length)} จาก {filtered.length} คน
+              {(search || hasFilters) && ` (กรอกจาก ${students.length} คน)`}
             </p>
           </div>
 
@@ -307,7 +320,7 @@ export default function ScoreRecordPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map(s => (
+                {pagedStudents.map(s => (
                   <TableRow
                     key={s.id}
                     className="cursor-pointer"
@@ -324,8 +337,30 @@ export default function ScoreRecordPage() {
               </TableBody>
             </Table>
           </div>
-          {filtered.length > 80 && (
-            <p className="text-xs text-muted-foreground">แสดงรายการทั้งหมด {filtered.length} คน ใช้ช่องค้นหาเพื่อลดรายการ</p>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 py-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                ก่อนหน้า
+              </Button>
+              <span className="text-sm text-muted-foreground px-2">
+                {page} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => p + 1)}
+              >
+                ถัดไป
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           )}
         </div>
       )}
