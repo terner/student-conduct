@@ -49,7 +49,7 @@ export default function ImportPage() {
           <CardHeader>
             <CardTitle>อัปโหลดไฟล์ CSV</CardTitle>
             <CardDescription>
-              รองรับไฟล์ CSV ที่มีคอลัมน์: รหัสนักเรียน, คำนำหน้า, ชื่อ, นามสกุล, ชั้นปี, ห้อง, เลขที่ในห้อง, ระดับ
+              รองรับไฟล์ CSV ที่มีคอลัมน์: รหัสนักเรียน, คำนำหน้า, ชื่อ, นามสกุล, ชั้นปี, ห้อง, เลขที่ในห้อง, ระดับ, ชื่อผู้ปกครอง, ความสัมพันธ์, เบอร์โทรผู้ปกครอง
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -139,6 +139,9 @@ export default function ImportPage() {
                 <TableHead>ห้อง</TableHead>
                 <TableHead>เลขที่ในห้อง</TableHead>
                 <TableHead>ระดับ</TableHead>
+                <TableHead>ชื่อผู้ปกครอง</TableHead>
+                <TableHead>ความสัมพันธ์</TableHead>
+                <TableHead>เบอร์โทรผู้ปกครอง</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -151,6 +154,9 @@ export default function ImportPage() {
                 <TableCell>ป.1/1</TableCell>
                 <TableCell>15</TableCell>
                 <TableCell>primary</TableCell>
+                <TableCell>สมปอง ใจดี</TableCell>
+                <TableCell>บิดา</TableCell>
+                <TableCell>081-234-5678</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-mono text-xs">1234567891</TableCell>
@@ -161,6 +167,9 @@ export default function ImportPage() {
                 <TableCell>ป.1/1</TableCell>
                 <TableCell>16</TableCell>
                 <TableCell>primary</TableCell>
+                <TableCell>สมพร รักเรียน</TableCell>
+                <TableCell>มารดา</TableCell>
+                <TableCell>082-345-6789</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -170,9 +179,9 @@ export default function ImportPage() {
             className="mt-2"
             onClick={() => {
               const blob = new Blob([
-                'รหัสนักเรียน,คำนำหน้า,ชื่อ,นามสกุล,ชั้นปี,ห้อง,เลขที่ในห้อง,ระดับ\n' +
-                '1234567890,เด็กชาย,สมชาย,ใจดี,1,ป.1/1,15,primary\n' +
-                '1234567891,เด็กหญิง,สมหญิง,รักเรียน,1,ป.1/1,16,primary\n'
+                'รหัสนักเรียน,คำนำหน้า,ชื่อ,นามสกุล,ชั้นปี,ห้อง,เลขที่ในห้อง,ระดับ,ชื่อผู้ปกครอง,ความสัมพันธ์,เบอร์โทรผู้ปกครอง\n' +
+                '1234567890,เด็กชาย,สมชาย,ใจดี,1,ป.1/1,15,primary,สมปอง ใจดี,บิดา,081-234-5678\n' +
+                '1234567891,เด็กหญิง,สมหญิง,รักเรียน,1,ป.1/1,16,primary,สมพร รักเรียน,มารดา,082-345-6789\n'
               ], { type: 'text/csv' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
@@ -189,4 +198,3 @@ export default function ImportPage() {
     </div>
   );
 }
-

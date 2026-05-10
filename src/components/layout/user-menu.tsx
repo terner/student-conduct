@@ -5,7 +5,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { LogOut, User, Settings, Lock } from 'lucide-react'
+import { ChevronDown, LogOut, User, Settings, Lock } from 'lucide-react'
 import Link from 'next/link'
 import { displayRole } from '@/lib/security/roles'
 
@@ -23,39 +23,51 @@ export function UserMenu({ firstName, lastName, role, email }: UserMenuProps) {
 
   // Handle both string and string[] role
   const roles = Array.isArray(role) ? role : role ? [role] : []
-  const isAdmin = roles.includes('admin')
+  const isSuperAdmin = roles.includes('superadmin')
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" className="size-8 rounded-full p-0" />}>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            className="h-11 max-w-[240px] gap-2 rounded-full px-2 py-1"
+          />
+        }
+      >
+        <div className="flex min-w-0 items-center gap-2">
           <Avatar className="size-8">
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
+          <div className="hidden min-w-0 text-left sm:block">
+            <p className="truncate text-sm font-medium leading-4">{displayName}</p>
+            {role && <p className="truncate text-xs leading-4 text-muted-foreground">{displayRole(role)}</p>}
+          </div>
+          <ChevronDown className="hidden size-3.5 shrink-0 text-muted-foreground sm:block" />
+        </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>
-            <div className="flex flex-col">
-              <span>{displayName}</span>
-              {role && <span className="text-xs text-muted-foreground">{displayRole(role)}</span>}
-              {email && <span className="text-xs text-muted-foreground">{email}</span>}
-            </div>
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
+        {email && (
+          <>
+            <DropdownMenuLabel>
+              <span className="block truncate text-xs font-normal text-muted-foreground">{email}</span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem render={<Link href="/settings/profile" />}>
           <User className="mr-2 size-4" />โปรไฟล์
         </DropdownMenuItem>
         <DropdownMenuItem render={<Link href="/change-password" />}>
           <Lock className="mr-2 size-4" />เปลี่ยนรหัสผ่าน
         </DropdownMenuItem>
-        {isAdmin && (
+        {isSuperAdmin && (
           <DropdownMenuItem render={<Link href="/settings" />}>
             <Settings className="mr-2 size-4" />ตั้งค่าระบบ
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link href="/api/auth/logout" prefetch={false} />}>
+        <DropdownMenuItem render={<a href="/api/auth/logout" />}>
           <LogOut className="mr-2 size-4" />ออกจากระบบ
         </DropdownMenuItem>
       </DropdownMenuContent>

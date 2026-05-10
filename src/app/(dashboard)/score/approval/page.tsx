@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { getScores, approveScore, voidScore } from '@/lib/actions/score.action';
 import { ScoreTransactionTable } from '@/components/features/scores/score-transaction-table';
 import type { ScoreTransactionWithDetails } from '@/lib/db/queries/score.queries';
+import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 
 export default function ApprovalPage() {
+  const selectedAcademicYearId = useSelectedAcademicYearId();
   const [data, setData] = useState<ScoreTransactionWithDetails[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -18,26 +20,35 @@ export default function ApprovalPage() {
 
   const fetchData = useCallback(async (pageNum = 1) => {
     setLoading(true);
-    const result = await getScores({ status: 'pending', page: pageNum, page_size: 20 });
+    const result = await getScores({
+      status: 'pending',
+      page: pageNum,
+      page_size: 20,
+      academic_year_id: selectedAcademicYearId || undefined,
+    });
     if (result.success && result.data) {
       setData(result.data.data as unknown as ScoreTransactionWithDetails[]);
       setTotal(result.data.total);
     }
     setLoading(false);
-  }, []);
+  }, [selectedAcademicYearId]);
 
   useEffect(() => {
-    fetchData(page);
+    void Promise.resolve().then(() => fetchData(page));
   }, [page, fetchData]);
 
   // Fetch pending count for summary
   useEffect(() => {
-    getScores({ status: 'pending', page_size: 1 }).then((res) => {
+    getScores({
+      status: 'pending',
+      page_size: 1,
+      academic_year_id: selectedAcademicYearId || undefined,
+    }).then((res) => {
       if (res.success && res.data) {
         setPendingCount(res.data.total);
       }
     });
-  }, []);
+  }, [selectedAcademicYearId]);
 
   const handleApprove = async (transactionId: string) => {
     try {
@@ -110,6 +121,7 @@ export default function ApprovalPage() {
             onApprove={handleApprove}
             onVoid={handleVoid}
             showActions={true}
+            showStudentProfileLink={true}
           />
         </CardContent>
       </Card>

@@ -73,7 +73,7 @@ export async function withAuth<T>(
  * Check permission helper — reads from DB `role_permissions` table
  *
  * Supports multi-role: checks ALL roles assigned to the user.
- * If any role has 'admin', all permissions are granted.
+ * If any role has 'superadmin', all permissions are granted.
  */
 export async function checkPermission(
   profileId: string,
@@ -91,8 +91,8 @@ export async function checkPermission(
 
   const roles = getRoles(profile);
 
-  // Admin role grants all permissions
-  if (roles.includes('admin')) return true;
+  // Superadmin role grants all permissions
+  if (roles.includes('superadmin')) return true;
 
   // Query DB for the specific permission across all user roles
   const { data: perms } = await supabase

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, AlertCircle, Building, BookOpen, Mail, BadgeCheck } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Building, BookOpen, Mail, BadgeCheck, Phone, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,7 +64,7 @@ export default function TeacherDetailPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold">{teacher.full_name}</h1>
-          <p className="text-muted-foreground text-sm">รหัสเจ้าหน้าที่: {teacher.employee_id}</p>
+          <p className="text-muted-foreground text-sm">{teacher.position || 'ครู'} · รหัสเจ้าหน้าที่: {teacher.employee_id}</p>
         </div>
       </div>
 
@@ -79,8 +79,20 @@ export default function TeacherDetailPage() {
               <span className="text-sm">{teacher.email || 'ไม่มีอีเมล'}</span>
             </div>
             <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm">{teacher.phone || 'ไม่มีเบอร์โทร'}</span>
+            </div>
+            <div className="flex items-center gap-2">
               <Building className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">{teacher.department || 'ไม่มีแผนก'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              <div className="flex flex-wrap gap-1">
+                <Badge variant="secondary">ครู</Badge>
+                {teacher.roles?.includes('superadmin') && <Badge>ผู้ดูแลสูงสุด</Badge>}
+                {teacher.roles?.includes('admin') && <Badge>Admin</Badge>}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <BadgeCheck className="h-4 w-4 text-muted-foreground" />

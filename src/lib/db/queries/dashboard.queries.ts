@@ -1,6 +1,18 @@
 import { createClient } from '@/lib/supabase/server';
 
+function formatProfileFullName(profile: Record<string, unknown> | null | undefined) {
+  const prefix = ((profile?.prefix as string) || '').trim();
+  const fullName = ((profile?.full_name as string) || '').trim();
+  if (!prefix) return fullName;
+  return fullName.startsWith(prefix) ? fullName : `${prefix}${fullName}`;
+}
+
+function firstJoinedRow<T>(value: T | T[] | null | undefined): T | null {
+  return Array.isArray(value) ? value[0] || null : value || null;
+}
+
 export interface DashboardStats {
+  academic_year_name: string;
   total_students: number;
   active_students: number;
   total_classrooms: number;
@@ -17,6 +29,7 @@ export interface DashboardStats {
 
 export interface DashboardData {
   stats: DashboardStats;
+  academic_years: Array<{ id: string; name: string; is_current: boolean }>;
   recent_transactions: any[];
   at_risk_students: any[];
 }
@@ -29,30 +42,24 @@ export interface DashboardData {
  *  - Aggregation done in-memory (fast for school-scale data, avoids looped DB calls)
  *  - Academic year & settings fetched once, not repeated per metric
  */
-export async function getDashboardData(): Promise<DashboardData> {
+export async function getDashboardData(params: { academic_year_id?: string } = {}): Promise<DashboardData> {
   const supabase = await createClient();
 
   // ── Parallel: independent metadata queries ──────────────────────
   const [
-    acYearResult,
-    studentCountResult,
+    academicYearsResult,
     classroomCountResult,
     teacherCountResult,
     settingsResult,
-    studentsResult,
   ] = await Promise.all([
     supabase
       .from('academic_years')
-      .select('id, base_score, name')
-      .eq('is_current', true)
-      .single(),
-    supabase
-      .from('students')
-      .select('*', { count: 'exact', head: true })
-      .eq('current_status', 'active'),
+      .select('id, base_score, name, is_current')
+      .order('name', { ascending: false }),
     supabase
       .from('classrooms')
-      .select('*', { count: 'exact', head: true }),
+      .select('*', { count: 'exact', head: true })
+      .eq('academic_year_id', params.academic_year_id || ''),
     supabase
       .from('teachers')
       .select('*', { count: 'exact', head: true }),
@@ -61,27 +68,51 @@ export async function getDashboardData(): Promise<DashboardData> {
       .select('value')
       .eq('key', 'thresholds')
       .single(),
-    supabase
-      .from('students')
-      .select(`
-        id,
-        student_id_number,
-        profiles!inner(full_name),
-        classrooms!inner(name, grade_level)
-      `)
-      .eq('current_status', 'active'),
   ]);
 
-  const acYear = acYearResult.data;
+  const academicYears = academicYearsResult.data || [];
+  const acYear = academicYears.find((year: any) => year.id === params.academic_year_id)
+    || academicYears.find((year: any) => year.is_current)
+    || academicYears[0];
   const acYearId = acYear?.id;
   const baseScore = acYear?.base_score || 100;
-  const totalStudentCount = studentCountResult.count || 0;
   const thresholds: Array<{ deducted: number; action: string; color: string }> =
     (settingsResult.data?.value as any[]) || [];
   const firstThreshold = thresholds.length > 0 ? thresholds[0].deducted : 20;
 
+  let selectedClassroomCount = classroomCountResult.count || 0;
+  if (!params.academic_year_id && acYearId) {
+    const { count } = await supabase
+      .from('classrooms')
+      .select('*', { count: 'exact', head: true })
+      .eq('academic_year_id', acYearId);
+    selectedClassroomCount = count || 0;
+  }
+
+  const { data: enrollmentData } = acYearId
+    ? await supabase
+      .from('student_enrollments')
+      .select(`
+        students!inner(
+          id,
+          student_id_number,
+          profiles!inner(full_name, prefix)
+        ),
+        classrooms!inner(name, grade_level)
+      `)
+      .eq('academic_year_id', acYearId)
+      .in('enrollment_status', ['active', 'promoted', 'repeated', 'transferred', 'graduated'])
+    : { data: [] };
+
+  const students = (enrollmentData || []).map((enrollment: any) => ({
+    id: enrollment.students?.id,
+    student_id_number: enrollment.students?.student_id_number,
+    profiles: enrollment.students?.profiles,
+    classrooms: enrollment.classrooms,
+  })).filter((student: any) => Boolean(student.id));
+
   // ── Bulk-fetch ALL approved score_transactions for active students ──
-  const studentIds = (studentsResult.data || []).map((s: any) => s.id);
+  const studentIds = students.map((s: any) => s.id);
 
   let allTransactions: any[] = [];
   if (studentIds.length > 0) {
@@ -126,7 +157,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   const atRiskStudents: any[] = [];
 
-  for (const student of studentsResult.data || []) {
+  for (const student of students) {
     const scores = scoreMap.get(student.id) || { deducted: 0, added: 0 };
     const currentScore = baseScore - scores.deducted + scores.added;
 
@@ -153,10 +184,12 @@ export async function getDashboardData(): Promise<DashboardData> {
           break;
         }
       }
+      const profile = firstJoinedRow(student.profiles) as Record<string, unknown> | null;
+      const fullName = formatProfileFullName(profile);
       atRiskStudents.push({
         student_id: student.id,
-        first_name: ((student.profiles as any)?.full_name || '').split(' ')[0] || '',
-        last_name: ((student.profiles as any)?.full_name || '').split(' ').slice(1).join(' ') || '',
+        first_name: fullName.split(' ')[0] || '',
+        last_name: fullName.split(' ').slice(1).join(' ') || '',
         student_id_number: student.student_id_number,
         classroom_name: (student.classrooms as any)?.name || '',
         current_score: currentScore,
@@ -177,25 +210,28 @@ export async function getDashboardData(): Promise<DashboardData> {
     return b.deducted_total - a.deducted_total;
   });
 
-  const studentCount = studentsResult.data?.length || 0;
+  const studentCount = students.length;
 
   // ── Recent transactions ─────────────────────────────────────
-  const { data: recentData } = await supabase
+  let recentQuery = supabase
     .from('score_transactions')
     .select(`
       *,
-      students!inner(student_id_number),
+      students!inner(student_id_number, profiles!inner(full_name, prefix)),
       score_categories!inner(name, type),
       profiles!score_transactions_recorded_by_fkey(full_name)
     `)
     .eq('status', 'approved')
     .order('recorded_at', { ascending: false })
     .limit(10);
+  if (acYearId) recentQuery = recentQuery.eq('academic_year_id', acYearId);
+  const { data: recentData } = await recentQuery;
 
   const recentTransactions = (recentData || []).map((t: any) => ({
     id: t.id,
     student_id: t.student_id,
-    category_name: t.score_categories?.name || '',
+    student_name: formatProfileFullName(firstJoinedRow(t.students?.profiles) as Record<string, unknown> | null),
+    category_name: t.category_name_at_record || t.score_categories?.name || '',
     points: t.points,
     note: t.note,
     recorded_at: t.recorded_at,
@@ -205,9 +241,10 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   return {
     stats: {
-      total_students: totalStudentCount,
+      academic_year_name: acYear?.name || '',
+      total_students: studentCount,
       active_students: studentCount,
-      total_classrooms: classroomCountResult.count || 0,
+      total_classrooms: selectedClassroomCount,
       total_teachers: teacherCountResult.count || 0,
       average_score: studentCount > 0 ? Math.round(totalScoreSum / studentCount) : baseScore,
       at_risk_count: atRiskCount,
@@ -218,6 +255,11 @@ export async function getDashboardData(): Promise<DashboardData> {
         poor: poorCount,
       },
     },
+    academic_years: academicYears.map((year: any) => ({
+      id: year.id,
+      name: year.name,
+      is_current: Boolean(year.is_current),
+    })),
     recent_transactions: recentTransactions,
     at_risk_students: atRiskStudents,
   };

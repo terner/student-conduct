@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, FileText, UserCheck, Ban, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +16,24 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import type { ScoreTransactionWithDetails } from '@/lib/db/queries/score.queries';
 
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('th-TH', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
+
+function resolveEvidenceUrl(evidence: NonNullable<ScoreTransactionWithDetails['evidence']>[number]) {
+  if (evidence.file_url) return evidence.file_url;
+  if (!evidence.file_path) return '';
+  if (evidence.file_path.startsWith('gdrive:')) {
+    return `https://drive.google.com/uc?export=view&id=${evidence.file_path.slice('gdrive:'.length)}`;
+  }
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return '';
+  return `${supabaseUrl}/storage/v1/object/public/school-logos/${evidence.file_path}`;
+}
+
 interface ScoreTransactionTableProps {
   data: ScoreTransactionWithDetails[];
   loading?: boolean;
@@ -25,6 +44,7 @@ interface ScoreTransactionTableProps {
   onVoid?: (transactionId: string, reason: string) => Promise<void>;
   onApprove?: (transactionId: string) => Promise<void>;
   showActions?: boolean;
+  showStudentProfileLink?: boolean;
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -35,7 +55,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 
 export function ScoreTransactionTable({
   data, loading, total, page = 1, pageSize = 50,
-  onPageChange, onVoid, onApprove, showActions = true,
+  onPageChange, onVoid, onApprove, showActions = true, showStudentProfileLink = false,
 }: ScoreTransactionTableProps) {
   const [voidDialog, setVoidDialog] = useState<{ open: boolean; transactionId: string }>({ open: false, transactionId: '' });
   const [voidReason, setVoidReason] = useState('');
@@ -103,9 +123,20 @@ export function ScoreTransactionTable({
                   onClick={() => setDetailTx(t)}
                 >
                   <TableCell className="text-xs whitespace-nowrap">
-                    {new Date(t.recorded_at).toLocaleDateString('th-TH')}
+                    {formatDateTime(t.recorded_at)}
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{t.student_id_number}</TableCell>
+                  <TableCell className="font-mono text-xs" onClick={showStudentProfileLink ? (e) => e.stopPropagation() : undefined}>
+                    {showStudentProfileLink ? (
+                      <Link
+                        href={`/students/${t.student_id}`}
+                        className="rounded-sm underline-offset-4 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {t.student_id_number}
+                      </Link>
+                    ) : (
+                      t.student_id_number
+                    )}
+                  </TableCell>
                   <TableCell>{t.category_name}</TableCell>
                   <TableCell>
                     <span className={`font-medium ${t.points > 0 ? 'text-green-600' : 'text-destructive'}`}>
@@ -233,6 +264,18 @@ export function ScoreTransactionTable({
                   <p className="text-sm font-mono">{detailTx.student_id_number || '-'}</p>
                 </div>
               </div>
+              {showStudentProfileLink && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  nativeButton={false}
+                  render={<Link href={`/students/${detailTx.student_id}`} />}
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  เปิดโปรไฟล์นักเรียน
+                </Button>
+              )}
 
               {/* Classroom */}
               {(detailTx.classroom_name || detailTx.classroom_grade) && (
@@ -285,6 +328,38 @@ export function ScoreTransactionTable({
                 </div>
               )}
 
+              {detailTx.evidence && detailTx.evidence.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>รูปหลักฐาน</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {detailTx.evidence.map((item) => {
+                      const url = resolveEvidenceUrl(item);
+                      return (
+                        <a
+                          key={item.id}
+                          href={url || undefined}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block overflow-hidden rounded-md border bg-muted"
+                          title={item.file_name}
+                        >
+                          {url && item.file_type?.startsWith('image/') ? (
+                            <img src={url} alt={item.file_name} className="aspect-square w-full object-cover" />
+                          ) : (
+                            <div className="flex aspect-square items-center justify-center p-2 text-center text-xs text-muted-foreground">
+                              {item.file_name}
+                            </div>
+                          )}
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <Separator />
 
               {/* Timestamps */}
@@ -294,7 +369,7 @@ export function ScoreTransactionTable({
                     <Calendar className="h-3.5 w-3.5" />
                     <span>บันทึกเมื่อ</span>
                   </div>
-                  <p>{new Date(detailTx.recorded_at).toLocaleString('th-TH')}</p>
+                  <p>{formatDateTime(detailTx.recorded_at)}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -312,14 +387,14 @@ export function ScoreTransactionTable({
                       <Calendar className="h-3.5 w-3.5" />
                       <span>อนุมัติเมื่อ</span>
                     </div>
-                    <p>{new Date(detailTx.approved_at).toLocaleString('th-TH')}</p>
+                    <p>{formatDateTime(detailTx.approved_at)}</p>
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <UserCheck className="h-3.5 w-3.5" />
                       <span>อนุมัติโดย</span>
                     </div>
-                    <p>{detailTx.approved_by || '-'}</p>
+                    <p>{detailTx.approved_by_name || '-'}</p>
                   </div>
                 </div>
               )}
@@ -335,7 +410,8 @@ export function ScoreTransactionTable({
                   )}
                   {detailTx.voided_at && (
                     <p className="text-xs text-muted-foreground ml-5">
-                      เมื่อ {new Date(detailTx.voided_at).toLocaleString('th-TH')}
+                      เมื่อ {formatDateTime(detailTx.voided_at)}
+                      {detailTx.voided_by_name ? ` โดย ${detailTx.voided_by_name}` : ''}
                     </p>
                   )}
                 </div>

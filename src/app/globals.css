@@ -128,3 +128,25 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+
+  body {
+    background: white;
+  }
+
+  [data-slot="sidebar"],
+  [data-slot="sidebar-trigger"],
+  [data-slot="topbar"],
+  [data-sidebar="sidebar"] {
+    display: none !important;
+  }
+
+  .print\:break-inside-avoid {
+    break-inside: avoid;
+  }
+}

@@ -3,13 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { GlobeIcon } from 'lucide-react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-
-const locales = [
-  { code: 'th', label: 'ไทย' },
-  { code: 'en', label: 'English' },
-] as const
 
 function getCookie(name: string): string | undefined {
   const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`))
@@ -35,23 +28,21 @@ export function LanguageSwitcher() {
     router.refresh()
   }
 
+  const nextLocale = locale === 'th' ? 'en' : 'th'
+  const isThai = locale === 'th'
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-8" />}>
-        <GlobeIcon className="size-4" />
-        <span className="sr-only">Switch language</span>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {locales.map((l) => (
-          <DropdownMenuItem
-            key={l.code}
-            disabled={locale === l.code}
-            onClick={() => switchLocale(l.code)}
-          >
-            {l.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-8 gap-1 px-2 text-xs"
+      onClick={() => switchLocale(nextLocale)}
+      title={locale === 'th' ? 'Switch to English' : 'เปลี่ยนเป็นภาษาไทย'}
+    >
+      <span className={isThai ? 'font-semibold text-foreground' : 'text-muted-foreground'}>TH</span>
+      <span className="text-muted-foreground">|</span>
+      <span className={!isThai ? 'font-semibold text-foreground' : 'text-muted-foreground'}>EN</span>
+      <span className="sr-only">Switch language</span>
+    </Button>
   )
 }

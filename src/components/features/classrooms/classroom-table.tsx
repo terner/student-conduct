@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Edit, Eye, MoreHorizontal, Trash2, Users, BookOpen } from 'lucide-react';
+import { Edit, Eye, MoreHorizontal, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
@@ -39,6 +39,7 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
             <TableHead>ระดับ</TableHead>
             <TableHead>ชั้นปี</TableHead>
             <TableHead>จำนวนนักเรียน</TableHead>
+            <TableHead>ครูประจำชั้น</TableHead>
             <TableHead>ครูที่ปรึกษา</TableHead>
             <TableHead className="w-[80px]">จัดการ</TableHead>
           </TableRow>
@@ -54,7 +55,7 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
               <TableCell>
                 <Badge variant="outline">{c.education_stage_name || 'ไม่ระบุ'}</Badge>
               </TableCell>
-              <TableCell>{c.grade_level}</TableCell>
+              <TableCell>{c.grade_level_name || c.grade_level}</TableCell>
               <TableCell>
                 <span className="flex items-center gap-1">
                   <Users className="h-3 w-3 text-muted-foreground" />
@@ -62,10 +63,10 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
                 </span>
               </TableCell>
               <TableCell>
-                <span className="flex items-center gap-1">
-                  <BookOpen className="h-3 w-3 text-muted-foreground" />
-                  {c.teacher_count}
-                </span>
+                <span className="text-sm">{c.homeroom_teacher_name || '-'}</span>
+              </TableCell>
+              <TableCell>
+                <span className="text-sm">{c.advisor_teacher_name || '-'}</span>
               </TableCell>
               <TableCell>
                 <DropdownMenu>

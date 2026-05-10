@@ -1,14 +1,36 @@
 import { createClient } from '@/lib/supabase/server';
 import type { ScoreTransaction, ScoreCategory } from '@/types';
 
+function formatProfileFullName(profile: Record<string, unknown> | null | undefined) {
+  const prefix = ((profile?.prefix as string) || '').trim();
+  const fullName = ((profile?.full_name as string) || '').trim();
+  if (!prefix) return fullName;
+  return fullName.startsWith(prefix) ? fullName : `${prefix}${fullName}`;
+}
+
 export interface ScoreTransactionWithDetails extends ScoreTransaction {
   student_name?: string;
   student_id_number?: string;
   category_name?: string;
   category_type?: 'deduct' | 'add';
   recorded_by_name?: string;
+  approved_by_name?: string;
+  voided_by_name?: string;
   classroom_name?: string;
   classroom_grade?: number;
+  evidence?: {
+    id: string;
+    file_name: string;
+    file_type: string;
+    file_size?: number;
+    file_path?: string;
+    file_url?: string;
+    storage_provider?: string;
+  }[];
+  category_name_at_record?: string;
+  category_type_at_record?: 'deduct' | 'add';
+  requires_evidence_at_record?: boolean | null;
+  requires_approval_at_record?: boolean | null;
 }
 
 export interface ScoreListParams {
@@ -58,11 +80,14 @@ export async function listScoreTransactions(params: ScoreListParams = {}) {
       *,
       students!inner(
         student_id_number,
-        profiles!students_profile_id_fkey(full_name),
+        profiles!students_profile_id_fkey(full_name, prefix),
         classrooms!inner(name, grade_level)
       ),
       score_categories!inner(name, type),
-      profiles!score_transactions_recorded_by_fkey(full_name)
+      profiles!score_transactions_recorded_by_fkey(full_name),
+      approved_by_profile:profiles!score_transactions_approved_by_fkey(full_name),
+      voided_by_profile:profiles!score_transactions_voided_by_fkey(full_name),
+      score_transaction_evidence(id, file_name, file_type, file_size, file_path, file_url, storage_provider)
     `, { count: 'exact' });
 
   if (student_id) query = query.eq('student_id', student_id);
@@ -106,13 +131,28 @@ export async function listScoreTransactions(params: ScoreListParams = {}) {
     voided_by: t.voided_by as string | undefined,
     voided_at: t.voided_at as string | undefined,
     void_reason: t.void_reason as string | undefined,
+    category_name_at_record: t.category_name_at_record as string | undefined,
+    category_type_at_record: t.category_type_at_record as 'deduct' | 'add' | undefined,
+    requires_evidence_at_record: t.requires_evidence_at_record as boolean | null | undefined,
+    requires_approval_at_record: t.requires_approval_at_record as boolean | null | undefined,
     student_id_number: (t.students as Record<string, unknown>)?.student_id_number as string || '',
-    student_name: ((t.students as Record<string, unknown>)?.profiles as Record<string, unknown>)?.full_name as string || '',
+    student_name: formatProfileFullName((t.students as Record<string, unknown>)?.profiles as Record<string, unknown>),
     classroom_name: ((t.students as Record<string, unknown>)?.classrooms as Record<string, unknown>)?.name as string || '',
     classroom_grade: ((t.students as Record<string, unknown>)?.classrooms as Record<string, unknown>)?.grade_level as number || 0,
-    category_name: (t.score_categories as Record<string, unknown>)?.name as string || '',
-    category_type: (t.score_categories as Record<string, unknown>)?.type as 'deduct' | 'add' || 'deduct',
+    category_name: (t.category_name_at_record as string) || (t.score_categories as Record<string, unknown>)?.name as string || '',
+    category_type: (t.category_type_at_record as 'deduct' | 'add') || (t.score_categories as Record<string, unknown>)?.type as 'deduct' | 'add' || 'deduct',
     recorded_by_name: (t.profiles as Record<string, unknown>)?.full_name as string || '',
+    approved_by_name: (t.approved_by_profile as Record<string, unknown>)?.full_name as string || '',
+    voided_by_name: (t.voided_by_profile as Record<string, unknown>)?.full_name as string || '',
+    evidence: ((t.score_transaction_evidence as Array<Record<string, unknown>>) || []).map((e) => ({
+      id: e.id as string,
+      file_name: e.file_name as string,
+      file_type: e.file_type as string,
+      file_size: e.file_size as number | undefined,
+      file_path: e.file_path as string | undefined,
+      file_url: e.file_url as string | undefined,
+      storage_provider: e.storage_provider as string | undefined,
+    })),
   }));
 
   return {
@@ -225,6 +265,9 @@ export async function createScoreTransaction(data: {
   recorded_by: string;
   academic_year_id: string;
   requires_approval?: boolean;
+  requires_evidence?: boolean;
+  category_name?: string;
+  category_type?: 'deduct' | 'add';
 }) {
   const supabase = await createClient();
 
@@ -240,6 +283,10 @@ export async function createScoreTransaction(data: {
       status: data.requires_approval ? 'pending' : 'approved',
       approved_by: data.requires_approval ? null : data.recorded_by,
       approved_at: data.requires_approval ? null : new Date().toISOString(),
+      category_name_at_record: data.category_name || null,
+      category_type_at_record: data.category_type || null,
+      requires_evidence_at_record: data.requires_evidence ?? false,
+      requires_approval_at_record: data.requires_approval ?? false,
     })
     .select('id')
     .single();
@@ -342,7 +389,7 @@ export async function getScoreDistribution(academicYearId?: string) {
     .select(`
       id,
       student_id_number,
-      profiles(full_name),
+      profiles(full_name, prefix),
       classrooms(name, grade_level),
       score_transactions!inner(points, status, academic_year_id)
     `)

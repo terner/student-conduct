@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Edit, Eye, MoreHorizontal, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,19 +36,28 @@ const statusColors: Record<string, string> = {
   suspended: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
 };
 
-const statusLabels: Record<string, string> = {
-  active: 'กำลังศึกษา',
-  inactive: 'ไม่ active',
-  transferred: 'ย้ายออก',
-  graduated: 'จบการศึกษา',
-  suspended: 'พักการเรียน',
-};
-
 export function StudentTable({ data, loading, total, page = 1, pageSize = 20, onPageChange, onEdit, onDelete }: StudentTableProps) {
+  const router = useRouter();
+  const t = useTranslations('student');
+  const common = useTranslations('common');
+  const formatGrade = (gradeLevel: number, stageName?: string, gradeLevelName?: string) => {
+    if (gradeLevelName) return gradeLevelName;
+    if (gradeLevel >= 7 && gradeLevel <= 12) return `ม.${gradeLevel - 6}`;
+    if (stageName?.includes('อนุบาล')) return `อ.${gradeLevel}`;
+    return `ป.${gradeLevel}`;
+  };
+  const statusLabels: Record<string, string> = {
+    active: t('statusActive'),
+    inactive: t('statusInactive'),
+    transferred: t('statusTransferred'),
+    graduated: t('statusGraduated'),
+    suspended: t('statusSuspended'),
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div>
+        <div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{common('loading')}</p></div>
       </div>
     );
   }
@@ -55,8 +66,8 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
     return (
       <Empty>
         <EmptyHeader>
-          <EmptyTitle>ไม่พบข้อมูลนักเรียน</EmptyTitle>
-          <EmptyDescription>ยังไม่มีนักเรียนในระบบ หรือค้นหาไม่พบ</EmptyDescription>
+          <EmptyTitle>{t('noStudentsTitle')}</EmptyTitle>
+          <EmptyDescription>{t('noStudentsDescription')}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
@@ -70,37 +81,43 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[100px]">รหัสนักเรียน</TableHead>
-              <TableHead>ชื่อ-นามสกุล</TableHead>
-              <TableHead>ห้องเรียน</TableHead>
-              <TableHead>ชั้นปี</TableHead>
-              <TableHead>ระดับ</TableHead>
-              <TableHead>สถานะ</TableHead>
-              <TableHead className="w-[80px] text-right">จัดการ</TableHead>
+              <TableHead className="w-[100px]">{t('id')}</TableHead>
+              <TableHead>{t('fullName')}</TableHead>
+              <TableHead>{t('classroomFull')}</TableHead>
+              <TableHead>{t('gradeLevel')}</TableHead>
+              <TableHead>{t('stage')}</TableHead>
+              <TableHead>คะแนนปัจจุบัน</TableHead>
+              <TableHead>{t('status')}</TableHead>
+              <TableHead className="w-[80px] text-right">{t('actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.map((student) => (
-              <TableRow key={student.id}>
+              <TableRow
+                key={student.id}
+                className="cursor-pointer hover:bg-accent/50"
+                onClick={() => router.push(`/students/${student.id}`)}
+              >
                 <TableCell className="font-mono text-xs">
-                  <Link href={`/students/${student.id}`} className="hover:text-primary hover:underline">
+                  <Link href={`/students/${student.id}`} className="hover:text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
                     {student.student_id_number}
                   </Link>
                 </TableCell>
                 <TableCell>
-                  <Link href={`/students/${student.id}`} className="font-medium hover:text-primary hover:underline">
+                  <Link href={`/students/${student.id}`} className="font-medium hover:text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
                     {student.prefix}{student.first_name} {student.last_name}
                   </Link>
                 </TableCell>
                 <TableCell>{student.classroom_name}</TableCell>
-                <TableCell>{student.grade_level}</TableCell>
+                <TableCell>{formatGrade(student.grade_level, student.education_stage_name, student.grade_level_name)}</TableCell>
                 <TableCell>{student.education_stage_name || '-'}</TableCell>
+                <TableCell className="font-medium">{student.current_score ?? '-'}</TableCell>
                 <TableCell>
                   <Badge className={statusColors[student.current_status] || ''} variant="outline">
                     {statusLabels[student.current_status] || student.current_status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
                       <MoreHorizontal className="h-4 w-4" />
@@ -108,19 +125,23 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem render={<Link href={`/students/${student.id}`} />}>
                         <Eye className="mr-2 h-4 w-4" />
-                        ดูรายละเอียด
+                        {t('viewDetail')}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onEdit?.(student)}>
+                      {onEdit && (
+                      <DropdownMenuItem onClick={() => onEdit(student)}>
                         <Edit className="mr-2 h-4 w-4" />
-                        แก้ไข
+                        {common('edit')}
                       </DropdownMenuItem>
+                      )}
+                      {onDelete && (
                       <DropdownMenuItem
                         className="text-destructive"
-                        onClick={() => onDelete?.(student)}
+                        onClick={() => onDelete(student)}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        ลบ
+                        {common('delete')}
                       </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -139,7 +160,7 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
             onClick={() => onPageChange(page - 1)}
           >
             <ChevronLeft className="h-4 w-4" />
-            ก่อนหน้า
+            {common('previous')}
           </Button>
           <span className="text-sm text-muted-foreground px-2">
             {page} / {totalPages}
@@ -150,7 +171,7 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
             disabled={page >= totalPages}
             onClick={() => onPageChange(page + 1)}
           >
-            ถัดไป
+            {common('next')}
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

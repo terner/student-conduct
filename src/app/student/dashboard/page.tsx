@@ -9,6 +9,13 @@ import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { getStudentDashboard } from '@/lib/actions/student.action';
 import { checkMustChangePassword, checkPDPAConsent } from '@/lib/actions/dashboard.action';
 
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('th-TH', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
+
 export default function StudentDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -62,6 +69,26 @@ export default function StudentDashboardPage() {
               {studentInfo.classroom_name || studentInfo.classrooms?.name || 'ไม่ระบุชั้นเรียน'} · รหัสนักเรียน: {studentInfo.student_id_number}
             </p>
           </CardHeader>
+          <CardContent>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-muted-foreground">ครูประจำชั้น</dt>
+                <dd className="font-medium">{studentInfo.homeroom_teacher_name || '-'}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">ครูที่ปรึกษา</dt>
+                <dd className="font-medium">{studentInfo.advisor_teacher_name || '-'}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">ชื่อผู้ปกครอง</dt>
+                <dd className="font-medium">{studentInfo.guardian_full_name || '-'}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">เบอร์โทรผู้ปกครอง</dt>
+                <dd className="font-medium">{studentInfo.guardian_phone || '-'}</dd>
+              </div>
+            </dl>
+          </CardContent>
         </Card>
       )}
 
@@ -103,7 +130,7 @@ export default function StudentDashboardPage() {
               <TableBody>
                 {transactions.map((t: any, i: number) => (
                   <TableRow key={i}>
-                    <TableCell className="text-xs">{new Date(t.recorded_at).toLocaleDateString('th-TH')}</TableCell>
+                    <TableCell className="text-xs">{formatDateTime(t.recorded_at)}</TableCell>
                     <TableCell>{t.score_categories?.name || '-'}</TableCell>
                     <TableCell>
                       <span className={t.points > 0 ? 'text-green-600 font-medium' : 'text-destructive font-medium'}>
@@ -122,4 +149,3 @@ export default function StudentDashboardPage() {
     </div>
   );
 }
-

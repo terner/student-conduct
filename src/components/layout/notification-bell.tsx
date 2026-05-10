@@ -14,6 +14,13 @@ interface Notification {
   created_at: string;
 }
 
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('th-TH', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
+
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -69,7 +76,7 @@ export function NotificationBell() {
                 <div className="font-medium">{n.title}</div>
                 {n.body && <div className="text-xs text-muted-foreground mt-0.5">{n.body}</div>}
                 <div className="text-[10px] text-muted-foreground mt-1">
-                  {new Date(n.created_at).toLocaleDateString('th-TH')}
+                  {formatDateTime(n.created_at)}
                 </div>
               </button>
             ))}

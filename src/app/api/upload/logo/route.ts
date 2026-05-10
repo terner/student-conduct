@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .single();
 
-    if (!profile || (!hasRole(profile.role, 'admin') && !hasRole(profile.role, 'teacher'))) {
+    if (!profile || !hasRole(profile.role, 'superadmin')) {
       return NextResponse.json({ error: 'ไม่มีสิทธิ์อัปโหลด' }, { status: 403 });
     }
 

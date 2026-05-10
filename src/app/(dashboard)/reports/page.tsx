@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 const reports = [
   {
-    title: 'รายงานรายบุคคล',
-    description: 'ดูประวัติคะแนนความประพฤติของนักเรียนแต่ละคน',
+    title: 'รายงานอันดับนักเรียน',
+    description: 'ดู ranking รายคน รายห้อง รายชั้นปี และปีการศึกษา',
     icon: FileText,
     href: '/reports/individual',
     color: 'text-blue-600',
@@ -70,4 +70,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-

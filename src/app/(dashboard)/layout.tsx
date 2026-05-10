@@ -2,6 +2,7 @@ import { createClientWithUser } from '@/lib/supabase/server'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { TopBar } from '@/components/layout/top-bar'
+import { RouteAccessGuard } from '@/components/layout/route-access-guard'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,7 +60,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <AppSidebar schoolName={schoolName} schoolLogo={schoolLogo} role={role} />
       <SidebarInset className="flex flex-1 flex-col">
         <TopBar title="แดชบอร์ด" firstName={firstName} lastName={lastName} role={role} email={email} />
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main className="flex-1 overflow-y-auto">
+          <RouteAccessGuard role={role}>{children}</RouteAccessGuard>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   )

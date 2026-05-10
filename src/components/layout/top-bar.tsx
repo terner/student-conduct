@@ -5,7 +5,9 @@ import { Separator } from '@/components/ui/separator'
 import { LanguageSwitcher } from './language-switcher'
 import { UserMenu } from './user-menu'
 import { NotificationBell } from './notification-bell'
+import { AcademicYearSwitcher } from './academic-year-switcher'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/components/ui/breadcrumb'
+import { getRoles } from '@/lib/security/roles'
 
 interface TopBarProps {
   title?: string
@@ -16,8 +18,11 @@ interface TopBarProps {
 }
 
 export function TopBar({ title, firstName, lastName, role, email }: TopBarProps) {
+  const roles = getRoles({ role })
+  const isStudentOnly = roles.includes('student') && !roles.some((r) => ['superadmin', 'admin', 'teacher'].includes(r))
+
   return (
-    <header className="flex h-16 items-center gap-3 border-b border-border px-4">
+    <header data-slot="topbar" className="flex h-16 items-center gap-3 border-b border-border px-4">
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-5" />
       {title && (
@@ -30,6 +35,7 @@ export function TopBar({ title, firstName, lastName, role, email }: TopBarProps)
         </Breadcrumb>
       )}
       <div className="ml-auto flex items-center gap-1">
+        {!isStudentOnly && <AcademicYearSwitcher />}
         <NotificationBell />
         <LanguageSwitcher />
         <UserMenu firstName={firstName} lastName={lastName} role={role} email={email} />

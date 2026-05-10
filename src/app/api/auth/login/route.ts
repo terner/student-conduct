@@ -44,19 +44,42 @@ export async function POST(request: Request) {
     // For student login, resolve student_id_number to email first
     let loginEmail = email;
     if (student_id) {
-      // Look up the student's profile by their student_id_number
-      const { data: studentData, error: studentError } = await supabaseAdmin
-        .from('students')
-        .select('profile_id')
-        .eq('student_id_number', student_id)
-        .single();
+      const { data: currentYear, error: currentYearError } = await supabaseAdmin
+        .from('academic_years')
+        .select('id')
+        .eq('is_current', true)
+        .maybeSingle();
 
-      if (studentError || !studentData) {
+      if (currentYearError || !currentYear?.id) {
         return NextResponse.json(
-          { error: 'ไม่พบรหัสนักเรียนนี้ในระบบ' },
+          { error: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' },
           { status: 401 }
         );
       }
+
+      // Student numbers are reused across years, so login resolves only within the current academic year.
+      const { data: enrollmentData, error: enrollmentError } = await supabaseAdmin
+        .from('student_enrollments')
+        .select('students!inner(profile_id, student_id_number)')
+        .eq('academic_year_id', currentYear.id)
+        .eq('students.student_id_number', student_id)
+        .limit(2);
+
+      if (enrollmentError || !enrollmentData || enrollmentData.length === 0) {
+        return NextResponse.json(
+          { error: 'ไม่พบรหัสนักเรียนนี้ในปีการศึกษาปัจจุบัน' },
+          { status: 401 }
+        );
+      }
+
+      if (enrollmentData.length > 1) {
+        return NextResponse.json(
+          { error: 'พบเลขนักเรียนซ้ำในปีการศึกษาปัจจุบัน กรุณาติดต่อผู้ดูแลระบบ' },
+          { status: 401 }
+        );
+      }
+
+      const studentData = (enrollmentData[0].students || {}) as { profile_id?: string };
 
       // Get the profile's user_id
       const { data: profileData, error: profileError } = await supabaseAdmin

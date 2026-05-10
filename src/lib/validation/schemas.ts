@@ -106,6 +106,19 @@ export const studentSchema = z.object({
     z.number().int().min(1, errorMessages.invalidClassNumber).max(50, errorMessages.invalidClassNumber).optional(),
   ),
   current_status: z.enum(['active', 'inactive', 'transferred', 'graduated', 'suspended']).default('active'),
+  guardian_full_name: z
+    .string()
+    .max(100, errorMessages.tooLong(100))
+    .optional()
+    .or(z.literal('')),
+  guardian_relation: z
+    .enum(['father', 'mother', 'guardian', 'relative', 'other'])
+    .optional(),
+  guardian_phone: z
+    .string()
+    .regex(thaiPhoneRegex, errorMessages.invalidPhone)
+    .optional()
+    .or(z.literal('')),
 });
 
 export const studentImportSchema = z.object({
@@ -182,18 +195,29 @@ export const classroomSchema = z.object({
   name: z
     .string()
     .min(3, errorMessages.tooShort(3))
-    .max(20, errorMessages.tooLong(20)),
+    .max(20, errorMessages.tooLong(20))
+    .optional()
+    .or(z.literal('')),
   education_stage_id: z.string().uuid(),
+  grade_level_id: z.string().uuid().optional().or(z.literal('')),
   grade_level: z
     .number()
     .int()
     .min(1, errorMessages.invalidGradeLevel)
     .max(12, errorMessages.invalidGradeLevel),
-  academic_year: z.string().min(4, 'ปีการศึกษาไม่ถูกต้อง'),
+  room_count: z
+    .number()
+    .int()
+    .min(1, 'จำนวนห้องต้องอย่างน้อย 1 ห้อง')
+    .max(20, 'เพิ่มได้ครั้งละไม่เกิน 20 ห้อง')
+    .default(1),
 });
 
 // ─── Teacher ───
+export const teacherPrefixEnum = ['นาย', 'นาง', 'นางสาว'] as const;
+
 export const teacherSchema = z.object({
+  prefix: z.enum(teacherPrefixEnum),
   first_name: z
     .string()
     .min(2, errorMessages.tooShort(2))
@@ -205,6 +229,11 @@ export const teacherSchema = z.object({
   email: z
     .string()
     .email(errorMessages.invalidEmail),
+  phone: z
+    .string()
+    .regex(thaiPhoneRegex, errorMessages.invalidPhone)
+    .optional()
+    .or(z.literal('')),
   employee_id: z
     .string()
     .min(3, errorMessages.tooShort(3))
@@ -214,6 +243,14 @@ export const teacherSchema = z.object({
     .max(100, errorMessages.tooLong(100))
     .optional()
     .or(z.literal('')),
+  position: z
+    .string()
+    .max(100, errorMessages.tooLong(100))
+    .optional()
+    .or(z.literal('')),
+  system_role: z.enum(['teacher', 'admin', 'superadmin']).default('teacher'),
+  is_admin: z.boolean().optional(),
+  avatar_url: z.string().url(errorMessages.invalidUrl).optional().or(z.literal('')),
 });
 
 export const teacherClassroomSchema = z.object({
@@ -345,7 +382,7 @@ export const pdpaConsentSchema = z.object({
 // ─── Import ───
 export const csvImportSchema = z.object({
   file: z.instanceof(File, { message: 'กรุณาเลือกไฟล์ CSV' }),
-  import_type: z.enum(['students', 'teachers', 'annual']),
+  import_type: z.enum(['students', 'annual']),
   academic_year: z.string().min(4, 'ปีการศึกษาไม่ถูกต้อง'),
 });
 
@@ -356,6 +393,9 @@ export const paginationSchema = z.object({
   search: z.string().max(200).optional().or(z.literal('')),
   classroom_id: z.string().optional().or(z.literal('')),
   academic_year: z.string().optional().or(z.literal('')),
+  grade_level: z.coerce.number().int().optional().or(z.literal('')),
+  grade_level_id: z.string().optional().or(z.literal('')),
+  education_stage_id: z.string().optional().or(z.literal('')),
   status: z.string().optional().or(z.literal('')),
 });
 

@@ -5,6 +5,8 @@ import { withAuth, getAuthProfile, checkPermission } from '../server-action';
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockEq = vi.fn();
+const mockIn = vi.fn();
+const mockPermissionEq = vi.fn();
 const mockMaybeSingle = vi.fn();
 
 const mockSupabase = {
@@ -17,6 +19,25 @@ function buildChain(result: unknown) {
   mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
   mockSelect.mockReturnValue({ eq: mockEq });
   mockFrom.mockReturnValue({ select: mockSelect });
+}
+
+function buildPermissionCheck(role: string | string[], permissions: string[]) {
+  mockMaybeSingle.mockResolvedValue({ data: { role }, error: null });
+  mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
+  mockSelect.mockReturnValue({ eq: mockEq });
+  mockIn.mockReturnValue({ eq: mockPermissionEq });
+  mockPermissionEq.mockResolvedValue({
+    data: permissions.map((code) => ({
+      permissions: { code },
+      is_granted: true,
+    })),
+    error: null,
+  });
+  mockFrom.mockImplementation((table: string) => ({
+    select: table === 'role_permissions'
+      ? vi.fn().mockReturnValue({ in: mockIn })
+      : mockSelect,
+  }));
 }
 
 // ── Mock server module ───────────────────────────────────────────
@@ -206,12 +227,14 @@ describe('checkPermission', () => {
   beforeEach(() => {
     mockMaybeSingle.mockReset();
     mockEq.mockReset();
+    mockIn.mockReset();
+    mockPermissionEq.mockReset();
     mockSelect.mockReset();
     mockFrom.mockReset();
   });
 
-  it('returns true for admin role', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { role: 'admin' }, error: null });
+  it('returns true for superadmin role', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { role: 'superadmin' }, error: null });
     mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ select: mockSelect });
@@ -221,40 +244,28 @@ describe('checkPermission', () => {
   });
 
   it('returns true for teacher with explicit permission', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { role: 'teacher' }, error: null });
-    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ select: mockSelect });
+    buildPermissionCheck('teacher', ['score.record']);
 
     const result = await checkPermission('profile-uuid', 'score.record');
     expect(result).toBe(true);
   });
 
   it('returns false for teacher without permission', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { role: 'teacher' }, error: null });
-    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ select: mockSelect });
+    buildPermissionCheck('teacher', ['score.record']);
 
     const result = await checkPermission('profile-uuid', 'admin.settings');
     expect(result).toBe(false);
   });
 
   it('returns false for student with admin permission', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { role: 'student' }, error: null });
-    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ select: mockSelect });
+    buildPermissionCheck('student', ['admin.settings']);
 
     const result = await checkPermission('profile-uuid', 'score.record');
     expect(result).toBe(false);
   });
 
   it('returns true for student viewing own', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { role: 'student' }, error: null });
-    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ select: mockSelect });
+    buildPermissionCheck('student', ['score.view_own']);
 
     const result = await checkPermission('profile-uuid', 'score.view_own');
     expect(result).toBe(true);

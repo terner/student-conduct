@@ -97,6 +97,9 @@ export function mapCsvRowToStudent(row: Record<string, unknown>) {
     grade_level: Number(row['ชั้นปี'] || row['grade_level'] || 1),
     classroom: String(row['ห้อง'] || row['classroom'] || ''),
     status: String(row['สถานะ'] || row['status'] || 'active'),
+    guardian_full_name: String(row['ชื่อผู้ปกครอง'] || row['guardian_full_name'] || row['guardian_name'] || ''),
+    guardian_relation: String(row['ความสัมพันธ์'] || row['guardian_relation'] || ''),
+    guardian_phone: String(row['เบอร์โทรผู้ปกครอง'] || row['guardian_phone'] || ''),
   };
 }
 

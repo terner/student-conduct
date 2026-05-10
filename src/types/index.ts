@@ -24,7 +24,7 @@ export type ErrorCode =
   | 'XSS_DETECTED';
 
 // ─── Auth ───
-export type UserRole = 'admin' | 'teacher' | 'student';
+export type UserRole = 'superadmin' | 'admin' | 'teacher' | 'student';
 
 export interface Profile {
   id: string;
@@ -74,6 +74,8 @@ export interface Classroom {
   name: string;
   education_stage_id: string;
   education_stage_name?: string;
+  grade_level_id?: string;
+  grade_level_name?: string;
   grade_level: number;
   academic_year: string;
 }
@@ -83,7 +85,11 @@ export interface Teacher {
   id: string;
   profile_id: string;
   employee_id: string;
+  prefix?: string;
+  phone?: string;
+  email?: string;
   department?: string;
+  position?: string;
   first_name?: string;
   last_name?: string;
 }
@@ -119,6 +125,10 @@ export interface ScoreTransaction {
   recorded_at: string;
   academic_year: string;
   status: ScoreStatus;
+  category_name_at_record?: string;
+  category_type_at_record?: 'deduct' | 'add';
+  requires_evidence_at_record?: boolean | null;
+  requires_approval_at_record?: boolean | null;
   approved_by?: string;
   approved_at?: string;
   voided_by?: string;
@@ -131,6 +141,8 @@ export interface ScoreTransactionEvidence {
   transaction_id: string;
   file_name: string;
   file_url: string;
+  file_path?: string;
+  storage_provider?: string;
   file_type: string;
   file_size?: number;
   uploaded_by: string;

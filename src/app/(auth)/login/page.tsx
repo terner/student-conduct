@@ -20,15 +20,16 @@ type QuickUser = {
 };
 
 const staffQuickUsers: QuickUser[] = [
-  { label: 'ผู้ดูแลระบบ', email: 'admin@school.com', password: 'Admin123!', icon: ShieldCheck },
-  { label: 'ครูสมชาย ใจดี', email: 'teacher1@school.com', password: 'Teacher@123', icon: GraduationCap },
+  { label: 'ผู้ดูแลสูงสุด', email: 'admin@school.com', password: 'Admin123!', icon: ShieldCheck },
+  { label: 'ผู้ดูแลระบบ', email: 'admin.approval@school.com', password: 'Admin123!', icon: ShieldCheck },
+  { label: 'นางสาวอรทัย ใจดี', email: 'teacher1@school.com', password: 'Teacher@123', icon: GraduationCap },
 ];
 
 const studentQuickUsers: QuickUser[] = [
-  { label: 'ธนพล ใจดี (ป.4/1)', studentId: '2025001', password: 'Student@123', icon: UserRound },
-  { label: 'มานิตา สดใส (ป.4/1)', studentId: '2025002', password: 'Student@123', icon: UserRound },
-  { label: 'ภูวนาท แข็งแรง (ป.4/2)', studentId: '2025005', password: 'Student@123', icon: UserRound },
-  { label: 'ศุภโชค มั่งมี (ป.5/1)', studentId: '2025009', password: 'Student@123', icon: UserRound },
+  { label: 'ธนภัทร ตั้งใจเรียน', studentId: '2568000001', password: 'Student@123', icon: UserRound },
+  { label: 'มินตรา สุขสวัสดิ์', studentId: '2568000002', password: 'Student@123', icon: UserRound },
+  { label: 'ปุณณวิช เก่งกล้า', studentId: '2568000003', password: 'Student@123', icon: UserRound },
+  { label: 'ณิชา ใจงาม', studentId: '2568000004', password: 'Student@123', icon: UserRound },
 ];
 
 async function quickLogin(body: Record<string, string>) {
@@ -44,10 +45,14 @@ async function quickLogin(body: Record<string, string>) {
     return;
   }
   const roles = Array.isArray(result.role) ? result.role : [result.role];
-  if (roles.includes('student') && !roles.includes('admin') && !roles.includes('teacher')) {
-    window.location.href = '/student/dashboard';
-  } else if (roles.includes('teacher') && !roles.includes('admin')) {
+  if (roles.includes('student') && !roles.includes('admin') && !roles.includes('teacher') && !roles.includes('superadmin')) {
+    // Redirect to self-profile page — the /students/me route will resolve
+    // the logged-in user's student ID automatically.
+    window.location.href = '/students/me';
+  } else if (roles.includes('teacher') && !roles.includes('admin') && !roles.includes('superadmin')) {
     window.location.href = '/score/record';
+  } else if (roles.includes('admin') && !roles.includes('superadmin')) {
+    window.location.href = '/score/approval';
   } else {
     window.location.href = '/dashboard';
   }

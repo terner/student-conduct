@@ -9,6 +9,20 @@ import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
 import { createClient } from '@/lib/supabase/client';
 
+function formatProfileFullName(profile: any) {
+  const prefix = (profile?.prefix || '').trim();
+  const fullName = (profile?.full_name || '').trim();
+  if (!prefix) return fullName;
+  return fullName.startsWith(prefix) ? fullName : `${prefix}${fullName}`;
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('th-TH', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
+
 const typeIcon: Record<string, any> = {
   phone_call: Phone, parent_meeting: MessageSquare, warning: AlertTriangle,
   home_visit: Home, counseling: MessageSquare, bond: FileText,
@@ -32,7 +46,7 @@ export default function InterventionsPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from('intervention_logs')
-      .select('*, students(student_id_number, profiles!inner(full_name))')
+      .select('*, students(student_id_number, profiles!inner(full_name, prefix))')
       .order('occurred_at', { ascending: false })
       .limit(50);
     if (data) setInterventions(data);
@@ -44,7 +58,7 @@ export default function InterventionsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">บันทึกการติดต่อ</h1>
+        <h1 className="text-2xl font-bold">บันทึกการติดตาม</h1>
         <p className="text-muted-foreground mt-1">ประวัติการติดต่อและติดตามนักเรียน</p>
       </div>
 
@@ -52,7 +66,7 @@ export default function InterventionsPage() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <Phone className="h-8 w-8 mx-auto mb-2" />
-            ยังไม่มีการบันทึกการติดต่อ
+            ยังไม่มีการบันทึกการติดตาม
           </CardContent>
         </Card>
       ) : (
@@ -73,8 +87,8 @@ export default function InterventionsPage() {
                   const Icon = typeIcon[iv.intervention_type] || FileText;
                   return (
                     <TableRow key={iv.id}>
-                      <TableCell className="text-xs">{new Date(iv.occurred_at).toLocaleDateString('th-TH')}</TableCell>
-                      <TableCell className="font-medium">{iv.students?.profiles?.full_name || '-'}</TableCell>
+                      <TableCell className="text-xs">{formatDateTime(iv.occurred_at)}</TableCell>
+                      <TableCell className="font-medium">{formatProfileFullName(iv.students?.profiles) || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="flex items-center gap-1 w-fit">
                           <Icon className="h-3 w-3" /> {typeLabel[iv.intervention_type] || iv.intervention_type}

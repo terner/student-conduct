@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, RefreshCw, Download } from 'lucide-react';
+import { Search, Filter, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScoreTransactionTable } from '@/components/features/scores/score-transaction-table';
 import { getScores } from '@/lib/actions/score.action';
 import type { ScoreTransactionWithDetails } from '@/lib/db/queries/score.queries';
+import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 
 export default function ScoreHistoryPage() {
+  const selectedAcademicYearId = useSelectedAcademicYearId();
   const [data, setData] = useState<ScoreTransactionWithDetails[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -18,17 +20,22 @@ export default function ScoreHistoryPage() {
 
   const fetchData = useCallback(async (pageNum = 1, searchTerm = search) => {
     setLoading(true);
-    const result = await getScores({ page: pageNum, page_size: 20, search: searchTerm || undefined });
+    const result = await getScores({
+      page: pageNum,
+      page_size: 20,
+      search: searchTerm || undefined,
+      academic_year_id: selectedAcademicYearId || undefined,
+    });
     if (result.success && result.data) {
       setData(result.data.data as unknown as ScoreTransactionWithDetails[]);
       setTotal(result.data.total);
     }
     setLoading(false);
-  }, []);
+  }, [search, selectedAcademicYearId]);
 
   useEffect(() => {
-    fetchData(page);
-  }, [page]);
+    void Promise.resolve().then(() => fetchData(page));
+  }, [page, fetchData]);
 
   const handleSearch = () => {
     setPage(1);

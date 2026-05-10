@@ -32,8 +32,12 @@ export default function PdpaConsentPage() {
       if (res.success) {
         // Redirect based on role (role is string[] from DB)
         const roles = Array.isArray(userRole) ? userRole : userRole ? [userRole] : []
-        if (roles.includes('student') && !roles.includes('admin') && !roles.includes('teacher')) {
+        if (roles.includes('student') && !roles.includes('admin') && !roles.includes('teacher') && !roles.includes('superadmin')) {
           window.location.href = '/student/dashboard'
+        } else if (roles.includes('teacher') && !roles.includes('admin') && !roles.includes('superadmin')) {
+          window.location.href = '/score/record'
+        } else if (roles.includes('admin') && !roles.includes('superadmin')) {
+          window.location.href = '/score/approval'
         } else {
           window.location.href = '/dashboard'
         }

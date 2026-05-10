@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClientWithUser, createAdminClient } from '@/lib/supabase/server';
+import { getGoogleDriveConfig, isGoogleDriveReady, uploadFileToGoogleDrive } from '@/lib/storage/google-drive';
+
+export const runtime = 'nodejs';
 
 function hasRole(role: string | string[] | null, target: string): boolean {
   if (!role) return false;
@@ -19,16 +22,17 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (!profile || (!hasRole(profile.role, 'admin') && !hasRole(profile.role, 'teacher'))) {
+    if (!profile || !hasRole(profile.role, 'superadmin')) {
       return NextResponse.json({ error: 'ไม่มีสิทธิ์อัปโหลด' }, { status: 403 });
     }
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const studentId = formData.get('student_id') as string | null;
+    const profileOwnerId = (formData.get('student_id') || formData.get('owner_id')) as string | null;
+    const ownerType = (formData.get('owner_type') as string | null) || 'student';
 
-    if (!file || !studentId) {
-      return NextResponse.json({ error: 'กรุณาเลือกรูปภาพและระบุนักเรียน' }, { status: 400 });
+    if (!file || !profileOwnerId) {
+      return NextResponse.json({ error: 'กรุณาเลือกรูปภาพและระบุเจ้าของโปรไฟล์' }, { status: 400 });
     }
 
     const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -42,7 +46,23 @@ export async function POST(request: Request) {
 
     const adminClient = await createAdminClient();
     const fileExt = file.name.split('.').pop() || 'png';
-    const fileName = `${studentId}.${fileExt}`;
+    const fileName = `${ownerType}-${profileOwnerId}.${fileExt}`;
+    const driveConfig = await getGoogleDriveConfig(adminClient);
+
+    if (driveConfig.enabled) {
+      if (!isGoogleDriveReady(driveConfig, 'profile')) {
+        return NextResponse.json({ error: 'ยังไม่ได้ตั้งค่า Google Drive สำหรับรูปโปรไฟล์ให้ครบถ้วน' }, { status: 500 });
+      }
+
+      const upload = await uploadFileToGoogleDrive(driveConfig, 'profile', file, fileName);
+      return NextResponse.json({
+        success: true,
+        url: upload.publicUrl,
+        provider: 'google_drive',
+        file_id: upload.id,
+      });
+    }
+
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await adminClient

@@ -14,13 +14,14 @@ import { createClient, createAdminClient, createClientWithUser } from '@/lib/sup
  * Previously the dashboard called THREE separate server actions in parallel,
  * each doing its own auth flow + N+1 queries. This one call replaces all.
  */
-export async function getDashboard() {
+export async function getDashboard(params: { academic_year_id?: string } = {}) {
   return withAuth(async () => {
-    const data = await getDashboardData();
+    const data = await getDashboardData(params);
     return {
       success: true,
       data: {
         stats: data.stats,
+        academicYears: data.academic_years,
         recentTransactions: data.recent_transactions,
         atRiskStudents: data.at_risk_students,
       },

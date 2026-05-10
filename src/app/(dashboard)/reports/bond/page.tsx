@@ -10,6 +10,20 @@ import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
 import { createClient } from '@/lib/supabase/client';
 
+function formatProfileFullName(profile: any) {
+  const prefix = (profile?.prefix || '').trim();
+  const fullName = (profile?.full_name || '').trim();
+  if (!prefix) return fullName;
+  return fullName.startsWith(prefix) ? fullName : `${prefix}${fullName}`;
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('th-TH', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
+
 export default function BondDocumentsPage() {
   const router = useRouter();
   const [bonds, setBonds] = useState<any[]>([]);
@@ -22,7 +36,7 @@ export default function BondDocumentsPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from('bond_documents')
-      .select('*, students(student_id_number, profiles!inner(full_name)), academic_years(name)')
+      .select('*, students(student_id_number, profiles!inner(full_name, prefix)), academic_years(name)')
       .order('created_at', { ascending: false });
     if (data) setBonds(data);
     setLoading(false);
@@ -71,7 +85,7 @@ export default function BondDocumentsPage() {
                 {bonds.map((b: any) => (
                   <TableRow key={b.id}>
                     <TableCell className="font-mono text-xs">{b.document_no}</TableCell>
-                    <TableCell>{b.students?.profiles?.full_name || '-'}</TableCell>
+                    <TableCell>{formatProfileFullName(b.students?.profiles) || '-'}</TableCell>
                     <TableCell>{b.academic_years?.name || '-'}</TableCell>
                     <TableCell>{b.threshold_deducted}</TableCell>
                     <TableCell>
@@ -79,7 +93,7 @@ export default function BondDocumentsPage() {
                         {statusLabel[b.status] || b.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs">{new Date(b.created_at).toLocaleDateString('th-TH')}</TableCell>
+                    <TableCell className="text-xs">{formatDateTime(b.created_at)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

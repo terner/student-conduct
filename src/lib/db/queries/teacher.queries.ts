@@ -4,6 +4,9 @@ import type { Teacher } from '@/types';
 export interface TeacherWithProfile extends Teacher {
   full_name?: string;
   email?: string;
+  avatar_url?: string;
+  is_active?: boolean;
+  roles?: string[];
   assigned_classrooms?: {
     classroom_id: string;
     classroom_name: string;
@@ -13,17 +16,54 @@ export interface TeacherWithProfile extends Teacher {
   }[];
 }
 
+const teacherPrefixes = ['นาย', 'นางสาว', 'นาง'] as const;
+
+function parseTeacherProfile(profile?: Record<string, unknown>) {
+  let fullName = String(profile?.full_name || '').trim();
+  let prefix = String(profile?.prefix || '').trim();
+
+  if (!prefix || prefix === 'ครู') {
+    prefix = teacherPrefixes.find((item) => fullName.startsWith(item)) || 'นาย';
+  }
+
+  if (fullName.startsWith(prefix)) {
+    fullName = fullName.slice(prefix.length).trim();
+  }
+  if (fullName.startsWith('ครู')) {
+    fullName = fullName.slice('ครู'.length).trim();
+  }
+
+  const spaceIdx = fullName.indexOf(' ');
+  const firstName = spaceIdx >= 0 ? fullName.slice(0, spaceIdx).trim() : fullName;
+  const lastName = spaceIdx >= 0 ? fullName.slice(spaceIdx + 1).trim() : '';
+  const displayName = fullName ? `${prefix}${fullName}` : '';
+
+  return { prefix, first_name: firstName, last_name: lastName, full_name: displayName };
+}
+
+function normalizeRoles(role: unknown): string[] {
+  if (Array.isArray(role)) return role.map(String);
+  if (typeof role === 'string') return [role];
+  return [];
+}
+
+function rolesForTeacher(systemRole?: string, isAdmin?: boolean): string[] {
+  if (systemRole === 'superadmin') return ['superadmin', 'teacher'];
+  if (systemRole === 'admin' || isAdmin) return ['admin', 'teacher'];
+  return ['teacher'];
+}
+
 /**
  * List teachers
  */
-export async function listTeachers(params: { search?: string; department?: string } = {}) {
+export async function listTeachers(params: { search?: string; department?: string; include_inactive?: boolean } = {}) {
   const supabase = await createClient();
 
   let query = supabase
     .from('teachers')
     .select(`
       *,
-      profiles!inner(full_name, user_id),
+      profiles!inner(full_name, user_id, prefix, role, avatar_url, is_active),
       teacher_classrooms(
         classroom_id,
         assignment_role,
@@ -33,6 +73,9 @@ export async function listTeachers(params: { search?: string; department?: strin
 
   if (params.department) {
     query = query.eq('department', params.department);
+  }
+  if (!params.include_inactive) {
+    query = query.eq('profiles.is_active', true);
   }
 
   const { data, error } = await query.order('profiles(full_name)');
@@ -56,12 +99,17 @@ export async function listTeachers(params: { search?: string; department?: strin
   }
 
   return (data || []).map((t: Record<string, unknown>) => ({
+    ...parseTeacherProfile(t.profiles as Record<string, unknown>),
     id: t.id as string,
     profile_id: t.profile_id as string,
     employee_id: t.employee_id as string,
+    phone: t.phone as string | undefined,
     department: t.department as string | undefined,
-    full_name: (t.profiles as Record<string, unknown>)?.full_name as string || '',
-    email: '', // Would need auth.users join
+    position: t.position as string | undefined || 'ครู',
+    roles: normalizeRoles((t.profiles as Record<string, unknown>)?.role),
+    avatar_url: (t.profiles as Record<string, unknown>)?.avatar_url as string | undefined,
+    is_active: (t.profiles as Record<string, unknown>)?.is_active as boolean | undefined,
+    email: t.email as string | undefined || '',
     assigned_classrooms: ((t.teacher_classrooms as Array<Record<string, unknown>>) || []).map((tc: Record<string, unknown>) => {
       const classroomData = tc.classrooms as Record<string, unknown> || {};
       return {
@@ -85,7 +133,7 @@ export async function getTeacherById(id: string): Promise<TeacherWithProfile | n
     .from('teachers')
     .select(`
       *,
-      profiles!inner(full_name, user_id),
+      profiles!inner(full_name, user_id, prefix, role, avatar_url, is_active),
       teacher_classrooms(
         classroom_id,
         assignment_role,
@@ -112,12 +160,17 @@ export async function getTeacherById(id: string): Promise<TeacherWithProfile | n
   }
 
   return {
+    ...parseTeacherProfile(data.profiles as Record<string, unknown>),
     id: data.id,
     profile_id: data.profile_id,
     employee_id: data.employee_id,
+    phone: data.phone,
     department: data.department,
-    full_name: data.profiles?.full_name || '',
-    email: '',
+    position: data.position || 'ครู',
+    roles: normalizeRoles(data.profiles?.role),
+    avatar_url: data.profiles?.avatar_url || undefined,
+    is_active: data.profiles?.is_active ?? true,
+    email: data.email || '',
     assigned_classrooms: (data.teacher_classrooms || []).map((tc: Record<string, unknown>) => {
       const classroomData = tc.classrooms as Record<string, unknown> || {};
       return {
@@ -135,20 +188,29 @@ export async function getTeacherById(id: string): Promise<TeacherWithProfile | n
  * Create teacher with auth user and profile
  */
 export async function createTeacher(data: {
+  prefix?: string;
   first_name: string;
   last_name: string;
   email: string;
   employee_id: string;
+  phone?: string;
   department?: string;
+  position?: string;
+  is_admin?: boolean;
+  system_role?: 'teacher' | 'admin' | 'superadmin';
+  avatar_url?: string;
 }) {
   const supabase = await createClient();
+  const roles = rolesForTeacher(data.system_role, data.is_admin);
+  const prefix = data.prefix || 'นาย';
+  const fullName = `${data.first_name} ${data.last_name}`;
 
   // 1. Create auth user
   const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
     email: data.email,
     password: 'Teacher@123',
     email_confirm: true,
-    user_metadata: { full_name: `${data.first_name} ${data.last_name}`, role: 'teacher' },
+    user_metadata: { full_name: fullName, prefix, role: roles },
   });
 
   if (authError) throw authError;
@@ -159,8 +221,11 @@ export async function createTeacher(data: {
     .from('profiles')
     .insert({
       user_id: authUser.user.id,
-      role: 'teacher',
-      full_name: `${data.first_name} ${data.last_name}`,
+      role: roles,
+      prefix,
+      full_name: fullName,
+      phone: data.phone || null,
+      avatar_url: data.avatar_url || null,
       is_active: true,
       must_change_password: true,
     })
@@ -178,7 +243,10 @@ export async function createTeacher(data: {
     .insert({
       profile_id: profile.id,
       employee_id: data.employee_id,
+      phone: data.phone || null,
+      email: data.email,
       department: data.department || null,
+      position: data.position || 'ครู',
     })
     .select('id')
     .single();
@@ -195,11 +263,18 @@ export async function createTeacher(data: {
  * Update teacher
  */
 export async function updateTeacher(id: string, data: {
+  prefix?: string;
   first_name?: string;
   last_name?: string;
   employee_id?: string;
+  email?: string;
+  phone?: string;
   department?: string;
+  position?: string;
+  is_admin?: boolean;
+  system_role?: 'teacher' | 'admin' | 'superadmin';
   is_active?: boolean;
+  avatar_url?: string;
 }) {
   const supabase = await createClient();
 
@@ -209,13 +284,29 @@ export async function updateTeacher(id: string, data: {
     .eq('id', id)
     .single();
 
-  if (data.first_name || data.last_name) {
+  if (data.first_name || data.last_name || data.prefix !== undefined || data.phone !== undefined || data.is_admin !== undefined || data.system_role !== undefined || data.avatar_url !== undefined) {
     if (teacher.data?.profile_id) {
       const fullName = [data.first_name, data.last_name].filter(Boolean).join(' ');
+      const profileUpdate: Record<string, unknown> = {};
       if (fullName) {
+        profileUpdate.full_name = fullName;
+      }
+      if (data.prefix !== undefined) {
+        profileUpdate.prefix = data.prefix || null;
+      }
+      if (data.phone !== undefined) {
+        profileUpdate.phone = data.phone || null;
+      }
+      if (data.system_role !== undefined || data.is_admin !== undefined) {
+        profileUpdate.role = rolesForTeacher(data.system_role, data.is_admin);
+      }
+      if (data.avatar_url !== undefined) {
+        profileUpdate.avatar_url = data.avatar_url || null;
+      }
+      if (Object.keys(profileUpdate).length > 0) {
         await supabase
           .from('profiles')
-          .update({ full_name: fullName })
+          .update(profileUpdate)
           .eq('id', teacher.data.profile_id);
       }
     }
@@ -230,7 +321,10 @@ export async function updateTeacher(id: string, data: {
 
   const updateData: Record<string, unknown> = {};
   if (data.employee_id) updateData.employee_id = data.employee_id;
+  if (data.email !== undefined) updateData.email = data.email || null;
+  if (data.phone !== undefined) updateData.phone = data.phone || null;
   if (data.department !== undefined) updateData.department = data.department;
+  if (data.position !== undefined) updateData.position = data.position || 'ครู';
 
   if (Object.keys(updateData).length > 0) {
     const { error } = await supabase
@@ -256,11 +350,13 @@ export async function assignTeacherToClassroom(data: {
 
   const { error } = await supabase
     .from('teacher_classrooms')
-    .insert({
+    .upsert({
       teacher_id: data.teacher_id,
       classroom_id: data.classroom_id,
       assignment_role: data.assignment_role || 'homeroom',
       assigned_by: data.assigned_by,
+    }, {
+      onConflict: 'teacher_id,classroom_id,assignment_role',
     });
 
   if (error) throw error;

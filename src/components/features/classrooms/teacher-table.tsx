@@ -1,56 +1,70 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { X } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
 
 interface TeacherAssignmentTableProps {
   classroomId: string;
   teachers: TeacherWithProfile[];
-  onRemove?: (teacherId: string) => void;
+  onAssign?: (role: 'homeroom' | 'assistant', teacherId: string) => void;
 }
 
-export function TeacherAssignmentTable({ teachers, classroomId, onRemove }: TeacherAssignmentTableProps) {
-  const assignedTeachers = teachers.filter(t =>
-    t.assigned_classrooms?.some(c => c.classroom_id === classroomId)
+export function TeacherAssignmentTable({ teachers, classroomId, onAssign }: TeacherAssignmentTableProps) {
+  const homeroomTeacher = teachers.find(t =>
+    t.assigned_classrooms?.some(c => c.classroom_id === classroomId && c.assignment_role === 'homeroom')
   );
+  const assistantTeacher = teachers.find(t =>
+    t.assigned_classrooms?.some(c => c.classroom_id === classroomId && c.assignment_role === 'assistant')
+  );
+  const advisorTeacher = assistantTeacher || homeroomTeacher;
 
-  if (assignedTeachers.length === 0) {
-    return <p className="text-sm text-muted-foreground py-4 text-center">ยังไม่มีครูประจำชั้น</p>;
+  function teacherLabel(teacherId: string) {
+    const teacher = teachers.find(t => t.id === teacherId);
+    return teacher?.full_name || teacher?.employee_id || '';
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>ชื่อ-นามสกุล</TableHead>
-          <TableHead>บทบาท</TableHead>
-          <TableHead className="w-[60px]"></TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {assignedTeachers.map((t) => {
-          const assignment = t.assigned_classrooms?.find(c => c.classroom_id === classroomId);
-          const roleLabels: Record<string, string> = { homeroom: 'ครูที่ปรึกษา', assistant: 'ผู้ช่วย', subject: 'ครูวิชา', discipline: 'ฝ่ายปกครอง' };
-          return (
-            <TableRow key={t.id}>
-              <TableCell className="font-medium">{t.full_name}</TableCell>
-              <TableCell>
-                <Badge variant="outline">{roleLabels[assignment?.assignment_role || ''] || assignment?.assignment_role}</Badge>
-              </TableCell>
-              <TableCell>
-                {onRemove && (
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onRemove(t.id)}>
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-2">
+        <Label>ครูประจำชั้น</Label>
+        <Select
+          value={homeroomTeacher?.id || null}
+          onValueChange={(value) => value && onAssign?.('homeroom', value)}
+          itemToStringLabel={(value) => teacherLabel(String(value))}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="เลือกครูประจำชั้น" />
+          </SelectTrigger>
+          <SelectContent>
+            {teachers.map((teacher) => (
+              <SelectItem key={teacher.id} value={teacher.id} label={teacher.full_name || teacher.employee_id}>
+                {teacher.full_name || teacher.employee_id}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>ครูที่ปรึกษา</Label>
+        <Select
+          value={advisorTeacher?.id || null}
+          onValueChange={(value) => value && onAssign?.('assistant', value)}
+          itemToStringLabel={(value) => teacherLabel(String(value))}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="เลือกครูที่ปรึกษา" />
+          </SelectTrigger>
+          <SelectContent>
+            {teachers.map((teacher) => (
+              <SelectItem key={teacher.id} value={teacher.id} label={teacher.full_name || teacher.employee_id}>
+                {teacher.full_name || teacher.employee_id}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
   );
 }

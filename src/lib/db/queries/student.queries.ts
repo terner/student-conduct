@@ -1,13 +1,22 @@
-import { createClient } from '@/lib/supabase/server';
-import type { Student, StudentEnrollment } from '@/types';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
+import type { Student } from '@/types';
 
 export type StudentWithProfile = Student & {
   prefix: string;
   first_name: string;
   last_name: string;
   classroom_name: string;
+  grade_level_id?: string;
+  grade_level_name?: string;
   grade_level: number;
   education_stage_name: string;
+  homeroom_teacher_name?: string;
+  advisor_teacher_name?: string;
+  guardian_full_name?: string;
+  guardian_relation?: string;
+  guardian_phone?: string;
+  avatar_url?: string;
+  current_score?: number;
 };
 
 export interface StudentListParams {
@@ -15,6 +24,7 @@ export interface StudentListParams {
   page_size?: number;
   search?: string;
   classroom_id?: string;
+  grade_level_id?: string;
   grade_level?: number;
   education_stage_id?: string;
   status?: string;
@@ -29,10 +39,26 @@ export interface PaginatedResult<T> {
   total_pages: number;
 }
 
+function formatTeacherName(profile?: Record<string, unknown>) {
+  const prefix = String(profile?.prefix || '').trim();
+  let fullName = String(profile?.full_name || '').trim();
+  if (fullName.startsWith('ครู')) {
+    fullName = fullName.slice('ครู'.length).trim();
+  }
+  return prefix && fullName && !fullName.startsWith(prefix) ? `${prefix}${fullName}` : fullName;
+}
+
 // Parse profile full_name into prefix, first_name, last_name
 function parseProfile(profile: Record<string, unknown>): { prefix: string; first_name: string; last_name: string } {
-  const fullName = (profile.full_name as string) || '';
-  const prefix = (profile.prefix as string) || '';
+  let fullName = ((profile.full_name as string) || '').trim();
+  let prefix = ((profile.prefix as string) || '').trim();
+  const knownPrefixes = ['เด็กชาย', 'เด็กหญิง', 'นาย', 'นางสาว', 'นาง'];
+  if (!prefix) {
+    prefix = knownPrefixes.find((p) => fullName.startsWith(p)) || '';
+  }
+  if (prefix && fullName.startsWith(prefix)) {
+    fullName = fullName.slice(prefix.length).trim();
+  }
   if (!fullName) return { prefix, first_name: '', last_name: '' };
   const spaceIdx = fullName.indexOf(' ');
   if (spaceIdx > 0) {
@@ -59,6 +85,11 @@ async function getStageName(stageId: string): Promise<string> {
 // Reset cache (for testing)
 export function resetStagesCache() { stagesCache = null; }
 
+function buildStudentLoginEmail(studentIdNumber: string, academicYearId?: string) {
+  const yearSegment = academicYearId ? academicYearId.replace(/[^0-9A-Za-z-]/g, '') : 'manual';
+  return `${studentIdNumber}.${yearSegment}@student.school.com`;
+}
+
 /**
  * List students with pagination, search, and filters
  */
@@ -79,8 +110,8 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
     .from('students')
     .select(`
       *,
-      profiles!inner(full_name),
-      classrooms!inner(name, grade_level, education_stage_id, academic_year_id)
+      profiles!inner(full_name, prefix, avatar_url),
+      classrooms!inner(name, grade_level_id, grade_level, education_stage_id, academic_year_id, grade_levels(name, level_no))
     `, { count: 'exact' });
 
   // Filters
@@ -92,6 +123,9 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
   }
   if (grade_level) {
     query = query.eq('classrooms.grade_level', grade_level);
+  }
+  if (params.grade_level_id) {
+    query = query.eq('classrooms.grade_level_id', params.grade_level_id);
   }
   if (education_stage_id) {
     query = query.eq('classrooms.education_stage_id', education_stage_id);
@@ -112,11 +146,18 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
 
   if (error) throw error;
 
+  const studentIds = (data || []).map((s: Record<string, unknown>) => s.id as string);
+  const [guardianByStudentId, scoreByStudentId] = await Promise.all([
+    getPrimaryGuardians(studentIds),
+    getScoreByStudentId(studentIds, academic_year),
+  ]);
+
   const mapped: StudentWithProfile[] = await Promise.all((data || []).map(async (s: Record<string, unknown>) => {
     const profile = s.profiles as Record<string, unknown> || {};
     const { prefix, first_name, last_name } = parseProfile(profile);
     const classroom = s.classrooms as Record<string, unknown> || {};
     const stageId = classroom.education_stage_id as string || '';
+    const guardian = guardianByStudentId.get(s.id as string);
     return {
       id: s.id as string,
       profile_id: s.profile_id as string,
@@ -127,8 +168,14 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
       first_name,
       last_name,
       classroom_name: classroom.name as string || '',
+      grade_level_id: classroom.grade_level_id as string || '',
+      grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
       grade_level: classroom.grade_level as number || 0,
       education_stage_name: stageId ? await getStageName(stageId) : '',
+      guardian_full_name: guardian?.full_name || '',
+      guardian_relation: guardian?.relation || '',
+      guardian_phone: guardian?.phone || '',
+      current_score: scoreByStudentId.get(s.id as string) ?? 100,
     };
   }));
 
@@ -151,8 +198,8 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
     .from('students')
     .select(`
       *,
-      profiles!inner(full_name),
-      classrooms!inner(name, grade_level, education_stage_id)
+      profiles!inner(full_name, prefix),
+      classrooms!inner(name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
     `)
     .eq('id', id)
     .single();
@@ -164,6 +211,8 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
   const { prefix, first_name, last_name } = parseProfile(profiles);
   const classroom = data.classrooms as Record<string, unknown> || {};
   const stageId = classroom.education_stage_id as string || '';
+  const teacherNames = await getClassroomTeacherNames(data.classroom_id);
+  const guardian = (await getPrimaryGuardians([data.id])).get(data.id);
 
   return {
     id: data.id,
@@ -175,9 +224,113 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
     first_name,
     last_name,
     classroom_name: classroom.name as string || '',
+    grade_level_id: classroom.grade_level_id as string || '',
+    grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
     grade_level: classroom.grade_level as number || 0,
     education_stage_name: stageId ? await getStageName(stageId) : '',
+    homeroom_teacher_name: teacherNames.homeroom || '',
+    advisor_teacher_name: teacherNames.advisor || teacherNames.homeroom || '',
+    guardian_full_name: guardian?.full_name || '',
+    guardian_relation: guardian?.relation || '',
+    guardian_phone: guardian?.phone || '',
+    avatar_url: profiles.avatar_url as string | undefined,
   };
+}
+
+async function getPrimaryGuardians(studentIds: string[]) {
+  const supabase = await createAdminClient();
+  const guardianByStudentId = new Map<string, { full_name: string; relation: string; phone: string }>();
+  if (studentIds.length === 0) return guardianByStudentId;
+
+  const { data } = await supabase
+    .from('student_guardians')
+    .select('student_id, relation, is_primary, guardians(full_name, phone)')
+    .in('student_id', studentIds)
+    .order('is_primary', { ascending: false });
+
+  for (const row of data || []) {
+    const studentId = row.student_id as string;
+    if (guardianByStudentId.has(studentId)) continue;
+    const guardian = row.guardians as unknown as Record<string, unknown>;
+    guardianByStudentId.set(studentId, {
+      full_name: (guardian?.full_name as string) || '',
+      relation: (row.relation as string) || '',
+      phone: (guardian?.phone as string) || '',
+    });
+  }
+
+  return guardianByStudentId;
+}
+
+async function getScoreByStudentId(studentIds: string[], academicYearId?: string) {
+  const supabase = await createAdminClient();
+  const scoreByStudentId = new Map<string, number>();
+  if (studentIds.length === 0) return scoreByStudentId;
+
+  let baseScore = 100;
+  if (academicYearId) {
+    const { data: academicYear } = await supabase
+      .from('academic_years')
+      .select('base_score')
+      .eq('id', academicYearId)
+      .maybeSingle();
+    baseScore = (academicYear?.base_score as number | undefined) || 100;
+  }
+
+  let query = supabase
+    .from('score_transactions')
+    .select('student_id, points')
+    .in('student_id', studentIds)
+    .eq('status', 'approved');
+
+  if (academicYearId) {
+    query = query.eq('academic_year_id', academicYearId);
+  }
+
+  const { data } = await query;
+
+  for (const studentId of studentIds) scoreByStudentId.set(studentId, baseScore);
+  for (const row of data || []) {
+    const studentId = row.student_id as string;
+    scoreByStudentId.set(studentId, (scoreByStudentId.get(studentId) ?? baseScore) + ((row.points as number) || 0));
+  }
+
+  return scoreByStudentId;
+}
+
+export async function getClassroomTeacherNames(classroomId: string) {
+  const supabase = await createAdminClient();
+  const { data: assignments } = await supabase
+    .from('teacher_classrooms')
+    .select('teacher_id, assignment_role')
+    .eq('classroom_id', classroomId)
+    .in('assignment_role', ['homeroom', 'assistant']);
+
+  const teacherIds = Array.from(new Set((assignments || []).map((a) => a.teacher_id as string).filter(Boolean)));
+  if (teacherIds.length === 0) return { homeroom: '', advisor: '' };
+
+  const { data: teachers } = await supabase
+    .from('teachers')
+    .select('id, profiles!inner(full_name, prefix)')
+    .in('id', teacherIds);
+
+  const teacherNameById = new Map<string, string>();
+  for (const teacher of teachers || []) {
+    teacherNameById.set(
+      teacher.id as string,
+      formatTeacherName(teacher.profiles as unknown as Record<string, unknown>),
+    );
+  }
+
+  let homeroom = '';
+  let advisor = '';
+  for (const assignment of assignments || []) {
+    const teacherName = teacherNameById.get(assignment.teacher_id as string) || '';
+    if (assignment.assignment_role === 'homeroom') homeroom = teacherName;
+    if (assignment.assignment_role === 'assistant') advisor = teacherName;
+  }
+
+  return { homeroom, advisor: advisor || homeroom };
 }
 
 /**
@@ -258,8 +411,8 @@ export async function getStudentsByClassroom(classroomId: string): Promise<Stude
     .from('students')
     .select(`
       *,
-      profiles!inner(full_name),
-      classrooms!inner(name, grade_level, education_stage_id)
+      profiles!inner(full_name, prefix),
+      classrooms!inner(name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
     `)
     .eq('classroom_id', classroomId)
     .eq('current_status', 'active')
@@ -282,6 +435,8 @@ export async function getStudentsByClassroom(classroomId: string): Promise<Stude
       first_name,
       last_name,
       classroom_name: classroom.name as string || '',
+      grade_level_id: classroom.grade_level_id as string || '',
+      grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
       grade_level: classroom.grade_level as number || 0,
       education_stage_name: stageId ? await getStageName(stageId) : '',
     };
@@ -296,15 +451,18 @@ export async function createStudent(data: {
   class_number?: number;
   academic_year_id?: string;
   avatar_url?: string;
+  guardian_full_name?: string;
+  guardian_relation?: string;
+  guardian_phone?: string;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const prefix = data.prefix || '';
   const fullName = prefix ? `${prefix}${data.first_name} ${data.last_name}` : `${data.first_name} ${data.last_name}`;
 
   // 1. Create auth user for student
   const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-    email: `${data.student_id_number}@student.school.com`,
+    email: buildStudentLoginEmail(data.student_id_number, data.academic_year_id),
     password: 'Student@123',
     email_confirm: true,
     user_metadata: { full_name: fullName, prefix, first_name: data.first_name, last_name: data.last_name, role: 'student' },
@@ -357,6 +515,9 @@ export async function createStudent(data: {
     enrollment_status: 'active',
     source: 'manual',
   };
+  if (data.academic_year_id) {
+    enrollmentData.academic_year_id = data.academic_year_id;
+  }
   if (data.class_number !== undefined) {
     enrollmentData.class_number = data.class_number;
   }
@@ -365,6 +526,12 @@ export async function createStudent(data: {
     .insert(enrollmentData);
 
   if (enrollmentError) throw enrollmentError;
+
+  await upsertPrimaryGuardian(supabase, student.id, {
+    full_name: data.guardian_full_name,
+    relation: data.guardian_relation,
+    phone: data.guardian_phone,
+  });
 
   return student;
 }
@@ -381,6 +548,9 @@ export async function updateStudent(id: string, data: {
   current_status?: string;
   class_number?: number;
   avatar_url?: string;
+  guardian_full_name?: string;
+  guardian_relation?: string;
+  guardian_phone?: string;
 }) {
   const supabase = await createClient();
 
@@ -470,7 +640,73 @@ export async function updateStudent(id: string, data: {
     }
   }
 
+  await upsertPrimaryGuardian(supabase, id, {
+    full_name: data.guardian_full_name,
+    relation: data.guardian_relation,
+    phone: data.guardian_phone,
+  });
+
   return { success: true };
+}
+
+export async function upsertPrimaryGuardian(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  studentId: string,
+  guardianData: {
+    full_name?: string;
+    relation?: string;
+    phone?: string;
+  },
+) {
+  const fullName = guardianData.full_name?.trim();
+  const phone = guardianData.phone?.trim();
+  const relation = guardianData.relation || 'guardian';
+
+  if (!fullName && !phone) return;
+  if (!fullName || !phone) {
+    throw new Error('กรุณากรอกชื่อผู้ปกครองและเบอร์โทรให้ครบ');
+  }
+
+  const { data: existingLink } = await supabase
+    .from('student_guardians')
+    .select('guardian_id')
+    .eq('student_id', studentId)
+    .eq('is_primary', true)
+    .maybeSingle();
+
+  if (existingLink?.guardian_id) {
+    const { error: guardianError } = await supabase
+      .from('guardians')
+      .update({ full_name: fullName, phone })
+      .eq('id', existingLink.guardian_id);
+    if (guardianError) throw guardianError;
+
+    const { error: relationError } = await supabase
+      .from('student_guardians')
+      .update({ relation, is_primary: true })
+      .eq('student_id', studentId)
+      .eq('guardian_id', existingLink.guardian_id);
+    if (relationError) throw relationError;
+    return;
+  }
+
+  const { data: guardian, error: guardianError } = await supabase
+    .from('guardians')
+    .insert({ full_name: fullName, phone })
+    .select('id')
+    .single();
+  if (guardianError) throw guardianError;
+
+  const { error: linkError } = await supabase
+    .from('student_guardians')
+    .insert({
+      student_id: studentId,
+      guardian_id: guardian.id,
+      relation,
+      is_primary: true,
+      can_receive_notifications: true,
+    });
+  if (linkError) throw linkError;
 }
 
 /**

@@ -11,19 +11,22 @@ import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { getThresholdReport } from '@/lib/actions/report.action';
 import { exportCsv } from '@/lib/utils/csv';
+import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 
 export default function ThresholdReportPage() {
+  const selectedAcademicYearId = useSelectedAcademicYearId();
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const result = await getThresholdReport();
+      setLoading(true);
+      const result = await getThresholdReport(selectedAcademicYearId || undefined);
       if (result.success) setReportData(result.data);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [selectedAcademicYearId]);
 
   if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div></div>;
 
@@ -118,4 +121,3 @@ export default function ThresholdReportPage() {
     </div>
   );
 }
-

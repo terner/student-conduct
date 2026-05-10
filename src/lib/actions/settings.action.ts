@@ -1,0 +1,78 @@
+'use server';
+
+import { withAuth } from '@/lib/server-action';
+import { canManageSettings, getRoles } from '@/lib/security/roles';
+import { createAdminClient } from '@/lib/supabase/server';
+
+export async function getSettingsPageData() {
+  return withAuth(async (profile) => {
+    const roles = getRoles(profile);
+
+    if (!canManageSettings(profile)) {
+      return { success: true, data: { roles, settings: {}, thresholds: [] } };
+    }
+
+    const adminClient = await createAdminClient();
+    const { data, error } = await adminClient
+      .from('settings')
+      .select('key, value');
+
+    if (error) {
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: error.message } };
+    }
+
+    const settings: Record<string, unknown> = {};
+    for (const row of data || []) {
+      settings[row.key as string] = row.value;
+    }
+
+    return {
+      success: true,
+      data: {
+        roles,
+        settings,
+        thresholds: Array.isArray(settings.thresholds) ? settings.thresholds : [],
+      },
+    };
+  });
+}
+
+export async function saveSystemSettings(input: {
+  settings: Record<string, unknown>;
+  thresholds: Array<{ deducted: number; action: string; color: string }>;
+}) {
+  return withAuth(async (profile) => {
+    if (!canManageSettings(profile)) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+    }
+
+    const adminClient = await createAdminClient();
+    const rows = [
+      ['school_name', input.settings.school_name],
+      ['school_name_en', input.settings.school_name_en],
+      ['school_logo', input.settings.school_logo],
+      ['base_score', input.settings.base_score],
+      ['score_floor', input.settings.score_floor],
+      ['thresholds', input.thresholds],
+      ['google_drive_enabled', input.settings.google_drive_enabled],
+      ['google_drive_client_email', input.settings.google_drive_client_email],
+      ['google_drive_private_key', input.settings.google_drive_private_key],
+      ['google_drive_profile_folder_id', input.settings.google_drive_profile_folder_id],
+      ['google_drive_evidence_folder_id', input.settings.google_drive_evidence_folder_id],
+    ].map(([key, value]) => ({
+      key,
+      value: value ?? null,
+      updated_by: profile.id,
+    }));
+
+    const { error } = await adminClient
+      .from('settings')
+      .upsert(rows, { onConflict: 'key' });
+
+    if (error) {
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: error.message } };
+    }
+
+    return { success: true, data: { saved: rows.length } };
+  });
+}

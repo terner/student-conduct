@@ -4,7 +4,45 @@
 
 Multi-School Ready · Config-Driven Design · Clone & Deploy
 
-Next.js 14 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai Font
+Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai Font
+
+## Current Implementation Snapshot — 2026-05-10
+
+สถานะล่าสุดของระบบใน repo นี้:
+
+- ใช้ Next.js 16 App Router + TypeScript + Supabase
+- มี global academic year selector ใน top bar และปีการศึกษาที่เลือกมีผลกับชุดข้อมูลหลัก เช่น dashboard, รายชื่อนักเรียน, ห้องเรียน, บันทึกคะแนน
+- โครงสร้างชั้นเรียนเปลี่ยนเป็น master data ตามลำดับ:
+  1. ปีการศึกษา (`academic_years`)
+  2. ระดับชั้นการศึกษา (`education_stages`) เช่น อนุบาล, ประถมศึกษา, มัธยมศึกษา, มัธยมปลาย
+  3. ชั้นปี (`grade_levels`) เช่น ป.1-ป.6, ม.1-ม.6
+  4. ห้องเรียน (`classrooms`) เช่น ป.1/1, ป.1/2 โดยผูกกับ `academic_year_id`, `education_stage_id`, `grade_level_id`
+- มีหน้า Settings → โครงสร้างชั้นเรียน สำหรับไปจัดการ:
+  - `/settings/academic-years`
+  - `/settings/education-stages`
+  - `/settings/grade-levels`
+  - `/classrooms`
+- การเพิ่มห้องเรียนใช้ flow: เลือกระดับชั้น → เลือกชั้นปี → ใส่จำนวนห้อง → ระบบสร้างชื่อห้องจาก master data
+- หน้าเพิ่มนักเรียนและหน้าบันทึกคะแนนใช้ filter ที่สัมพันธ์กันจากข้อมูลห้องจริง ไม่ fix ชั้นปีใน code
+- ข้อมูลทดสอบปัจจุบันใน Supabase: นักเรียน 300, ครู 30, ห้องเรียน 24, ชั้นปี 12, ผู้ปกครอง 300
+- เพิ่มข้อมูลนักเรียน: คำนำหน้า, ผู้ปกครอง, ความสัมพันธ์, เบอร์โทรผู้ปกครอง และรองรับ CSV
+- เพิ่มข้อมูลครู: คำนำหน้า, เบอร์โทร, e-mail, ตำแหน่งครู และมีหน้ากำหนดตำแหน่งครู
+- ห้องเรียนรองรับทั้งครูประจำชั้นและครูที่ปรึกษา โดยเป็นคนเดียวกันได้
+- ตารางรายชื่อนักเรียนแสดงคะแนนปัจจุบัน และกด row เพื่อเข้าหน้า profile ได้
+- ประวัติคะแนนรองรับ evidence metadata และ modal แสดงรูปหลักฐานถ้ามี
+- Settings มีช่อง Google Drive config สำหรับงานรูปโปรไฟล์และหลักฐานคะแนนใน phase ถัดไป
+
+## Open Work — ต้องทำต่อ
+
+- ทำ Google Drive upload จริงสำหรับรูปโปรไฟล์และรูปหลักฐานคะแนน โดยใช้ค่าจาก Settings
+- ทำ permission/admin UI ให้กำหนด role หรือเพิ่ม admin ให้ครูบางคนจากหน้า UI ได้ครบ
+- เก็บ audit/action logs ให้ครบทุก action สำคัญ เช่น import, export, setting change, role change, score change
+- ทำ i18n ให้ครบทุกหน้า ตอนนี้มี config และ switcher แล้ว แต่ยังมี hardcoded Thai หลายจุด
+- ทำ annual promotion/rollover: สร้างปีใหม่, copy/create ห้องตามโครงสร้าง, ย้าย enrollment นักเรียนรายปี
+- ทำ import wizard สำหรับปีการศึกษาใหม่ให้ preview ก่อนบันทึก และจัดการนักเรียนซ้ำ/ย้าย/จบการศึกษา
+- ทำรายงาน/สถิติเพิ่มเติม เช่น monthly snapshot, school statistics, export PDF/Excel
+- ปรับ RLS/permission ให้ละเอียดตาม production policy ก่อนใช้งานจริง
+- เพิ่ม automated tests สำหรับ classroom structure, grade-level filters, score record, import CSV
 
 ## 1. Tech Stack & Dependencies
 
@@ -14,7 +52,7 @@ Next.js 14 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
 |            |                          |                                  |
 |------------|--------------------------|----------------------------------|
 | **Layer**  | **Technology**           | **Purpose**                      |
-| Framework  | Next.js 14 (App Router)  | SSR, routing, server actions     |
+| Framework  | Next.js 16 (App Router)  | SSR, routing, server actions     |
 | Language   | TypeScript               | Type safety across all layers    |
 | Database   | Supabase (PostgreSQL)    | Data storage + RLS security      |
 | Auth       | Supabase Auth            | Login, roles, session management |
@@ -241,15 +279,55 @@ export const schoolConfig = {
 >
 > );
 >
+> create table education_stages (
+>
+> id uuid primary key default uuid_generate_v4(),
+>
+> code text not null unique, -- e.g. kindergarten, primary, secondary, highschool
+>
+> name_th text not null,
+>
+> name_en text,
+>
+> sort_order int default 100,
+>
+> is_active boolean default true
+>
+> );
+>
+> create table grade_levels (
+>
+> id uuid primary key default uuid_generate_v4(),
+>
+> education_stage_id uuid not null references education_stages(id),
+>
+> code text not null,
+>
+> name text not null, -- e.g. ป.1, ม.4
+>
+> level_no int not null,
+>
+> sort_order int default 100,
+>
+> is_active boolean default true,
+>
+> unique (education_stage_id, level_no),
+>
+> unique (education_stage_id, name)
+>
+> );
+>
 > create table classrooms (
 >
 > id uuid primary key default uuid_generate_v4(),
 >
 > name text not null, -- e.g. 'ป.1/1', 'ม.1/1'
 >
-> education_stage text check (education_stage in ('primary','secondary')) not null,
+> education_stage_id uuid references education_stages(id),
 >
-> grade_level int not null, -- primary: 1-6, secondary: 1-6
+> grade_level_id uuid references grade_levels(id),
+>
+> grade_level int not null, -- absolute level number, e.g. ป.1=1, ม.1=7, ม.6=12
 >
 > academic_year_id uuid references academic_years(id),
 >
@@ -1107,7 +1185,7 @@ export const schoolConfig = {
 
 > Build a complete Thai school student conduct scoring system.
 >
-> Stack: Next.js 14 App Router, TypeScript, Supabase, Vercel, shadcn/ui,
+> Stack: Next.js 16 App Router, TypeScript, Supabase, Vercel, shadcn/ui,
 >
 > Tailwind CSS, next-intl (th default / en), Sarabun Thai font.
 >
@@ -3213,4 +3291,4 @@ export async function POST(req: Request) { ... }
 
 Student Conduct Score System — Complete Specification
 
-Generated for Next.js 14 + TypeScript + Supabase + Vercel + i18n
+Generated for Next.js 16 + TypeScript + Supabase + Vercel + i18n

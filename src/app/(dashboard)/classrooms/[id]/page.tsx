@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { TeacherAssignmentTable } from '@/components/features/classrooms/teacher-table';
 import { StudentTable } from '@/components/features/students/student-table';
-import { getClassroom } from '@/lib/actions/classroom.action';
+import { getClassroom, setClassroomTeacherAssignment } from '@/lib/actions/classroom.action';
 import { getStudents } from '@/lib/actions/student.action';
 import { getTeachers } from '@/lib/actions/teacher.action';
+import { toast } from 'sonner';
 import type { ClassroomWithDetails } from '@/lib/db/queries/classroom.queries';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
@@ -24,24 +25,41 @@ export default function ClassroomDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  async function load() {
+    const id = params.id as string;
+    const [classRes, studentRes, teacherRes] = await Promise.all([
+      getClassroom(id),
+      getStudents({ classroom_id: id, page_size: 100 }),
+      getTeachers(),
+    ]);
+
+    if (classRes.success && classRes.data) setClassroom(classRes.data);
+    else setError('ไม่พบห้องเรียน');
+    if (studentRes.success && studentRes.data) setStudents(studentRes.data.data as unknown as StudentWithProfile[]);
+    if (teacherRes.success && teacherRes.data) setTeachers(teacherRes.data);
+
+    setLoading(false);
+  }
+
   useEffect(() => {
-    async function load() {
-      const id = params.id as string;
-      const [classRes, studentRes, teacherRes] = await Promise.all([
-        getClassroom(id),
-        getStudents({ classroom_id: id, page_size: 100 }),
-        getTeachers(),
-      ]);
-
-      if (classRes.success && classRes.data) setClassroom(classRes.data);
-      else setError('ไม่พบห้องเรียน');
-      if (studentRes.success && studentRes.data) setStudents(studentRes.data.data as unknown as StudentWithProfile[]);
-      if (teacherRes.success && teacherRes.data) setTeachers(teacherRes.data);
-
-      setLoading(false);
-    }
     load();
   }, [params.id]);
+
+  async function handleAssignTeacher(role: 'homeroom' | 'assistant', teacherId: string) {
+    const result = await setClassroomTeacherAssignment({
+      classroom_id: params.id as string,
+      teacher_id: teacherId,
+      assignment_role: role,
+    });
+
+    if (!result.success) {
+      toast('เกิดข้อผิดพลาด', { description: result.error?.message });
+      return;
+    }
+
+    toast('บันทึกครูประจำห้องสำเร็จ');
+    await load();
+  }
 
   if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div></div>;
   if (error) return (
@@ -58,16 +76,20 @@ export default function ClassroomDetailPage() {
         <div>
           <h1 className="text-2xl font-bold">{classroom?.name}</h1>
           <p className="text-muted-foreground text-sm">
-            {classroom?.education_stage_name || 'ไม่ระบุ'} · ชั้น {classroom?.grade_level} · {classroom?.student_count} คน
+            {classroom?.education_stage_name || 'ไม่ระบุ'} · ชั้น {classroom?.grade_level_name || classroom?.grade_level} · {classroom?.student_count} คน
           </p>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-lg">ครูประจำชั้น</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">ครูประจำห้อง</CardTitle></CardHeader>
           <CardContent>
-            <TeacherAssignmentTable classroomId={params.id as string} teachers={teachers} />
+            <TeacherAssignmentTable
+              classroomId={params.id as string}
+              teachers={teachers}
+              onAssign={handleAssignTeacher}
+            />
           </CardContent>
         </Card>
         <Card>

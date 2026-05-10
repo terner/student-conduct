@@ -2,22 +2,25 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, User } from 'lucide-react';
+import { RotateCcw, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getStudentListForSelect, getClassroomsForSelect } from '@/lib/actions/student.action';
 import { getEducationStages } from '@/lib/actions/education-stage.action';
+import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 
 interface StudentItem {
   id: string;
   student_id_number: string;
   full_name: string;
   classroom_name: string;
+  grade_level_id?: string;
+  grade_level_name?: string;
   grade_level: number;
   education_stage_id: string;
 }
@@ -25,6 +28,8 @@ interface StudentItem {
 interface ClassroomOption {
   id: string;
   name: string;
+  grade_level_id?: string;
+  grade_level_name?: string;
   grade_level: number;
   education_stage_id: string;
 }
@@ -35,8 +40,20 @@ interface StageOption {
   code: string;
 }
 
+const SCORE_RECORD_CACHE_TTL_MS = 60 * 1000;
+const SCORE_RECORD_CACHE_VERSION = 1;
+
+interface ScoreRecordPageCache {
+  version: number;
+  savedAt: number;
+  students: StudentItem[];
+  classrooms: ClassroomOption[];
+  stages: StageOption[];
+}
+
 export default function ScoreRecordPage() {
   const router = useRouter();
+  const selectedAcademicYearId = useSelectedAcademicYearId();
   const [students, setStudents] = useState<StudentItem[]>([]);
   const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
   const [stages, setStages] = useState<StageOption[]>([]);
@@ -47,43 +64,80 @@ export default function ScoreRecordPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const cacheKey = `score-record-options:v${SCORE_RECORD_CACHE_VERSION}:${selectedAcademicYearId || 'current'}`;
+    try {
+      const raw = sessionStorage.getItem(cacheKey);
+      if (raw) {
+        const cached = JSON.parse(raw) as ScoreRecordPageCache;
+        if (
+          cached.version === SCORE_RECORD_CACHE_VERSION &&
+          Date.now() - cached.savedAt < SCORE_RECORD_CACHE_TTL_MS
+        ) {
+          setStudents(cached.students);
+          setClassrooms(cached.classrooms);
+          setStages(cached.stages);
+          setLoading(false);
+          return;
+        }
+        sessionStorage.removeItem(cacheKey);
+      }
+    } catch {
+      sessionStorage.removeItem(cacheKey);
+    }
+
+    setLoading(true);
     Promise.all([
-      getStudentListForSelect(),
-      getClassroomsForSelect(),
+      getStudentListForSelect(selectedAcademicYearId || undefined),
+      getClassroomsForSelect(selectedAcademicYearId || undefined),
       getEducationStages(),
     ]).then(([studentRes, classRes, stageRes]) => {
-      if (studentRes.success && studentRes.data) setStudents(studentRes.data);
-      if (classRes.success && classRes.data) setClassrooms(classRes.data);
-      if (stageRes.success && stageRes.data) setStages(stageRes.data);
-      setLoading(false);
-    });
-  }, []);
+      const nextStudents = studentRes.success && studentRes.data ? studentRes.data : [];
+      const nextClassrooms = classRes.success && classRes.data ? classRes.data : [];
+      const nextStages = stageRes.success && stageRes.data ? stageRes.data : [];
 
-  // Stage name lookup
-  const stageNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    stages.forEach(s => map.set(s.id, s.name_th));
-    return map;
-  }, [stages]);
+      if (studentRes.success && studentRes.data) setStudents(nextStudents);
+      if (classRes.success && classRes.data) setClassrooms(nextClassrooms);
+      if (stageRes.success && stageRes.data) setStages(nextStages);
+
+      if (studentRes.success && classRes.success && stageRes.success) {
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          version: SCORE_RECORD_CACHE_VERSION,
+          savedAt: Date.now(),
+          students: nextStudents,
+          classrooms: nextClassrooms,
+          stages: nextStages,
+        } satisfies ScoreRecordPageCache));
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [selectedAcademicYearId]);
+
+  const getGradeLabelFromClassroomName = (name: string, fallbackGrade: number) => {
+    const baseName = name.split('/')[0]?.trim();
+    return baseName || String(fallbackGrade);
+  };
+
+  const stageClassrooms = useMemo(() => {
+    if (!filterStageId) return classrooms;
+    return classrooms.filter(c => c.education_stage_id === filterStageId);
+  }, [classrooms, filterStageId]);
 
   // Derived grade options from classroom data
   const gradeOptions = useMemo(() => {
-    const seen = new Map<string, { grade_level: number; education_stage_id: string; label: string }>();
-    classrooms.forEach(c => {
-      const key = `${c.education_stage_id}-${c.grade_level}`;
+    const seen = new Map<string, { id: string; grade_level: number; education_stage_id: string; label: string }>();
+    stageClassrooms.forEach(c => {
+      const key = `${c.education_stage_id}-${c.grade_level_id || c.grade_level}`;
       if (!seen.has(key)) {
-        const stageName = stageNameMap.get(c.education_stage_id) || '';
-        const isSecondary = stages.find(s => s.id === c.education_stage_id)?.code === 'secondary';
-        const gradeLabel = isSecondary ? `ม.${c.grade_level - 6}` : `${stageName}${c.grade_level}`;
         seen.set(key, {
+          id: c.grade_level_id || String(c.grade_level),
           grade_level: c.grade_level,
           education_stage_id: c.education_stage_id,
-          label: gradeLabel,
+          label: c.grade_level_name || getGradeLabelFromClassroomName(c.name, c.grade_level),
         });
       }
     });
     return Array.from(seen.values()).sort((a, b) => a.grade_level - b.grade_level);
-  }, [classrooms, stageNameMap, stages]);
+  }, [stageClassrooms]);
 
   // Filter students
   const filtered = useMemo(() => {
@@ -94,14 +148,24 @@ export default function ScoreRecordPage() {
       );
     }
     if (filterStageId) result = result.filter(s => s.education_stage_id === filterStageId);
-    if (filterGrade) result = result.filter(s => s.grade_level === Number(filterGrade));
+    if (filterGrade) result = result.filter(s => s.grade_level_id ? s.grade_level_id === filterGrade : s.grade_level === Number(filterGrade));
     if (filterClassroom) result = result.filter(s => s.classroom_name === filterClassroom);
     return result;
   }, [students, search, filterStageId, filterGrade, filterClassroom]);
 
   const hasFilters = filterStageId || filterGrade || filterClassroom;
 
+  useEffect(() => {
+    if (!filterGrade) return;
+    const isValidGrade = gradeOptions.some(g => g.id === filterGrade);
+    if (!isValidGrade) {
+      setFilterGrade('');
+      setFilterClassroom('');
+    }
+  }, [filterGrade, gradeOptions]);
+
   const clearFilters = () => {
+    setSearch('');
     setFilterStageId('');
     setFilterGrade('');
     setFilterClassroom('');
@@ -109,11 +173,16 @@ export default function ScoreRecordPage() {
 
   // Helper to get classroom options filtered by current stage/grade
   const classroomOptions = useMemo(() => {
-    let result = classrooms;
-    if (filterStageId) result = result.filter(c => c.education_stage_id === filterStageId);
-    if (filterGrade) result = result.filter(c => c.grade_level === Number(filterGrade));
+    let result = stageClassrooms;
+    if (filterGrade) result = result.filter(c => c.grade_level_id ? c.grade_level_id === filterGrade : c.grade_level === Number(filterGrade));
     return result.sort((a, b) => a.name.localeCompare(b.name));
-  }, [classrooms, filterStageId, filterGrade]);
+  }, [stageClassrooms, filterGrade]);
+
+  useEffect(() => {
+    if (!filterClassroom) return;
+    const isValidClassroom = classroomOptions.some(c => c.name === filterClassroom);
+    if (!isValidClassroom) setFilterClassroom('');
+  }, [filterClassroom, classroomOptions]);
 
   return (
     <div className="p-6 space-y-6">
@@ -122,33 +191,29 @@ export default function ScoreRecordPage() {
         <p className="text-muted-foreground mt-1">ค้นหานักเรียนเพื่อบันทึกคะแนนความประพฤติ</p>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="ค้นหาชื่อหรือรหัสนักเรียน..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="pl-9 h-11"
-          autoFocus
-        />
-      </div>
-
-      {/* Inline Filters */}
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-muted-foreground">ตัวกรอง</p>
-            {hasFilters && (
-              <button onClick={clearFilters} className="text-xs text-muted-foreground hover:text-destructive transition-colors">
-                ล้างทั้งหมด
-              </button>
-            )}
+      <div className="rounded-md border bg-background p-4">
+        <div className="grid gap-3 md:grid-cols-[minmax(220px,1.5fr)_minmax(150px,1fr)_minmax(150px,1fr)_minmax(150px,1fr)_auto]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="ค้นหาชื่อหรือรหัสนักเรียน"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="h-10 pl-9"
+              autoFocus
+            />
           </div>
 
-          <div className="space-y-3">
-            <Select value={filterStageId || null} onValueChange={(v: string | null) => { setFilterStageId(v || ''); setFilterGrade(''); setFilterClassroom(''); }}>
-              <SelectTrigger className="w-full h-12">
+          <div>
+            <Select
+              value={filterStageId || null}
+              onValueChange={(v: string | null) => { setFilterStageId(v || ''); setFilterGrade(''); setFilterClassroom(''); }}
+              itemToStringLabel={(value) => {
+                const s = stages.find(s => s.id === value);
+                return s ? s.name_th : String(value);
+              }}
+            >
+              <SelectTrigger className="h-10 w-full">
                 <SelectValue placeholder="ทุกระดับ" />
               </SelectTrigger>
               <SelectContent>
@@ -159,22 +224,40 @@ export default function ScoreRecordPage() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
 
-            <Select value={filterGrade || null} onValueChange={(v: string | null) => { setFilterGrade(v || ''); setFilterClassroom(''); }}>
-              <SelectTrigger className="w-full h-12">
+          <div>
+            <Select
+              value={filterGrade || null}
+              onValueChange={(v: string | null) => { setFilterGrade(v || ''); setFilterClassroom(''); }}
+              itemToStringLabel={(value) => {
+                const g = gradeOptions.find(g => g.id === value);
+                return g ? g.label : String(value);
+              }}
+            >
+              <SelectTrigger className="h-10 w-full">
                 <SelectValue placeholder="ทุกชั้นปี" />
               </SelectTrigger>
               <SelectContent>
                 {gradeOptions.map(g => (
-                  <SelectItem key={g.label} value={String(g.grade_level)} label={g.label}>
+                  <SelectItem key={g.id} value={g.id} label={g.label}>
                     {g.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </div>
 
-            <Select value={filterClassroom || null} onValueChange={(v: string | null) => setFilterClassroom(v || '')}>
-              <SelectTrigger className="w-full h-12">
+          <div>
+            <Select
+              value={filterClassroom || null}
+              onValueChange={(v: string | null) => setFilterClassroom(v || '')}
+              itemToStringLabel={(value) => {
+                const c = classroomOptions.find(c => c.name === value);
+                return c ? c.name : String(value);
+              }}
+            >
+              <SelectTrigger className="h-10 w-full">
                 <SelectValue placeholder="ทุกห้อง" />
               </SelectTrigger>
               <SelectContent>
@@ -187,28 +270,12 @@ export default function ScoreRecordPage() {
             </Select>
           </div>
 
-          {/* Active filter badges */}
-          {hasFilters && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              {filterStageId && (
-                <Badge key="stage" variant="secondary" className="text-sm px-3 py-1">
-                  {stageNameMap.get(filterStageId) || filterStageId}
-                </Badge>
-              )}
-              {filterGrade && (
-                <Badge variant="secondary" className="text-sm px-3 py-1">
-                  {gradeOptions.find(g => String(g.grade_level) === filterGrade)?.label}
-                </Badge>
-              )}
-              {filterClassroom && (
-                <Badge variant="secondary" className="text-sm px-3 py-1">
-                  {filterClassroom}
-                </Badge>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          <Button type="button" variant="outline" onClick={clearFilters} disabled={!search && !hasFilters} className="h-10">
+            <RotateCcw className="mr-2 h-4 w-4" />
+            ล้าง
+          </Button>
+        </div>
+      </div>
 
       {/* Results */}
       {loading ? (
@@ -221,32 +288,45 @@ export default function ScoreRecordPage() {
           <p>{search || hasFilters ? 'ไม่พบนักเรียนที่ค้นหา' : 'ยังไม่มีข้อมูลนักเรียน'}</p>
         </div>
       ) : (
-        <div>
-          <p className="text-sm text-muted-foreground mb-3">
-            พบ {filtered.length} คน
-            {hasFilters && ` (จากทั้งหมด ${students.length} คน)`}
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.slice(0, 50).map(s => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => router.push(`/students/${s.id}`)}
-                className="flex items-start gap-3 rounded-lg border p-4 text-left hover:bg-accent hover:border-primary/50 transition-all"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <User className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium truncate">{s.full_name}</p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-                    <span className="font-mono">{s.student_id_number}</span>
-                    <span>{s.classroom_name}</span>
-                  </div>
-                </div>
-              </button>
-            ))}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              พบ {filtered.length} คน
+              {(search || hasFilters) && ` จากทั้งหมด ${students.length} คน`}
+            </p>
           </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[150px]">รหัสนักเรียน</TableHead>
+                  <TableHead>ชื่อ-นามสกุล</TableHead>
+                  <TableHead className="w-[160px]">ระดับชั้น</TableHead>
+                  <TableHead className="w-[120px]">ห้อง</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(s => (
+                  <TableRow
+                    key={s.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/students/${s.id}`)}
+                  >
+                    <TableCell className="font-mono text-xs">{s.student_id_number}</TableCell>
+                    <TableCell className="font-medium">{s.full_name}</TableCell>
+                    <TableCell>
+                      {s.grade_level_name || gradeOptions.find(g => g.education_stage_id === s.education_stage_id && g.grade_level === s.grade_level)?.label || s.grade_level}
+                    </TableCell>
+                    <TableCell>{s.classroom_name}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {filtered.length > 80 && (
+            <p className="text-xs text-muted-foreground">แสดงรายการทั้งหมด {filtered.length} คน ใช้ช่องค้นหาเพื่อลดรายการ</p>
+          )}
         </div>
       )}
     </div>

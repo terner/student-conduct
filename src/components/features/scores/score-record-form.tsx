@@ -25,6 +25,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ScoreCategory | null>(null);
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
+  const [evidenceError, setEvidenceError] = useState('');
 
   const {
     register,
@@ -51,6 +52,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
 
   const handleCategorySelect = (value: string | null) => {
     if (!value) return;
+    setEvidenceError('');
     setValue('category_id', value, { shouldValidate: true });
     const cat = categories.find((c) => c.id === value);
     setSelectedCategory(cat || null);
@@ -60,6 +62,11 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
   };
 
   const handleFormSubmit = (formData: ScoreRecordInput) => {
+    if (selectedCategory?.requires_evidence && evidenceFiles.length === 0) {
+      setEvidenceError('กรุณาแนบหลักฐานอย่างน้อย 1 รูป');
+      return;
+    }
+    setEvidenceError('');
     onSubmit(formData, evidenceFiles);
   };
 
@@ -165,6 +172,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
         <div className="space-y-2">
           <Label>หลักฐาน * (จำเป็นสำหรับหมวดนี้)</Label>
           <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} />
+          {evidenceError && <p className="text-xs text-destructive">{evidenceError}</p>}
         </div>
       )}
 

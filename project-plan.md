@@ -4,7 +4,7 @@
 
 Multi-School Ready · Config-Driven Design · Clone & Deploy
 
-**Updated: 2026-05-09 — ระบบทำงานบน Production แล้ว (Vercel + Supabase)**
+**Updated: 2026-05-10 — ระบบทำงานบน Production แล้ว และเพิ่ม academic structure master data แล้ว**
 
 ---
 
@@ -14,17 +14,18 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 
 | หมวด | สถานะ | รายละเอียด |
 |------|--------|-----------|
-| **Database Schema** | ✅ 23 tables | profiles, students, teachers, classrooms, enrollments, score_categories, score_transactions, guardians, permissions, settings, ฯลฯ — พร้อมข้อมูลทดสอบ |
+| **Database Schema** | ✅ 25+ tables | profiles, students, teachers, academic_years, education_stages, grade_levels, classrooms, enrollments, guardians, score tables, permissions, settings, logs — พร้อมข้อมูลทดสอบ |
 | **Auth System** | ✅ | Supabase Auth (email/password + student_id/password), base64url session cookie, role-based redirect |
 | **Login Page** | ✅ | รองรับ staff login (email) + student login (student_id), role redirect, must_change_password check |
 | **Dashboard** | ✅ | Admin/Teacher: stats cards + score distribution + recent transactions + at-risk alerts |
 | **Student Dashboard** | ✅ | Student self-view: current score + history |
-| **Student Management** | ✅ | List + search/filter + create/edit + detail page |
+| **Student Management** | ✅ | List + search/filter + create/edit + detail page + guardian fields + current score column |
 | **Score Recording** | ✅ | Add/deduct form + category management |
-| **Classroom Management** | ✅ | List + create/edit + detail page |
-| **Teacher Management** | ✅ | List + create/edit + detail page + classroom assignment |
+| **Classroom Management** | ✅ | List + create/edit + detail page + create by ระดับชั้น → ชั้นปี → จำนวนห้อง |
+| **Academic Structure** | ✅ | Manage academic years, education stages, grade levels, classrooms |
+| **Teacher Management** | ✅ | List + create/edit + detail page + classroom assignment + teacher positions |
 | **Reports** | ✅ | Individual, classroom, threshold reports |
-| **Settings** | ✅ | School info + logo upload + CSV import + audit log viewer |
+| **Settings** | ✅ | School info + logo upload + CSV import + audit log viewer + Google Drive config + academic structure hub |
 | **PDPA Consent** | ✅ | Consent page + rejected page + check on login |
 | **Change Password** | ✅ | Page + must_change_password enforcement |
 | **Auth Middleware** | ✅ | proxy.ts — auth guard + locale cookie |
@@ -32,21 +33,34 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 | **Validation** | ✅ | 25+ Zod schemas + form-utils |
 | **UI Components** | ✅ | 30+ shadcn/ui components + custom features |
 
-### 🔶 ฟีเจอร์ที่ยังไม่ทำ (Phase 2)
+### ✅ ข้อมูลทดสอบปัจจุบัน (Supabase)
+
+| ข้อมูล | จำนวน |
+|--------|-------|
+| นักเรียน | 300 |
+| ครู | 30 |
+| ห้องเรียน | 24 |
+| ระดับชั้นการศึกษา | 5 |
+| ชั้นปี | 12 |
+| ผู้ปกครอง | 300 |
+| ธุรกรรมคะแนน | 103 |
+
+### 🔶 ฟีเจอร์ที่ยังต้องทำต่อ
 
 | ฟีเจอร์ | Priority | Notes |
 |---------|----------|-------|
-| i18n in pages | High | Config + switcher done, but pages use hardcoded Thai |
-| Evidence upload | Medium | Storage bucket + uploader not connected |
-| Score approval flow | Medium | requires_approval categories need pending queue |
-| Guardian management UI | Medium | Tables exist, no management UI on student detail |
-| Bond documents | Medium | Tables exist, no generation UI |
-| Intervention logs | Medium | Tables exist, no CRUD UI |
-| Notifications | Medium | Tables exist, no in-app bell/real-time |
-| Monthly reports | Low | Tables exist, no generation UI |
-| School statistics | Low | No dedicated statistics page with charts |
+| Google Drive upload | High | Settings มี field แล้ว ต้องต่อ upload จริงสำหรับ profile/evidence |
+| Annual rollover/import | High | ต้องทำ flow ขึ้นปีใหม่, สร้าง/เลือกห้องรายปี, ย้าย enrollment, preview import |
+| i18n in pages | High | Config + switcher done, แต่ยังมี hardcoded Thai หลายหน้า |
+| Permission/Admin UI | High | ต้องมี UI กำหนด role/เพิ่ม admin ให้ครูบางคน และ permission editor |
+| Audit/action logs | Medium | ต้องบันทึก action สำคัญให้ครบ production policy |
+| Score approval hardening | Medium | ตรวจ flow requires_approval, pending queue, reject/void audit |
+| Guardian management UI | Medium | มี guardian fields แล้ว แต่ยังไม่มีหน้าจัดการผู้ปกครองหลายคนแบบเต็ม |
+| Monthly reports/statistics | Medium | ทำ monthly snapshot, school statistics, chart/export |
+| Bond documents | Medium | Tables/page บางส่วนมีแล้ว ต้องทำ generation/print flow ให้ครบ |
+| Notifications | Medium | Bell มีแล้ว ต้องต่อ realtime/threshold/approval events |
 | Rate limiting | Low | No @upstash/ratelimit implementation |
-| school.config.ts | Low | Config-driven feature flags not implemented |
+| school.config.ts feature flags | Low | Config-driven feature flags ยังไม่ enforce ครบ |
 
 ---
 
@@ -161,7 +175,7 @@ school-conduct/
 │   │   │   ├── teachers/page.tsx + [id]/page.tsx
 │   │   │   ├── score/record/page.tsx + categories/page.tsx
 │   │   │   ├── reports/page.tsx + individual/ + classroom/ + threshold/
-│   │   │   └── settings/page.tsx + import/ + logs/
+│   │   │   └── settings/page.tsx + academic-years/ + education-stages/ + grade-levels/ + teacher-positions/ + import/ + logs/
 │   │   ├── student/dashboard/page.tsx
 │   │   └── api/
 │   │       ├── auth/login/route.ts + logout/route.ts + debug/route.ts
@@ -172,13 +186,13 @@ school-conduct/
 │   │   └── features/               # Feature components
 │   │       ├── students/ (5 files)
 │   │       ├── scores/ (4 files)
-│   │       ├── classrooms/ (2 files)
+│   │       ├── classrooms/ (3 files)
 │   │       ├── teachers/ (2 files)
 │   ├── lib/
 │   │   ├── supabase/               # client.ts, server.ts, admin.ts
 │   │   ├── validation/             # schemas.ts (25+ Zod), form-utils.ts
 │   │   ├── security/               # sanitize.ts, validate-input.ts, headers.ts
-│   │   ├── actions/                # 6 server action files
+│   │   ├── actions/                # server action files: students, score, classrooms, teachers, academic years, grade levels, etc.
 │   │   ├── db/                     # 5 query files + index.ts
 │   │   └── utils.ts + utils/
 │   ├── i18n/                       # next-intl config
@@ -186,6 +200,7 @@ school-conduct/
 │   └── middleware.ts (deleted)     # → ใช้ proxy.ts แทน
 ├── tasklist.md                     # Project status tracking
 ├── req.md                          # Full requirements document
+├── supabase/migrations/            # Schema migration files
 └── project-plan.md                 # This file
 ```
 
@@ -197,7 +212,7 @@ school-conduct/
 |-------|-----------|--------|
 | Framework | Next.js 16 (App Router) | ✅ Production |
 | Language | TypeScript | ✅ |
-| Database | Supabase (PostgreSQL) | ✅ Production — 23 tables with data |
+| Database | Supabase (PostgreSQL) | ✅ Production — 25+ tables with data |
 | Auth | Supabase Auth + Custom session cookie | ✅ |
 | Hosting | Vercel (Hobby) | ✅ Live |
 | UI | shadcn/ui 30+ components + Tailwind v4 | ✅ |
@@ -217,7 +232,7 @@ school-conduct/
 ## 7. Supabase Setup (✅ Done)
 
 - ✅ สร้าง Supabase project (Free tier)
-- ✅ รัน Database Schema SQL (23 tables)
+- ✅ รัน Database Schema SQL (25+ tables, including education_stages + grade_levels)
 - ✅ เปิด Auth methods (Email/Password)
 - ✅ สร้าง Storage bucket: `school-logos`
 - ✅ ตั้งค่า RLS policies ทุกตาราง

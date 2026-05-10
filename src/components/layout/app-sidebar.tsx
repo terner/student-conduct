@@ -6,8 +6,8 @@ import { useTranslations } from 'next-intl'
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen,
   ClipboardPlus, FileText, Settings, School, AlertTriangle,
-  LogOut, Tags, CheckCircle2, FileSignature, Phone,
-  CalendarDays, History,
+  LogOut, Tags, CheckCircle2,
+  CalendarDays, History, Upload,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -21,8 +21,7 @@ interface NavItem {
   icon: any
   href: string
   group: 'main' | 'alert'
-  /** Which roles can see this item. Omit = everyone (admin+teacher). */
-  roles?: ('admin' | 'teacher')[]
+  roles?: ('superadmin' | 'admin' | 'teacher')[]
 }
 
 interface AppSidebarProps {
@@ -37,27 +36,26 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
   const userRoles = getRoles(role ? { role } : { role: undefined })
 
   /** Check if the current user has access based on item role requirements */
-  function hasAccess(itemRoles?: ('admin' | 'teacher')[]): boolean {
-    if (!itemRoles || itemRoles.length === 0) return true // no restriction = admin+teacher
+  function hasAccess(itemRoles?: ('superadmin' | 'admin' | 'teacher')[]): boolean {
+    if (!itemRoles || itemRoles.length === 0) return false
     return itemRoles.some(r => userRoles.includes(r))
   }
 
   const allNavigation: (NavItem & { group: 'main' | 'alert' })[] = [
-    // Main menu — visible to both admin + teacher unless roles specified
-    { label: t('dashboard'), icon: LayoutDashboard, href: '/dashboard', roles: ['admin'], group: 'main' },
-    { label: t('students'), icon: Users, href: '/students', roles: ['admin'], group: 'main' },
-    { label: t('classrooms'), icon: GraduationCap, href: '/classrooms', roles: ['admin'], group: 'main' },
-    { label: t('recordScore'), icon: ClipboardPlus, href: '/score/record', group: 'main' },
-    { label: t('scoreHistory'), icon: History, href: '/score/history', group: 'main' },
-    { label: t('scoreCategories'), icon: Tags, href: '/score/categories', roles: ['admin'], group: 'main' },
-    { label: t('pendingApproval'), icon: CheckCircle2, href: '/score/approval', roles: ['admin'], group: 'main' },
-    { label: t('reports'), icon: FileText, href: '/reports', group: 'main' },
-    { label: t('teachers'), icon: BookOpen, href: '/teachers', roles: ['admin'], group: 'main' },
-    { label: t('contactLog'), icon: Phone, href: '/interventions', group: 'main' },
-    { label: t('bond'), icon: FileSignature, href: '/reports/bond', roles: ['admin'], group: 'main' },
-    { label: t('settings'), icon: Settings, href: '/settings', roles: ['admin'], group: 'main' },
+    { label: t('dashboard'), icon: LayoutDashboard, href: '/dashboard', roles: ['superadmin', 'admin'], group: 'main' },
+    { label: t('students'), icon: Users, href: '/students', roles: ['superadmin'], group: 'main' },
+    { label: t('classrooms'), icon: GraduationCap, href: '/classrooms', roles: ['superadmin'], group: 'main' },
+    { label: t('recordScore'), icon: ClipboardPlus, href: '/score/record', roles: ['superadmin', 'admin', 'teacher'], group: 'main' },
+    { label: t('scoreHistory'), icon: History, href: '/score/history', roles: ['superadmin', 'admin'], group: 'main' },
+    { label: t('scoreCategories'), icon: Tags, href: '/score/categories', roles: ['superadmin', 'admin'], group: 'main' },
+    { label: t('pendingApproval'), icon: CheckCircle2, href: '/score/approval', roles: ['superadmin', 'admin'], group: 'main' },
+    { label: t('importData'), icon: Upload, href: '/settings/import', roles: ['superadmin', 'admin'], group: 'main' },
+    { label: t('reports'), icon: FileText, href: '/reports', roles: ['superadmin', 'admin'], group: 'main' },
+    { label: t('classroomReport'), icon: FileText, href: '/reports/classroom', roles: ['teacher'], group: 'main' },
+    { label: t('teachers'), icon: BookOpen, href: '/teachers', roles: ['superadmin'], group: 'main' },
+    { label: t('settings'), icon: Settings, href: '/settings', roles: ['superadmin', 'admin'], group: 'main' },
     // Alert group
-    { label: t('threshold'), icon: AlertTriangle, href: '/reports/threshold', group: 'alert' },
+    { label: t('threshold'), icon: AlertTriangle, href: '/reports/threshold', roles: ['superadmin', 'admin'], group: 'alert' },
   ]
 
   const mainNavItems = allNavigation.filter(i => i.group === 'main' && hasAccess(i.roles))
@@ -130,7 +128,7 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip={t('logout')} render={<Link href="/api/auth/logout" prefetch={false} />}>
+            <SidebarMenuButton tooltip={t('logout')} render={<a href="/api/auth/logout" />}>
               <LogOut className="size-4" />
               <span>{t('logout')}</span>
             </SidebarMenuButton>

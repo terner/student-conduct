@@ -1,9 +1,369 @@
 'use server';
 
 import { withAuth } from '@/lib/server-action';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { canApproveScores, hasRole } from '@/lib/security/roles';
 import { listStudents, getScoreSummary } from '@/lib/db';
 import type { StudentThresholdInfo } from '@/types';
+
+export type RankingSortBy = 'current_score' | 'deducted' | 'transaction_count' | 'latest' | 'name';
+
+export interface StudentRankingReportParams {
+  academic_year_id?: string;
+  grade_level_id?: string;
+  grade_level?: number;
+  classroom_name?: string;
+  search?: string;
+  from_date?: string;
+  to_date?: string;
+  sort_by?: RankingSortBy;
+  rank_mode?: 'risk' | 'score';
+}
+
+export interface StudentRankingRow {
+  id: string;
+  student_id_number: string;
+  full_name: string;
+  classroom_name: string;
+  grade_level_id: string;
+  grade_level_name: string;
+  grade_level: number;
+  current_score: number;
+  total_deducted: number;
+  total_added: number;
+  transaction_count: number;
+  deduct_count: number;
+  add_count: number;
+  latest_recorded_at?: string;
+  rank_overall: number;
+  rank_classroom: number;
+  rank_grade: number;
+  recent_transactions: Array<{
+    id: string;
+    category_name: string;
+    category_type: string;
+    points: number;
+    note?: string;
+    recorded_at: string;
+    recorded_by_name: string;
+  }>;
+}
+
+interface ClassroomReportStudent {
+  id: string;
+  full_name: string;
+  student_id_number: string;
+  total_deducted: number;
+  total_added: number;
+  current_score: number;
+  deduct_count: number;
+  add_count: number;
+  rank: number;
+}
+
+interface ClassroomReportData {
+  classroom: {
+    id: string;
+    name: string;
+    education_stage_id: string;
+    grade_level: number;
+  };
+  academic_year: string;
+  base_score: number;
+  average_score: number;
+  distribution: { excellent: number; good: number; fair: number; poor: number };
+  total_students: number;
+  students: ClassroomReportStudent[];
+  rank_mode: 'risk' | 'score';
+}
+
+function formatProfileFullName(profile: Record<string, unknown> | null | undefined) {
+  const prefix = ((profile?.prefix as string) || '').trim();
+  const fullName = ((profile?.full_name as string) || '').trim();
+  if (!prefix) return fullName;
+  return fullName.startsWith(prefix) ? fullName : `${prefix}${fullName}`;
+}
+
+async function getTeacherAssignedClassroomIds(profileId: string) {
+  const supabase = await createAdminClient();
+  const { data: teacher } = await supabase
+    .from('teachers')
+    .select('id')
+    .eq('profile_id', profileId)
+    .maybeSingle();
+
+  if (!teacher?.id) return [];
+
+  const { data } = await supabase
+    .from('teacher_classrooms')
+    .select('classroom_id')
+    .eq('teacher_id', teacher.id)
+    .in('assignment_role', ['homeroom', 'assistant']);
+
+  return Array.from(new Set((data || []).map((row) => row.classroom_id as string).filter(Boolean)));
+}
+
+function rankRows(
+  rows: StudentRankingRow[],
+  rankMode: 'risk' | 'score',
+  getGroupKey?: (row: StudentRankingRow) => string,
+) {
+  const groups = new Map<string, StudentRankingRow[]>();
+  for (const row of rows) {
+    const key = getGroupKey ? getGroupKey(row) : 'all';
+    groups.set(key, [...(groups.get(key) || []), row]);
+  }
+
+  for (const groupRows of groups.values()) {
+    groupRows
+      .sort((a, b) => (
+        rankMode === 'risk'
+          ? a.current_score - b.current_score || b.total_deducted - a.total_deducted
+          : b.current_score - a.current_score || a.total_deducted - b.total_deducted
+      ) || a.full_name.localeCompare(b.full_name))
+      .forEach((row, index) => {
+        if (!getGroupKey) row.rank_overall = index + 1;
+        else if (getGroupKey(row).startsWith('classroom:')) row.rank_classroom = index + 1;
+        else row.rank_grade = index + 1;
+      });
+  }
+}
+
+export async function getStudentRankingReport(params: StudentRankingReportParams = {}) {
+  return withAuth(async () => {
+    const supabase = await createClient();
+
+    const { data: academicYears } = await supabase
+      .from('academic_years')
+      .select('id, name, base_score, is_current')
+      .order('name', { ascending: false });
+
+    const selectedYear = (academicYears || []).find((year: any) => year.id === params.academic_year_id)
+      || (academicYears || []).find((year: any) => year.is_current)
+      || (academicYears || [])[0];
+    const academicYearId = selectedYear?.id as string | undefined;
+    const baseScore = (selectedYear?.base_score as number | undefined) || 100;
+
+    let studentRows: Record<string, unknown>[] = [];
+    if (academicYearId) {
+      const { data } = await supabase
+        .from('student_enrollments')
+        .select(`
+          students!inner(
+            id,
+            student_id_number,
+            profiles!inner(full_name, prefix)
+          ),
+          classrooms!inner(name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
+        `)
+        .eq('academic_year_id', academicYearId)
+        .in('enrollment_status', ['active', 'promoted', 'repeated', 'transferred', 'graduated']);
+      studentRows = (data || []) as Record<string, unknown>[];
+    }
+
+    if (studentRows.length === 0) {
+      const { data } = await supabase
+        .from('students')
+        .select(`
+          id,
+          student_id_number,
+          profiles!inner(full_name, prefix),
+          classrooms!inner(name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
+        `)
+        .eq('current_status', 'active');
+      studentRows = (data || []) as Record<string, unknown>[];
+    }
+
+    let students = studentRows.map((row) => {
+      if ('students' in row) {
+        const student = row.students as Record<string, unknown>;
+        return {
+          id: student?.id as string,
+          student_id_number: student?.student_id_number as string,
+          profiles: student?.profiles as Record<string, unknown>,
+          classrooms: row.classrooms as Record<string, unknown>,
+        };
+      }
+      return row;
+    });
+
+    if (params.grade_level_id) {
+      students = students.filter((s) => ((s.classrooms as Record<string, unknown>)?.grade_level_id as string) === params.grade_level_id);
+    } else if (params.grade_level) {
+      students = students.filter((s) => ((s.classrooms as Record<string, unknown>)?.grade_level as number) === params.grade_level);
+    }
+
+    if (params.classroom_name) {
+      students = students.filter((s) => ((s.classrooms as Record<string, unknown>)?.name as string) === params.classroom_name);
+    }
+
+    const search = (params.search || '').trim().toLowerCase();
+    if (search) {
+      students = students.filter((s) => {
+        const fullName = formatProfileFullName(s.profiles as Record<string, unknown>).toLowerCase();
+        const studentNumber = String(s.student_id_number || '').toLowerCase();
+        return fullName.includes(search) || studentNumber.includes(search);
+      });
+    }
+
+    const studentIds = students.map((s) => s.id as string).filter(Boolean);
+    const transactionsByStudent = new Map<string, StudentRankingRow['recent_transactions']>();
+    const summaryByStudent = new Map<string, {
+      totalDeducted: number;
+      totalAdded: number;
+      transactionCount: number;
+      deductCount: number;
+      addCount: number;
+      latestRecordedAt?: string;
+    }>();
+
+    if (studentIds.length > 0) {
+      const chunkSize = 1000;
+      for (let i = 0; i < studentIds.length; i += chunkSize) {
+        const chunk = studentIds.slice(i, i + chunkSize);
+        let query = supabase
+          .from('score_transactions')
+          .select(`
+            id,
+            student_id,
+            points,
+            note,
+            recorded_at,
+            category_name_at_record,
+            category_type_at_record,
+            score_categories(name, type),
+            profiles!score_transactions_recorded_by_fkey(full_name)
+          `)
+          .in('student_id', chunk)
+          .eq('status', 'approved')
+          .order('recorded_at', { ascending: false });
+
+        if (academicYearId) query = query.eq('academic_year_id', academicYearId);
+        if (params.from_date) query = query.gte('recorded_at', params.from_date);
+        if (params.to_date) {
+          const toDate = /^\d{4}-\d{2}-\d{2}$/.test(params.to_date)
+            ? `${params.to_date}T23:59:59.999`
+            : params.to_date;
+          query = query.lte('recorded_at', toDate);
+        }
+
+        const { data } = await query;
+        for (const tx of (data || []) as Record<string, unknown>[]) {
+          const studentId = tx.student_id as string;
+          const points = tx.points as number;
+          const summary = summaryByStudent.get(studentId) || {
+            totalDeducted: 0,
+            totalAdded: 0,
+            transactionCount: 0,
+            deductCount: 0,
+            addCount: 0,
+            latestRecordedAt: undefined,
+          };
+
+          summary.transactionCount++;
+          if (points < 0) {
+            summary.totalDeducted += Math.abs(points);
+            summary.deductCount++;
+          } else {
+            summary.totalAdded += points;
+            summary.addCount++;
+          }
+          const recordedAt = tx.recorded_at as string | undefined;
+          if (recordedAt && (!summary.latestRecordedAt || recordedAt > summary.latestRecordedAt)) {
+            summary.latestRecordedAt = recordedAt;
+          }
+          summaryByStudent.set(studentId, summary);
+
+          const recent = transactionsByStudent.get(studentId) || [];
+          if (recent.length < 8) {
+            recent.push({
+              id: tx.id as string,
+              category_name: (tx.category_name_at_record as string) || ((tx.score_categories as Record<string, unknown>)?.name as string) || '',
+              category_type: (tx.category_type_at_record as string) || ((tx.score_categories as Record<string, unknown>)?.type as string) || '',
+              points,
+              note: tx.note as string | undefined,
+              recorded_at: tx.recorded_at as string,
+              recorded_by_name: ((tx.profiles as Record<string, unknown>)?.full_name as string) || '',
+            });
+            transactionsByStudent.set(studentId, recent);
+          }
+        }
+      }
+    }
+
+    const rows: StudentRankingRow[] = students.map((student) => {
+      const classroom = student.classrooms as Record<string, unknown>;
+      const summary = summaryByStudent.get(student.id as string) || {
+        totalDeducted: 0,
+        totalAdded: 0,
+        transactionCount: 0,
+        deductCount: 0,
+        addCount: 0,
+        latestRecordedAt: undefined,
+      };
+
+      return {
+        id: student.id as string,
+        student_id_number: student.student_id_number as string,
+        full_name: formatProfileFullName(student.profiles as Record<string, unknown>),
+        classroom_name: (classroom?.name as string) || '',
+        grade_level_id: (classroom?.grade_level_id as string) || '',
+        grade_level_name: ((classroom?.grade_levels as Record<string, unknown>)?.name as string) || '',
+        grade_level: (classroom?.grade_level as number) || 0,
+        current_score: baseScore - summary.totalDeducted + summary.totalAdded,
+        total_deducted: summary.totalDeducted,
+        total_added: summary.totalAdded,
+        transaction_count: summary.transactionCount,
+        deduct_count: summary.deductCount,
+        add_count: summary.addCount,
+        latest_recorded_at: summary.latestRecordedAt,
+        rank_overall: 0,
+        rank_classroom: 0,
+        rank_grade: 0,
+        recent_transactions: transactionsByStudent.get(student.id as string) || [],
+      };
+    });
+
+    const rankMode = params.rank_mode || 'risk';
+    rankRows(rows, rankMode);
+    rankRows(rows, rankMode, (row) => `classroom:${row.classroom_name}`);
+    rankRows(rows, rankMode, (row) => `grade:${row.grade_level_id || row.grade_level}`);
+
+    const sortBy = params.sort_by || 'current_score';
+    rows.sort((a, b) => {
+      if (sortBy === 'deducted') return b.total_deducted - a.total_deducted || a.current_score - b.current_score;
+      if (sortBy === 'transaction_count') return b.transaction_count - a.transaction_count || b.total_deducted - a.total_deducted;
+      if (sortBy === 'latest') return (b.latest_recorded_at || '').localeCompare(a.latest_recorded_at || '');
+      if (sortBy === 'name') return a.full_name.localeCompare(b.full_name);
+      return a.current_score - b.current_score || b.total_deducted - a.total_deducted;
+    });
+
+    const totalStudents = rows.length;
+    const totalScore = rows.reduce((sum, row) => sum + row.current_score, 0);
+    const totalDeducted = rows.reduce((sum, row) => sum + row.total_deducted, 0);
+    const totalAdded = rows.reduce((sum, row) => sum + row.total_added, 0);
+    const atRiskCount = rows.filter((row) => row.current_score < baseScore - 20 || row.total_deducted >= 20).length;
+
+    return {
+      success: true,
+      data: {
+        academic_year: selectedYear?.name || '',
+        academic_year_id: academicYearId || '',
+        base_score: baseScore,
+        summary: {
+          total_students: totalStudents,
+          average_score: totalStudents > 0 ? Math.round(totalScore / totalStudents) : baseScore,
+          min_score: totalStudents > 0 ? Math.min(...rows.map((row) => row.current_score)) : baseScore,
+          max_score: totalStudents > 0 ? Math.max(...rows.map((row) => row.current_score)) : baseScore,
+          total_deducted: totalDeducted,
+          total_added: totalAdded,
+          at_risk_count: atRiskCount,
+        },
+        rows,
+      },
+    };
+  });
+}
 
 export async function getDashboardStats() {
   return withAuth(async () => {
@@ -25,7 +385,7 @@ export async function getDashboardStats() {
       supabase.from('classrooms').select('*', { count: 'exact', head: true }),
       supabase.from('teachers').select('*', { count: 'exact', head: true }),
       supabase.from('settings').select('value').eq('key', 'thresholds').single(),
-      supabase.from('students').select('id, profiles!inner(full_name)').eq('current_status', 'active'),
+      supabase.from('students').select('id, profiles!inner(full_name, prefix)').eq('current_status', 'active'),
     ]);
 
     const thresholds: Array<{ deducted: number }> = (thresholdsRes.data?.value as any) || [];
@@ -108,22 +468,54 @@ export async function getDashboardStats() {
   });
 }
 
-export async function getIndividualReport(studentId: string) {
-  return withAuth(async () => {
-    const supabase = await createClient();
+export async function getIndividualReport(studentId: string, academicYearId?: string) {
+  return withAuth(async (profile) => {
+    const isStudentOnly = hasRole(profile, 'student') && !canApproveScores(profile) && !hasRole(profile, 'teacher');
+    const supabase = isStudentOnly ? await createAdminClient() : await createClient();
+    let effectiveAcademicYearId = academicYearId;
 
-    const { data: acYear } = await supabase
+    if (isStudentOnly) {
+      const { data: currentYear } = await supabase
+        .from('academic_years')
+        .select('id')
+        .eq('is_current', true)
+        .maybeSingle();
+
+      if (!currentYear?.id) {
+        return { success: false, error: { code: 'NOT_FOUND', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' } };
+      }
+
+      const { data: currentEnrollment } = await supabase
+        .from('student_enrollments')
+        .select('id, students!inner(profile_id)')
+        .eq('student_id', studentId)
+        .eq('academic_year_id', currentYear.id)
+        .eq('students.profile_id', profile.id)
+        .maybeSingle();
+
+      if (!currentEnrollment) {
+        return { success: false, error: { code: 'FORBIDDEN', message: 'ดูได้เฉพาะข้อมูลของตนเองในปีการศึกษาปัจจุบัน' } };
+      }
+
+      effectiveAcademicYearId = currentYear.id as string;
+    }
+
+    let yearQuery = supabase
       .from('academic_years')
       .select('id, base_score, name')
-      .eq('is_current', true)
-      .single();
+      .limit(1);
+    yearQuery = effectiveAcademicYearId
+      ? yearQuery.eq('id', effectiveAcademicYearId)
+      : yearQuery.eq('is_current', true);
+    const { data: yearRows } = await yearQuery;
+    const acYear = (yearRows || [])[0];
 
     // Get student info
     const { data: student } = await supabase
       .from('students')
       .select(`
         *,
-        profiles!inner(full_name),
+        profiles!inner(full_name, prefix),
         classrooms!inner(name, grade_level, education_stage_id)
       `)
       .eq('id', studentId)
@@ -153,7 +545,7 @@ export async function getIndividualReport(studentId: string) {
       data: {
         student: {
           id: student.id,
-          full_name: (student.profiles as any)?.full_name || '',
+          full_name: formatProfileFullName(student.profiles as Record<string, unknown>),
           student_id_number: student.student_id_number,
           classroom_name: (student.classrooms as any)?.name || '',
           grade_level: (student.classrooms as any)?.grade_level,
@@ -164,8 +556,8 @@ export async function getIndividualReport(studentId: string) {
         summary,
         transactions: (transactions || []).map((t: Record<string, unknown>) => ({
           id: t.id as string,
-          category_name: (t.score_categories as Record<string, unknown>)?.name as string || '',
-          category_type: (t.score_categories as Record<string, unknown>)?.type as string || '',
+          category_name: (t.category_name_at_record as string) || (t.score_categories as Record<string, unknown>)?.name as string || '',
+          category_type: (t.category_type_at_record as string) || (t.score_categories as Record<string, unknown>)?.type as string || '',
           points: t.points as number,
           note: t.note as string | undefined,
           recorded_at: t.recorded_at as string,
@@ -176,18 +568,32 @@ export async function getIndividualReport(studentId: string) {
   });
 }
 
-export async function getClassroomReport(classroomId: string) {
-  return withAuth(async () => {
-    const supabase = await createClient();
+export async function getClassroomReport(classroomId: string, rankMode: 'risk' | 'score' = 'risk', academicYearId?: string) {
+  return withAuth<ClassroomReportData>(async (profile) => {
+    const canViewAll = canApproveScores(profile);
+    const isTeacher = hasRole(profile, 'teacher');
+    if (!canViewAll && !isTeacher) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายงานห้องเรียน' } };
+    }
 
-    const acYearRes = await supabase
+    if (!canViewAll) {
+      const assignedClassroomIds = await getTeacherAssignedClassroomIds(profile.id);
+      if (!assignedClassroomIds.includes(classroomId)) {
+        return { success: false, error: { code: 'FORBIDDEN', message: 'ดูได้เฉพาะห้องเรียนที่ได้รับมอบหมาย' } };
+      }
+    }
+
+    const supabase = await createAdminClient();
+
+    let acYearQuery = supabase
       .from('academic_years')
       .select('id, base_score, name')
-      .eq('is_current', true)
-      .single();
-    const acYear = acYearRes.data as { id: string; base_score: number; name: string } | null;
-    const acYearId = acYear?.id;
-    const baseScore = acYear?.base_score || 100;
+      .limit(1);
+    acYearQuery = academicYearId
+      ? acYearQuery.eq('id', academicYearId)
+      : acYearQuery.eq('is_current', true);
+    const acYearRes = await acYearQuery;
+    let acYear = (acYearRes.data || [])[0] as { id: string; base_score: number; name: string } | null;
 
     // Get classroom info
     const { data: classroom } = await supabase
@@ -200,17 +606,36 @@ export async function getClassroomReport(classroomId: string) {
       return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบห้องเรียน' } };
     }
 
-    // Get students in classroom
-    const { data: students } = await supabase
-      .from('students')
+    if (!acYear && (classroom as any).academic_year_id) {
+      const { data: classroomYear } = await supabase
+        .from('academic_years')
+        .select('id, base_score, name')
+        .eq('id', (classroom as any).academic_year_id)
+        .maybeSingle();
+      acYear = classroomYear as { id: string; base_score: number; name: string } | null;
+    }
+
+    const acYearId = acYear?.id;
+    const baseScore = acYear?.base_score || 100;
+
+    // Get students enrolled in this classroom for the selected academic year.
+    const { data: enrollmentRows } = await supabase
+      .from('student_enrollments')
       .select(`
-        id,
-        student_id_number,
-        profiles!inner(full_name)
+        students!inner(
+          id,
+          student_id_number,
+          profiles!inner(full_name, prefix)
+        )
       `)
       .eq('classroom_id', classroomId)
-      .eq('current_status', 'active')
-      .order('student_id_number');
+      .eq('academic_year_id', acYearId || '')
+      .in('enrollment_status', ['active', 'promoted', 'repeated', 'transferred', 'graduated']);
+
+    const students = (enrollmentRows || [])
+      .map((row: Record<string, unknown>) => row.students as Record<string, unknown>)
+      .filter(Boolean)
+      .sort((a, b) => String(a.student_id_number || '').localeCompare(String(b.student_id_number || '')));
 
     if (!students || students.length === 0) {
       return {
@@ -227,7 +652,8 @@ export async function getClassroomReport(classroomId: string) {
           average_score: baseScore,
           distribution: { excellent: 0, good: 0, fair: 0, poor: 0 },
           total_students: 0,
-          students: [],
+          students: [] as ClassroomReportStudent[],
+          rank_mode: rankMode,
         },
       };
     }
@@ -261,7 +687,7 @@ export async function getClassroomReport(classroomId: string) {
       });
     }
 
-    const studentStats = [];
+    const studentStats: Omit<ClassroomReportStudent, 'rank'>[] = [];
     let totalScoreSum = 0;
     const distribution = { excellent: 0, good: 0, fair: 0, poor: 0 };
 
@@ -277,7 +703,7 @@ export async function getClassroomReport(classroomId: string) {
 
       studentStats.push({
         id: s.id,
-        full_name: (s.profiles as any)?.full_name || '',
+        full_name: formatProfileFullName(s.profiles as Record<string, unknown>),
         student_id_number: s.student_id_number,
         total_deducted: summary.totalDeducted,
         total_added: summary.totalAdded,
@@ -286,6 +712,12 @@ export async function getClassroomReport(classroomId: string) {
         add_count: 0,
       });
     }
+
+    studentStats.sort((a, b) => (
+      rankMode === 'risk'
+        ? a.current_score - b.current_score || b.total_deducted - a.total_deducted
+        : b.current_score - a.current_score || a.total_deducted - b.total_deducted
+    ) || a.full_name.localeCompare(b.full_name));
 
     return {
       success: true,
@@ -303,22 +735,29 @@ export async function getClassroomReport(classroomId: string) {
           : baseScore,
         distribution,
         total_students: studentStats.length,
-        students: studentStats,
+        students: studentStats.map((student, index) => ({
+          ...student,
+          rank: index + 1,
+        })),
+        rank_mode: rankMode,
       },
     };
   });
 }
 
-export async function getThresholdReport() {
+export async function getThresholdReport(academicYearId?: string) {
   return withAuth(async () => {
     const supabase = await createClient();
 
-    const acYearRes = await supabase
+    let acYearQuery = supabase
       .from('academic_years')
       .select('id, base_score, name')
-      .eq('is_current', true)
-      .single();
-    const acYear = acYearRes.data as { id: string; base_score: number; name: string } | null;
+      .limit(1);
+    acYearQuery = academicYearId
+      ? acYearQuery.eq('id', academicYearId)
+      : acYearQuery.eq('is_current', true);
+    const acYearRes = await acYearQuery;
+    const acYear = (acYearRes.data || [])[0] as { id: string; base_score: number; name: string } | null;
     const acYearId = acYear?.id;
     const baseScore = acYear?.base_score || 100;
 
@@ -335,15 +774,25 @@ export async function getThresholdReport() {
     }> = (thresholdsRes.data?.value as any) || [];
 
     // Get all active students
-    const { data: students } = await supabase
-      .from('students')
+    const { data: enrollmentRows } = await supabase
+      .from('student_enrollments')
       .select(`
-        id,
-        student_id_number,
-        profiles!inner(full_name),
+        students!inner(
+          id,
+          student_id_number,
+          profiles!inner(full_name, prefix)
+        ),
         classrooms!inner(name, grade_level)
       `)
-      .eq('current_status', 'active');
+      .eq('academic_year_id', acYearId || '')
+      .in('enrollment_status', ['active', 'promoted', 'repeated', 'transferred', 'graduated']);
+
+    const students = (enrollmentRows || [])
+      .map((row: Record<string, unknown>) => ({
+        ...((row.students as Record<string, unknown>) || {}),
+        classrooms: row.classrooms,
+      }))
+      .filter((student: Record<string, unknown>) => Boolean(student.id));
 
     if (!students || students.length === 0) {
       return {
@@ -416,7 +865,7 @@ export async function getThresholdReport() {
       }
 
       if (thresholdIndex >= 0) {
-        const fullName = (s.profiles as any)?.full_name || '';
+        const fullName = formatProfileFullName(s.profiles as Record<string, unknown>);
         reportData.push({
           student_id: s.id,
           first_name: fullName.split(' ')[0] || '',
