@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const TEACHER_COUNT = 50;
 const STUDENT_COUNT = 1000;
+const TEST_STUDENT_ID_BASE = 2569000000;
 const THRESHOLD_SAMPLE_COUNT = 30;
 const teacherPassword = 'Teacher@123';
 const studentPassword = 'Student@123';
@@ -214,8 +215,8 @@ function makeStudent(index) {
     prefix: isBoy ? 'เด็กชาย' : 'เด็กหญิง',
     first_name: firstNames[index % firstNames.length],
     last_name: lastNames[Math.floor(index / firstNames.length) % lastNames.length],
-    student_id_number: String(2568000000 + n),
-    email: `${2568000000 + n}@student.school.com`,
+    student_id_number: String(TEST_STUDENT_ID_BASE + n),
+    email: `${TEST_STUDENT_ID_BASE + n}@student.school.com`,
   };
 }
 
@@ -299,7 +300,7 @@ async function cleanupNonAdminPeople() {
 
   const targetEmails = [
     ...Array.from({ length: TEACHER_COUNT }, (_, index) => `teacher${index + 1}@school.com`),
-    ...Array.from({ length: STUDENT_COUNT }, (_, index) => `${2568000001 + index}@student.school.com`),
+    ...Array.from({ length: STUDENT_COUNT }, (_, index) => `${TEST_STUDENT_ID_BASE + 1 + index}@student.school.com`),
   ];
   await deleteUsersByEmail(targetEmails);
 

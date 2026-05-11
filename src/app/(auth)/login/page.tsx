@@ -28,10 +28,10 @@ const staffQuickUsers: QuickUser[] = [
 ];
 
 const studentQuickUsers: QuickUser[] = [
-  { label: 'ธนภัทร ตั้งใจเรียน', studentId: '2568000001', password: 'Student@123', icon: UserRound },
-  { label: 'มินตรา ตั้งใจเรียน', studentId: '2568000002', password: 'Student@123', icon: UserRound },
-  { label: 'ปุณณวิช ตั้งใจเรียน', studentId: '2568000003', password: 'Student@123', icon: UserRound },
-  { label: 'ณิชา ตั้งใจเรียน', studentId: '2568000004', password: 'Student@123', icon: UserRound },
+  { label: 'ธนภัทร ตั้งใจเรียน', studentId: '2569000001', password: 'Student@123', icon: UserRound },
+  { label: 'มินตรา ตั้งใจเรียน', studentId: '2569000002', password: 'Student@123', icon: UserRound },
+  { label: 'ปุณณวิช ตั้งใจเรียน', studentId: '2569000003', password: 'Student@123', icon: UserRound },
+  { label: 'ณิชา ตั้งใจเรียน', studentId: '2569000004', password: 'Student@123', icon: UserRound },
 ];
 
 async function quickLogin(body: Record<string, string>, fallbackError: string) {

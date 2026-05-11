@@ -57,8 +57,8 @@ const studentRows = Array.from({ length: 1000 }, (_, index) => {
   const roomNumber = (Math.floor(index / 12) % 2) + 1;
   const lastName = studentLastNames[Math.floor(index / studentFirstNames.length) % studentLastNames.length];
   return {
-    ปีการศึกษา: '2568',
-    รหัสนักเรียน: String(2568000000 + number),
+    ปีการศึกษา: '2569',
+    รหัสนักเรียน: String(2569000000 + number),
     คำนำหน้า: index % 2 === 0 ? 'เด็กชาย' : 'เด็กหญิง',
     ชื่อ: studentFirstNames[index % studentFirstNames.length],
     นามสกุล: lastName,
