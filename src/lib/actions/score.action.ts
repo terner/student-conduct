@@ -17,6 +17,7 @@ import { validateXSS } from '@/lib/security/validate-input';
 import { createClient } from '@/lib/supabase/server';
 import { canApproveScores, canRecordScores } from '@/lib/security/roles';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
+import { logAudit } from '@/lib/audit/log';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -207,6 +208,19 @@ export async function recordScore(data: {
       category_type: category?.type || undefined,
     });
 
+    await logAudit({
+      actorId: profile.id,
+      action: category?.requires_approval ? 'score_create_pending' : 'score_create',
+      targetType: 'score_transaction',
+      targetId: result.id,
+      afterData: result,
+      metadata: {
+        student_id: validated.student_id,
+        category_id: validated.category_id,
+        academic_year_id: academicYearId,
+      },
+    });
+
     return { success: true, data: result };
   });
 }
@@ -254,6 +268,18 @@ export async function recordBulkScore(data: {
       results.push(result);
     }
 
+    await logAudit({
+      actorId: profile.id,
+      action: 'score_bulk_create',
+      targetType: 'score_transaction',
+      afterData: { count: results.length },
+      metadata: {
+        student_ids: data.student_ids,
+        category_id: data.category_id,
+        academic_year_id: openYearResult.academicYear.id,
+      },
+    });
+
     return { success: true, data: { count: results.length } };
   });
 }
@@ -267,6 +293,13 @@ export async function voidScore(transactionId: string, voidReason: string) {
     const validated = scoreVoidSchema.parse({ transaction_id: transactionId, void_reason: voidReason });
 
     await voidScoreTransaction(validated.transaction_id, profile.id, validated.void_reason);
+    await logAudit({
+      actorId: profile.id,
+      action: 'score_void',
+      targetType: 'score_transaction',
+      targetId: transactionId,
+      afterData: { status: 'voided', void_reason: validated.void_reason },
+    });
     return { success: true, data: { transaction_id: transactionId } };
   });
 }
@@ -296,6 +329,13 @@ export async function approveScore(transactionId: string) {
     }
 
     await approveScoreTransaction(transactionId, profile.id);
+    await logAudit({
+      actorId: profile.id,
+      action: 'score_approve',
+      targetType: 'score_transaction',
+      targetId: transactionId,
+      afterData: { status: 'approved' },
+    });
     return { success: true, data: { transaction_id: transactionId } };
   });
 }
@@ -347,6 +387,13 @@ export async function saveCategory(data: {
 
     await upsertScoreCategory(validated);
     clearTtlCacheByPrefix('score-categories:');
+    await logAudit({
+      actorId: profile.id,
+      action: data.id ? 'score_category_update' : 'score_category_create',
+      targetType: 'score_category',
+      targetId: data.id,
+      afterData: validated,
+    });
     return { success: true, data: null };
   });
 }

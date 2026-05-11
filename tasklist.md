@@ -187,6 +187,9 @@
 - [x] แปลง i18n บางส่วนของ reports, score, settings, teacher/student management และ PDF/profile flow แล้ว แต่ยังไม่ครบแบบ strict ทุกข้อความที่ผู้ใช้เห็น
 - [x] ย้าย validation/Zod error messages หลักใน `src/lib/validation/schemas.ts` ไปอยู่ใน namespace `validation` ของ `messages/th.json` และ `messages/en.json` โดย schema ใช้ข้อความ default จาก message file แทนการฝังประโยคไทยใน schema
 - [x] แปลง Layout/UI เล็ก ๆ เป็น i18n แล้ว: sidebar disabled tooltip/current-year text, notification bell title/empty state/date locale, dashboard error page และ `/students/me` loading/not-found state
+- [x] แปลง auth pages เป็น i18n แล้ว: change password, PDPA consent และ PDPA rejected
+- [x] เพิ่ม audit/action logging helper กลางแบบ best-effort และต่อกับ settings, teacher role/status/assignment, student add/edit/status/archive/import, score record/bulk/approve/void/category, classroom create/edit/delete/teacher assignment, upload logo/avatar/evidence และ login success/failure
+- [x] ปรับ `/settings/logs` ให้แสดงทั้ง Audit logs และ Action logs แยก tab
 - [x] Build ผ่านด้วย `npm run build`
 
 ## 📋 ฟีเจอร์ที่ยังต้องทำต่อ
@@ -195,7 +198,6 @@
 - [ ] **i18n integration ทั้งระบบ — งานคงเหลือหลังทำ partial แล้ว**  
   ทำไปแล้ว: config + language switcher + message files TH/EN ประมาณ 722 strings ต่อภาษา และแปลงหน้าหลักหลายส่วนแล้ว  
   เหลือทำต่อ:
-  - [ ] Auth pages: change password, PDPA consent/rejected
   - [ ] Server/API error messages ที่แสดงถึงผู้ใช้ เช่น auth login, upload routes, server actions
   - [ ] Notification bell/list/messages และข้อความ notification event
   - [ ] ตรวจ hardcoded ที่เหลือใน reports/score/settings/teacher/student profile/PDF ให้ครบแบบ strict
@@ -215,11 +217,12 @@
   - [ ] เพิ่ม rate limit upload และ audit log สำหรับ upload/delete
   - [ ] Verify public/private URL rendering ใน evidence modal และ profile photo
 - [ ] **Annual rollover/import** — หลังขึ้นปีใหม่แล้วต้องมี import wizard สำหรับ enrollment นักเรียนปีใหม่, preview ก่อนบันทึก, จัดการนักเรียนย้าย/ซ้ำชั้น/จบการศึกษา
-- [ ] **Permission/Admin UI** — หน้า UI สำหรับกำหนด role/เพิ่ม admin ให้ครูบางคน และจัดการ permissions
+- [x] **Role assignment UI** — จัดการ role `teacher/admin/superadmin` ผ่านฟอร์มรายชื่อครูแล้ว
 
 ### Medium Priority
 - [ ] **Student status management** — change status (active/inactive/transferred/graduated) พร้อม enrollment history
-- [ ] **Audit/action logs coverage** — บันทึก import/export/settings/role/score/classroom changes ให้ครบ
+- [x] **Audit/action logs coverage ระดับ MVP** — มี helper กลาง, login action logs, viewer audit/action logs และบันทึก action สำคัญแล้ว
+- [ ] **Audit/action logs hardening** — เพิ่ม coverage export/view report, IP/user-agent, before/after ที่ละเอียดขึ้น และ automated tests
 - [ ] **Academic year backend hardening** — เพิ่ม test/guard ให้ edit student/import/score/approval ไม่แก้ข้อมูลผิดปี และเพิ่ม test ให้ action ขึ้นปีใหม่ block เมื่อปีเดิมยังไม่สิ้นสุด
 - [ ] **Guardian management UI** — รองรับผู้ปกครองหลายคนต่อ student profile
 - [ ] **Score approval hardening** — ตรวจ pending/approve/reject/void + evidence + audit log ให้ครบ

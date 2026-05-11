@@ -1,4 +1,5 @@
 import { canApproveScores, canRecordScores } from '@/lib/security/roles';
+import { logAudit } from '@/lib/audit/log';
 import { getGoogleDriveConfig, isGoogleDriveReady, uploadFileToGoogleDrive } from '@/lib/storage/google-drive';
 import { createAdminClient, createClientWithUser } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
@@ -106,6 +107,16 @@ export async function POST(request: Request) {
       });
 
       results.push(publicUrl);
+    }
+
+    if (results.length > 0) {
+      await logAudit({
+        actorId: profile.id,
+        action: 'evidence_upload',
+        targetType: 'score_transaction',
+        targetId: transactionId,
+        afterData: { count: results.length, urls: results },
+      });
     }
 
     return NextResponse.json({ success: true, urls: results });

@@ -30,6 +30,41 @@
   "studentSelf": {
     "notFound": "Student record not found"
   },
+  "authPages": {
+    "changePassword": {
+      "title": "Change password",
+      "description": "You need to change your password before using the system for the first time",
+      "successRedirect": "Password changed. Redirecting to the dashboard...",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "passwordHelp": "Password must be at least 8 characters and include lowercase, uppercase, number, and special character",
+      "submit": "Change password",
+      "genericError": "Something went wrong. Try again."
+    },
+    "pdpa": {
+      "title": "Privacy policy",
+      "description": "PDPA consent for collecting, using, and disclosing personal data",
+      "body": "The school stores personal data for education administration, conduct score records, and related communication.",
+      "itemIdentity": "Full name, student or staff ID, and profile photo",
+      "itemConduct": "Conduct score data and incident history",
+      "itemContact": "Contact details such as phone number, email, and Line ID",
+      "itemGuardian": "Guardian and emergency contact details",
+      "withdrawal": "You can withdraw consent at any time by contacting the school administration office.",
+      "consentLabel": "I consent to the school collecting, using, and disclosing personal data for the stated purposes.",
+      "accept": "Accept",
+      "decline": "Decline",
+      "userCheckFailed": "Unable to verify the user. Sign in again.",
+      "saveFailed": "Unable to save consent",
+      "genericError": "Something went wrong. Try again."
+    },
+    "pdpaRejected": {
+      "title": "Access unavailable",
+      "description": "You need to accept the privacy policy before using the system",
+      "body": "Under the Personal Data Protection Act B.E. 2562, the school needs consent to collect, use, and disclose personal data. If you do not accept, contact school staff directly.",
+      "back": "Back to consent"
+    }
+  },
   "validation": {
     "required": "Please enter this information",
     "tooShort": "Must be at least {min} characters",
@@ -761,8 +796,13 @@
     "passwordDescription": "Change the password used to sign in",
     "changePasswordHelp": "Go to the change password page to set a new password",
     "auditLogDescription": "System activity log",
+    "auditLogsTitle": "Activity logs",
+    "auditLogs": "Audit logs",
+    "actionLogs": "Action logs",
     "noAuditLogs": "No logs",
     "noAuditLogsDescription": "No audit log entries yet",
+    "noActionLogs": "No action logs",
+    "noActionLogsDescription": "No action log entries yet",
     "time": "Time",
     "actor": "Actor",
     "action": "Action",

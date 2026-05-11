@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Lock, Save, AlertCircle } from 'lucide-react';
@@ -20,6 +21,8 @@ type ChangePasswordForm = {
 
 export default function ChangePasswordPage() {
   const router = useRouter();
+  const t = useTranslations('authPages.changePassword');
+  const commonT = useTranslations('common');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
@@ -68,7 +71,7 @@ export default function ChangePasswordPage() {
         router.refresh();
       }, 2000);
     } catch {
-      setError('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+      setError(t('genericError'));
     }
   }
 
@@ -79,13 +82,13 @@ export default function ChangePasswordPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Lock className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>เปลี่ยนรหัสผ่าน</CardTitle>
-          <CardDescription>คุณต้องเปลี่ยนรหัสผ่านก่อนเข้าใช้ระบบครั้งแรก</CardDescription>
+          <CardTitle>{t('title')}</CardTitle>
+          <CardDescription>{t('description')}</CardDescription>
         </CardHeader>
         <CardContent>
           {success ? (
             <div className="rounded-md bg-green-50 dark:bg-green-950 p-4 text-center text-sm text-green-700 dark:text-green-300">
-              เปลี่ยนรหัสผ่านสำเร็จ กำลังนำไปยังหน้าแดชบอร์ด...
+              {t('successRedirect')}
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -97,7 +100,7 @@ export default function ChangePasswordPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="current_password">รหัสผ่านปัจจุบัน</Label>
+                <Label htmlFor="current_password">{t('currentPassword')}</Label>
                 <Input id="current_password" type="password" {...register('current_password')} />
                 {errors.current_password && (
                   <p className="text-xs text-destructive">{errors.current_password.message}</p>
@@ -105,7 +108,7 @@ export default function ChangePasswordPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="new_password">รหัสผ่านใหม่</Label>
+                <Label htmlFor="new_password">{t('newPassword')}</Label>
                 <Input id="new_password" type="password" {...register('new_password')} />
                 {errors.new_password && (
                   <p className="text-xs text-destructive">{errors.new_password.message}</p>
@@ -113,7 +116,7 @@ export default function ChangePasswordPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirm_password">ยืนยันรหัสผ่านใหม่</Label>
+                <Label htmlFor="confirm_password">{t('confirmPassword')}</Label>
                 <Input id="confirm_password" type="password" {...register('confirm_password')} />
                 {errors.confirm_password && (
                   <p className="text-xs text-destructive">{errors.confirm_password.message}</p>
@@ -121,12 +124,12 @@ export default function ChangePasswordPage() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร ประกอบด้วยตัวพิมพ์เล็ก ตัวพิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ
+                {t('passwordHelp')}
               </p>
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 <Save className="mr-2 h-4 w-4" />
-                {isSubmitting ? 'กำลังบันทึก...' : 'เปลี่ยนรหัสผ่าน'}
+                {isSubmitting ? commonT('saving') : t('submit')}
               </Button>
             </form>
           )}

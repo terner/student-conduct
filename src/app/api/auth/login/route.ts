@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { logAction } from '@/lib/audit/log';
 
 export async function POST(request: Request) {
   try {
@@ -8,6 +9,11 @@ export async function POST(request: Request) {
 
     // Validate: must have either email+password or student_id+password
     if ((!email || !password) && (!student_id || !password)) {
+      await logAction({
+        event: 'login_failed',
+        resourceType: student_id ? 'student' : 'user',
+        metadata: { reason: 'missing_credentials', login_type: student_id ? 'student' : 'staff' },
+      });
       return NextResponse.json(
         { error: 'กรุณากรอกอีเมล/รหัสนักเรียนและรหัสผ่าน' },
         { status: 400 }
@@ -51,6 +57,7 @@ export async function POST(request: Request) {
         .maybeSingle();
 
       if (currentYearError || !currentYear?.id) {
+        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'no_current_academic_year' } });
         return NextResponse.json(
           { error: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' },
           { status: 401 }
@@ -66,6 +73,7 @@ export async function POST(request: Request) {
         .limit(2);
 
       if (enrollmentError || !enrollmentData || enrollmentData.length === 0) {
+        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'student_not_found_current_year', student_id } });
         return NextResponse.json(
           { error: 'ไม่พบรหัสนักเรียนนี้ในปีการศึกษาปัจจุบัน' },
           { status: 401 }
@@ -73,6 +81,7 @@ export async function POST(request: Request) {
       }
 
       if (enrollmentData.length > 1) {
+        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'duplicate_student_number_current_year', student_id } });
         return NextResponse.json(
           { error: 'พบเลขนักเรียนซ้ำในปีการศึกษาปัจจุบัน กรุณาติดต่อผู้ดูแลระบบ' },
           { status: 401 }
@@ -89,6 +98,7 @@ export async function POST(request: Request) {
         .single();
 
       if (profileError || !profileData?.user_id) {
+        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'profile_not_found', student_id } });
         return NextResponse.json(
           { error: 'ไม่พบข้อมูลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ' },
           { status: 401 }
@@ -98,6 +108,7 @@ export async function POST(request: Request) {
       // Get the user's email from auth.users (requires service_role key)
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(profileData.user_id);
       if (userError || !userData?.user?.email) {
+        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'auth_email_not_found', student_id } });
         return NextResponse.json(
           { error: 'ไม่พบอีเมลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ' },
           { status: 401 }
@@ -113,6 +124,11 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('[Login API] signInWithPassword error:', error.message, error.status);
+      await logAction({
+        event: 'login_failed',
+        resourceType: student_id ? 'student' : 'user',
+        metadata: { reason: 'invalid_credentials', login_type: student_id ? 'student' : 'staff', status: error.status },
+      });
       const message = error.message === 'Invalid login credentials'
         ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
         : error.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
@@ -120,6 +136,7 @@ export async function POST(request: Request) {
     }
 
     if (!data.session) {
+      await logAction({ event: 'login_failed', resourceType: 'user', metadata: { reason: 'missing_session' } });
       return NextResponse.json(
         { error: 'ไม่ได้รับข้อมูล session' },
         { status: 500 }
@@ -134,6 +151,7 @@ export async function POST(request: Request) {
       .single();
 
     if (!profileData) {
+      await logAction({ event: 'login_failed', resourceType: 'user', metadata: { reason: 'profile_not_found_after_login', user_id: data.user.id } });
       return NextResponse.json(
         { error: 'ไม่พบข้อมูลผู้ใช้ในระบบ กรุณาติดต่อผู้ดูแลระบบ' },
         { status: 401 }
@@ -141,6 +159,7 @@ export async function POST(request: Request) {
     }
 
     if (!profileData.is_active) {
+      await logAction({ actorId: profileData.id, event: 'login_failed', resourceType: 'profile', resourceId: profileData.id, metadata: { reason: 'inactive_account' } });
       return NextResponse.json(
         { error: 'บัญชีผู้ใช้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ' },
         { status: 403 }
@@ -152,6 +171,14 @@ export async function POST(request: Request) {
       .from('profiles')
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', profileData.id);
+
+    await logAction({
+      actorId: profileData.id,
+      event: 'login_success',
+      resourceType: 'profile',
+      resourceId: profileData.id,
+      metadata: { login_type: student_id ? 'student' : 'staff', role: profileData.role },
+    });
 
     // Build the response with role info
     const response = NextResponse.json({

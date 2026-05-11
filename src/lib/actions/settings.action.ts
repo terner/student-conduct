@@ -3,6 +3,7 @@
 import { withAuth } from '@/lib/server-action';
 import { canManageSettings, getRoles } from '@/lib/security/roles';
 import { createAdminClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/audit/log';
 
 export async function getSettingsPageData() {
   return withAuth(async (profile) => {
@@ -47,6 +48,10 @@ export async function saveSystemSettings(input: {
     }
 
     const adminClient = await createAdminClient();
+    const { data: beforeRows } = await adminClient
+      .from('settings')
+      .select('key, value');
+    const beforeSettings = Object.fromEntries((beforeRows || []).map((row) => [row.key, row.value]));
     const rows = [
       ['school_name', input.settings.school_name],
       ['school_name_en', input.settings.school_name_en],
@@ -72,6 +77,15 @@ export async function saveSystemSettings(input: {
     if (error) {
       return { success: false, error: { code: 'INTERNAL_ERROR', message: error.message } };
     }
+
+    await logAudit({
+      actorId: profile.id,
+      action: 'settings_update',
+      targetType: 'settings',
+      beforeData: beforeSettings,
+      afterData: Object.fromEntries(rows.map((row) => [row.key, row.value])),
+      metadata: { keys: rows.map((row) => row.key) },
+    });
 
     return { success: true, data: { saved: rows.length } };
   });

@@ -7,6 +7,7 @@ import { studentSchema, paginationSchema } from '@/lib/validation/schemas';
 import { validateXSS } from '@/lib/security/validate-input';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
+import { logAudit } from '@/lib/audit/log';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 const SHORT_LIST_TTL_MS = 60 * 1000;
@@ -446,6 +447,14 @@ export async function addStudent(data: {
     });
 
     clearTtlCacheByPrefix('students-for-select:');
+    await logAudit({
+      actorId: profile.id,
+      action: 'student_create',
+      targetType: 'student',
+      targetId: result.id,
+      afterData: result,
+      metadata: { classroom_id: validated.classroom_id, academic_year_id: currentAcademicYear.id },
+    });
     return { success: true, data: result };
   });
 }
@@ -482,8 +491,19 @@ export async function editStudent(id: string, data: {
       return { success: false, error: { code: 'ACADEMIC_YEAR_CLOSED', message: editableYear.message } };
     }
 
+    const before = await getStudentById(id);
     await updateStudent(id, data);
+    const after = await getStudentById(id);
     clearTtlCacheByPrefix('students-for-select:');
+    await logAudit({
+      actorId: profile.id,
+      action: data.current_status !== undefined ? 'student_status_update' : 'student_update',
+      targetType: 'student',
+      targetId: id,
+      beforeData: before,
+      afterData: after,
+      metadata: { changed_fields: Object.keys(data) },
+    });
     return { success: true, data: { id } };
   });
 }
@@ -662,8 +682,17 @@ export async function deleteStudent(id: string) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
     }
 
+    const before = await getStudentById(id);
     await archiveStudent(id);
     clearTtlCacheByPrefix('students-for-select:');
+    await logAudit({
+      actorId: profile.id,
+      action: 'student_archive',
+      targetType: 'student',
+      targetId: id,
+      beforeData: before,
+      afterData: { current_status: 'inactive' },
+    });
     return { success: true, data: { id } };
   });
 }
@@ -894,6 +923,13 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
     }
 
     if (imported > 0) clearTtlCacheByPrefix('students-for-select:');
+    await logAudit({
+      actorId: profile.id,
+      action: 'students_import_csv',
+      targetType: 'student',
+      afterData: { imported, error_count: errors.length },
+      metadata: { row_count: rows.length, errors: errors.slice(0, 20) },
+    });
     return { success: true, data: { imported, errors } };
   });
 }

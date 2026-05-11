@@ -12,6 +12,7 @@ import {
 } from '@/lib/db';
 import { teacherSchema, teacherClassroomSchema } from '@/lib/validation/schemas';
 import { validateXSS } from '@/lib/security/validate-input';
+import { logAudit } from '@/lib/audit/log';
 
 export async function getTeachers(params?: { search?: string; department?: string; include_inactive?: boolean }) {
   return withAuth(async (profile) => {
@@ -72,6 +73,13 @@ export async function addTeacher(data: {
     }
 
     const result = await createTeacher(validated);
+    await logAudit({
+      actorId: profile.id,
+      action: 'teacher_create',
+      targetType: 'teacher',
+      targetId: result.id,
+      afterData: validated,
+    });
     return { success: true, data: result };
   });
 }
@@ -95,7 +103,18 @@ export async function editTeacher(id: string, data: {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
     }
 
+    const before = await getTeacherById(id);
     await updateTeacher(id, data);
+    const after = await getTeacherById(id);
+    await logAudit({
+      actorId: profile.id,
+      action: 'teacher_update',
+      targetType: 'teacher',
+      targetId: id,
+      beforeData: before,
+      afterData: after,
+      metadata: { changed_fields: Object.keys(data) },
+    });
     return { success: true, data: { id } };
   });
 }
@@ -106,7 +125,16 @@ export async function setTeacherActive(id: string, isActive: boolean) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
     }
 
+    const before = await getTeacherById(id);
     await updateTeacher(id, { is_active: isActive });
+    await logAudit({
+      actorId: profile.id,
+      action: isActive ? 'teacher_activate' : 'teacher_deactivate',
+      targetType: 'teacher',
+      targetId: id,
+      beforeData: before ? { is_active: before.is_active } : null,
+      afterData: { is_active: isActive },
+    });
     return { success: true, data: { id, is_active: isActive } };
   });
 }
@@ -126,6 +154,13 @@ export async function assignClassroom(data: {
       ...validated,
       assigned_by: profile.id,
     });
+    await logAudit({
+      actorId: profile.id,
+      action: 'teacher_classroom_assign',
+      targetType: 'teacher_classroom',
+      targetId: validated.classroom_id,
+      afterData: validated,
+    });
 
     return { success: true, data: null };
   });
@@ -138,6 +173,13 @@ export async function unassignClassroom(teacherId: string, classroomId: string) 
     }
 
     await removeTeacherFromClassroom(teacherId, classroomId);
+    await logAudit({
+      actorId: profile.id,
+      action: 'teacher_classroom_unassign',
+      targetType: 'teacher_classroom',
+      targetId: classroomId,
+      metadata: { teacher_id: teacherId },
+    });
     return { success: true, data: null };
   });
 }

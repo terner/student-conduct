@@ -7,6 +7,7 @@ import { classroomSchema } from '@/lib/validation/schemas';
 import { validateXSS } from '@/lib/security/validate-input';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
+import { logAudit } from '@/lib/audit/log';
 
 const SHORT_LIST_TTL_MS = 60 * 1000;
 
@@ -123,7 +124,7 @@ export async function addClassroom(data: {
   grade_level?: number;
   room_count?: number;
 }) {
-  return withAuth(async () => {
+  return withAuth(async (profile) => {
     const validated = classroomSchema.parse(data);
 
     const supabase = await createClient();
@@ -192,6 +193,13 @@ export async function addClassroom(data: {
 
     clearTtlCacheByPrefix('classrooms:');
     clearTtlCacheByPrefix('classrooms-for-select:');
+    await logAudit({
+      actorId: profile.id,
+      action: 'classroom_create',
+      targetType: 'classroom',
+      afterData: { created },
+      metadata: { room_count: created.length, academic_year_id: acYear.id },
+    });
     return { success: true, data: { created } };
   });
 }
@@ -229,6 +237,13 @@ export async function setClassroomTeacherAssignment(data: {
 
     clearTtlCacheByPrefix('classrooms:');
     clearTtlCacheByPrefix('classrooms-for-select:');
+    await logAudit({
+      actorId: profile.id,
+      action: 'classroom_teacher_assign',
+      targetType: 'classroom',
+      targetId: data.classroom_id,
+      afterData: data,
+    });
     return { success: true, data: null };
   });
 }
@@ -244,9 +259,20 @@ export async function editClassroom(id: string, data: {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
     }
 
+    const before = await getClassroomById(id);
     await updateClassroom(id, data as any);
+    const after = await getClassroomById(id);
     clearTtlCacheByPrefix('classrooms:');
     clearTtlCacheByPrefix('classrooms-for-select:');
+    await logAudit({
+      actorId: profile.id,
+      action: 'classroom_update',
+      targetType: 'classroom',
+      targetId: id,
+      beforeData: before,
+      afterData: after,
+      metadata: { changed_fields: Object.keys(data) },
+    });
     return { success: true, data: { id } };
   });
 }
@@ -258,9 +284,17 @@ export async function removeClassroom(id: string) {
     }
 
     try {
+      const before = await getClassroomById(id);
       await deleteClassroom(id);
       clearTtlCacheByPrefix('classrooms:');
       clearTtlCacheByPrefix('classrooms-for-select:');
+      await logAudit({
+        actorId: profile.id,
+        action: 'classroom_delete',
+        targetType: 'classroom',
+        targetId: id,
+        beforeData: before,
+      });
       return { success: true, data: { id } };
     } catch (err) {
       return {

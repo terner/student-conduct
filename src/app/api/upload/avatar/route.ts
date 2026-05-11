@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClientWithUser, createAdminClient } from '@/lib/supabase/server';
 import { getGoogleDriveConfig, isGoogleDriveReady, uploadFileToGoogleDrive } from '@/lib/storage/google-drive';
+import { logAudit } from '@/lib/audit/log';
 
 export const runtime = 'nodejs';
 
@@ -55,6 +56,14 @@ export async function POST(request: Request) {
       }
 
       const upload = await uploadFileToGoogleDrive(driveConfig, 'profile', file, fileName);
+      await logAudit({
+        actorId: profile.id,
+        action: 'avatar_upload',
+        targetType: ownerType,
+        targetId: profileOwnerId,
+        afterData: { url: upload.publicUrl, provider: 'google_drive', file_id: upload.id },
+        metadata: { file_name: file.name, file_type: file.type, file_size: file.size },
+      });
       return NextResponse.json({
         success: true,
         url: upload.publicUrl,
@@ -82,6 +91,15 @@ export async function POST(request: Request) {
       .storage
       .from('student-photos')
       .getPublicUrl(fileName);
+
+    await logAudit({
+      actorId: profile.id,
+      action: 'avatar_upload',
+      targetType: ownerType,
+      targetId: profileOwnerId,
+      afterData: { url: publicUrl, provider: 'supabase' },
+      metadata: { file_name: file.name, file_type: file.type, file_size: file.size },
+    });
 
     return NextResponse.json({ success: true, url: publicUrl });
   } catch (err) {

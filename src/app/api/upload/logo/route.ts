@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createClientWithUser } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/audit/log';
 
 export const runtime = 'nodejs';
 
@@ -70,7 +71,16 @@ export async function POST(request: Request) {
       .from('school-logos')
       .getPublicUrl(fileName);
 
-    return NextResponse.json({ success: true, url: `${publicUrl}?v=${Date.now()}` });
+    const url = `${publicUrl}?v=${Date.now()}`;
+    await logAudit({
+      actorId: profile.id,
+      action: 'logo_upload',
+      targetType: 'settings',
+      afterData: { school_logo: url },
+      metadata: { file_name: file.name, file_type: file.type, file_size: file.size },
+    });
+
+    return NextResponse.json({ success: true, url });
   } catch (err) {
     console.error('[Upload Logo] Error:', err);
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }, { status: 500 });
