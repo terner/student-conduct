@@ -141,6 +141,28 @@ export async function getScores(params: {
     }
 
     const result = await listScoreTransactions(params);
+    await logAudit({
+      actorId: profile.id,
+      action: 'score_transactions_view',
+      targetType: 'score_transaction',
+      afterData: {
+        page: params.page,
+        page_size: params.page_size,
+        total: result.total,
+      },
+      metadata: {
+        filters: {
+          student_id: params.student_id,
+          classroom_id: params.classroom_id,
+          category_id: params.category_id,
+          status: params.status,
+          academic_year_id: params.academic_year_id,
+          from_date: params.from_date,
+          to_date: params.to_date,
+          search: params.search ? '[provided]' : undefined,
+        },
+      },
+    });
     return { success: true, data: result };
   });
 }
@@ -301,12 +323,32 @@ export async function voidScore(transactionId: string, voidReason: string) {
 
     const validated = scoreVoidSchema.parse({ transaction_id: transactionId, void_reason: voidReason });
 
+    const supabase = await createClient();
+    const { data: before } = await supabase
+      .from('score_transactions')
+      .select('id, status, academic_year_id, student_id, points, voided_at')
+      .eq('id', transactionId)
+      .maybeSingle();
+
+    if (!before) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบรายการคะแนน' } };
+    }
+    if (before.status === 'voided') {
+      return { success: false, error: { code: 'CONFLICT', message: 'รายการนี้ถูกยกเลิกแล้ว' } };
+    }
+
+    if (before.academic_year_id) {
+      const openYearResult = await ensureAcademicYearOpenForScoring(supabase, before.academic_year_id as string);
+      if (!openYearResult.success) return openYearResult;
+    }
+
     await voidScoreTransaction(validated.transaction_id, profile.id, validated.void_reason);
     await logAudit({
       actorId: profile.id,
       action: 'score_void',
       targetType: 'score_transaction',
       targetId: transactionId,
+      beforeData: before,
       afterData: { status: 'voided', void_reason: validated.void_reason },
     });
     return { success: true, data: { transaction_id: transactionId } };
@@ -322,9 +364,21 @@ export async function approveScore(transactionId: string) {
     const supabase = await createClient();
     const { data: transaction } = await supabase
       .from('score_transactions')
-      .select('student_id, academic_year_id, points, requires_evidence_at_record')
+      .select('id, student_id, academic_year_id, points, status, requires_evidence_at_record')
       .eq('id', transactionId)
       .maybeSingle();
+
+    if (!transaction) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบรายการคะแนน' } };
+    }
+    if (transaction.status !== 'pending') {
+      return { success: false, error: { code: 'CONFLICT', message: 'อนุมัติได้เฉพาะรายการที่รออนุมัติ' } };
+    }
+
+    if (transaction.academic_year_id) {
+      const openYearResult = await ensureAcademicYearOpenForScoring(supabase, transaction.academic_year_id as string);
+      if (!openYearResult.success) return openYearResult;
+    }
 
     if (transaction?.requires_evidence_at_record === true) {
       const { count } = await supabase
@@ -343,6 +397,7 @@ export async function approveScore(transactionId: string) {
       action: 'score_approve',
       targetType: 'score_transaction',
       targetId: transactionId,
+      beforeData: transaction,
       afterData: { status: 'approved' },
     });
     if (transaction && Number(transaction.points) < 0) {

@@ -846,6 +846,71 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
           continue;
         }
 
+        const fullName = prefix ? `${prefix}${firstName} ${lastName}` : `${firstName} ${lastName}`;
+        const normalizedStatus = status === 'active' ? 'active' : 'inactive';
+        const normalizedGuardianRelation = normalizeGuardianRelation(guardianRelation);
+
+        const { data: existingStudent } = await adminClient
+          .from('students')
+          .select('id, profile_id')
+          .eq('student_id_number', studentId)
+          .maybeSingle();
+
+        if (existingStudent?.id) {
+          await adminClient
+            .from('profiles')
+            .update({
+              full_name: fullName,
+              prefix: prefix || null,
+              is_active: normalizedStatus === 'active',
+            })
+            .eq('id', existingStudent.profile_id);
+
+          await adminClient
+            .from('students')
+            .update({
+              classroom_id: classroom.id,
+              current_status: normalizedStatus,
+            })
+            .eq('id', existingStudent.id);
+
+          const enrollmentData: Record<string, unknown> = {
+            student_id: existingStudent.id,
+            classroom_id: classroom.id,
+            academic_year_id: acYear.id,
+            enrollment_status: normalizedStatus,
+            source: 'annual_import',
+          };
+          if (classNumber !== undefined) {
+            enrollmentData.class_number = classNumber;
+          }
+
+          const { data: existingEnrollment } = await adminClient
+            .from('student_enrollments')
+            .select('id')
+            .eq('student_id', existingStudent.id)
+            .eq('academic_year_id', acYear.id)
+            .maybeSingle();
+
+          if (existingEnrollment?.id) {
+            await adminClient
+              .from('student_enrollments')
+              .update(enrollmentData)
+              .eq('id', existingEnrollment.id);
+          } else {
+            await adminClient.from('student_enrollments').insert(enrollmentData);
+          }
+
+          await upsertPrimaryGuardian(adminClient, existingStudent.id, {
+            full_name: guardianFullName,
+            relation: normalizedGuardianRelation,
+            phone: guardianPhone,
+          });
+
+          imported++;
+          continue;
+        }
+
         // Create auth user
         const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
           email: buildStudentLoginEmail(studentId, String(acYear.name || academicYearName)),
@@ -860,7 +925,6 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         }
 
         // Create profile
-        const fullName = prefix ? `${prefix}${firstName} ${lastName}` : `${firstName} ${lastName}`;
         const { data: profile } = await adminClient
           .from('profiles')
           .insert({
@@ -868,7 +932,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
             role: 'student',
             full_name: fullName,
             prefix: prefix || null,
-            is_active: status === 'active',
+            is_active: normalizedStatus === 'active',
           })
           .select('id')
           .single();
@@ -886,7 +950,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
             profile_id: profile.id,
             student_id_number: studentId,
             classroom_id: classroom.id,
-            current_status: status === 'active' ? 'active' : 'inactive',
+            current_status: normalizedStatus,
           })
           .select('id')
           .single();
@@ -902,7 +966,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
           student_id: studentRecord.id,
           classroom_id: classroom.id,
           academic_year_id: acYear.id,
-          enrollment_status: 'active',
+          enrollment_status: normalizedStatus,
           source: 'annual_import',
         };
         if (classNumber !== undefined) {
@@ -912,7 +976,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
 
         await upsertPrimaryGuardian(adminClient, studentRecord.id, {
           full_name: guardianFullName,
-          relation: normalizeGuardianRelation(guardianRelation),
+          relation: normalizedGuardianRelation,
           phone: guardianPhone,
         });
 

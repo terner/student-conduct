@@ -2054,10 +2054,12 @@ type ErrorResponse = {
 - Admin import รายชื่อนักเรียน/ครูตามห้องจริงของปีการศึกษาใหม่
 
 - ระบบต้อง match นักเรียนด้วย student_id_number เพื่อเชื่อมประวัติเดิมกับ enrollment ปีใหม่
+  - Implemented: import ฝั่ง server ค้นหา `students.student_id_number` ก่อน หากพบจะอัปเดต profile/current classroom/status และสร้างหรืออัปเดต `student_enrollments` ของปีปัจจุบัน แทนการสร้างบัญชี auth/profile/student ซ้ำ
 
 - รองรับระดับชั้นตั้งแต่ ป.1 ถึง ม.6 โดยใช้ education_stage + grade_level แยกช่วงประถมและมัธยม
 
 - Import preview ต้องแสดงนักเรียนที่มีอยู่เดิม, นักเรียนใหม่, นักเรียนที่ไม่พบในปีใหม่, นักเรียนซ้ำชั้น, และนักเรียนที่ย้ายห้อง
+  - Implemented MVP: หน้า import แยก preview/confirm และแสดงตัวอย่างแถว + parse errors ก่อนบันทึกจริง
 
 - นักเรียนที่ไม่ถูก import ในปีใหม่จะไม่มี student_enrollments ของปีใหม่ แต่ประวัติปีเก่ายังค้นหาได้
 
@@ -2070,6 +2072,7 @@ type ErrorResponse = {
 - ต้องมี preview ก่อนยืนยัน แสดงห้องเดิม, ห้องใหม่, สถานะ, และรายการที่ต้องแก้ไข
 
 - บันทึก annual_import ลง audit_logs
+  - Implemented: audit action `students_import_csv` บันทึกจำนวนที่สำเร็จ จำนวน error และตัวอย่าง error
 
 ### 8.13 Bilingual UI (TH/EN) + Thai Font
 
@@ -3243,14 +3246,17 @@ export async function POST(req: Request) { ... }
 ### 12.6 Import, Audit & Security
 
 - CSV import validates required fields and previews errors before saving.
+  - Implemented: import UI ต้อง preview ก่อน confirm และ server import reuse นักเรียนเดิมด้วย `student_id_number`
 
 - Import supports Thai Excel encoding with BOM.
 
 - All important actions create audit_logs: score create, approve, reject, void, import, export, setting change, annual_import, bond generation.
+  - Implemented: score view/approve/void และ student CSV import มี audit coverage เพิ่มเติมพร้อม before/after หรือ metadata ที่จำเป็น
 
 - Audit logs include actor, target, before_data, after_data, ip_address, user_agent, metadata, and timestamp.
 
 - Login success/failure, student detail views, report views, and exports create action_logs.
+  - Implemented: login rate-limit event ถูกบันทึกเป็น action log พร้อม IP/user-agent
 
 - PDPA consent is recorded with notice version and can be reviewed by admin.
 

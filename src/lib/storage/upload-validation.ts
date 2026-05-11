@@ -3,7 +3,7 @@ export const EVIDENCE_UPLOAD_TYPES = ['image/png', 'image/jpeg', 'image/webp'] a
 
 const TWO_MB = 2 * 1024 * 1024;
 const MAX_EVIDENCE_FILES = 5;
-const uploadBuckets = new Map<string, number[]>();
+import { checkRateLimit } from '@/lib/security/rate-limit';
 
 export type UploadTarget = 'logo' | 'avatar' | 'evidence';
 
@@ -28,15 +28,7 @@ export function validateEvidenceFiles(files: File[]) {
 }
 
 export function checkUploadRateLimit(key: string, limit = 20, windowMs = 60_000) {
-  const now = Date.now();
-  const bucket = (uploadBuckets.get(key) || []).filter((timestamp) => now - timestamp < windowMs);
-  if (bucket.length >= limit) {
-    uploadBuckets.set(key, bucket);
-    return false;
-  }
-  bucket.push(now);
-  uploadBuckets.set(key, bucket);
-  return true;
+  return checkRateLimit(`upload:${key}`, limit, windowMs);
 }
 
 export function safeFileExtension(file: File, fallback: string) {

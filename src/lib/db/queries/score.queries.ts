@@ -313,7 +313,8 @@ export async function voidScoreTransaction(
       voided_at: new Date().toISOString(),
       void_reason: voidReason,
     })
-    .eq('id', transactionId);
+    .eq('id', transactionId)
+    .in('status', ['pending', 'approved']);
 
   if (error) throw error;
   return { success: true };
@@ -332,7 +333,8 @@ export async function approveScoreTransaction(transactionId: string, approvedBy:
       approved_by: approvedBy,
       approved_at: new Date().toISOString(),
     })
-    .eq('id', transactionId);
+    .eq('id', transactionId)
+    .eq('status', 'pending');
 
   if (error) throw error;
   return { success: true };

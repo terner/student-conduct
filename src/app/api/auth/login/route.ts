@@ -2,10 +2,22 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { getRequestAuditInfo, logAction } from '@/lib/audit/log';
 import { apiMessage } from '@/lib/i18n/api';
+import { checkRateLimit } from '@/lib/security/rate-limit';
 
 export async function POST(request: Request) {
   const requestInfo = getRequestAuditInfo(request);
   try {
+    const rateKey = `login:${requestInfo.ipAddress || 'unknown'}`;
+    if (!checkRateLimit(rateKey, 20, 60_000)) {
+      await logAction({
+        event: 'login_rate_limited',
+        resourceType: 'auth',
+        metadata: { reason: 'rate_limited' },
+        ...requestInfo,
+      });
+      return NextResponse.json({ error: apiMessage(request, 'rateLimited') }, { status: 429 });
+    }
+
     const body = await request.json();
     const { email, password, student_id } = body;
 

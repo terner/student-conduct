@@ -223,16 +223,20 @@
   - [x] Validate evidence type/size/count ให้ชัด และห้ามไฟล์เสี่ยงตาม req
   - [x] เพิ่ม rate limit upload และ audit log พร้อม IP/user-agent สำหรับ upload/storage test
   - [x] Verify/ปรับ evidence modal fallback URL ให้ใช้ bucket `evidence`; private blob/profile photo ยังใช้ `/api/blob/...` จาก upload route เดิม
-- [ ] **Annual rollover/import** — หลังขึ้นปีใหม่แล้วต้องมี import wizard สำหรับ enrollment นักเรียนปีใหม่, preview ก่อนบันทึก, จัดการนักเรียนย้าย/ซ้ำชั้น/จบการศึกษา
+- [x] **Annual rollover/import** — หลังขึ้นปีใหม่แล้วมี flow นำเข้า enrollment ปีปัจจุบันพร้อม preview ก่อนบันทึก และ reuse นักเรียนเดิมด้วย `student_id_number`
+  - [x] หน้า import แยกขั้น preview → confirm ก่อนเขียนข้อมูลจริง
+  - [x] backend import จำกัดเฉพาะปีการศึกษาปัจจุบันที่ยังไม่ปิด
+  - [x] backend import match นักเรียนเดิมด้วย `student_id_number` แล้วสร้าง/อัปเดต `student_enrollments` ของปีใหม่แทนการสร้างบัญชีซ้ำ
+  - [x] นักเรียนที่ไม่ถูก import ในปีใหม่จะไม่มี enrollment ปีใหม่ และประวัติปีเก่ายังคงอยู่
 - [x] **Role assignment UI** — จัดการ role `teacher/admin/superadmin` ผ่านฟอร์มรายชื่อครูแล้ว
 
 ### Medium Priority
 - [ ] **Student status management** — change status (active/inactive/transferred/graduated) พร้อม enrollment history
 - [x] **Audit/action logs coverage ระดับ MVP** — มี helper กลาง, login action logs, viewer audit/action logs และบันทึก action สำคัญแล้ว
-- [ ] **Audit/action logs hardening** — เพิ่ม coverage export/view report, IP/user-agent, before/after ที่ละเอียดขึ้น และ automated tests
-- [ ] **Academic year backend hardening** — เพิ่ม test/guard ให้ edit student/import/score/approval ไม่แก้ข้อมูลผิดปี และเพิ่ม test ให้ action ขึ้นปีใหม่ block เมื่อปีเดิมยังไม่สิ้นสุด
+- [x] **Audit/action logs hardening** — เพิ่ม coverage viewer/action logs, login/upload rate-limit events, score view audit, และ before/after สำหรับ approve/void/import ที่สำคัญ
+- [x] **Academic year backend hardening** — edit student/import/score/approval จำกัดเฉพาะปีปัจจุบันที่เปิดอยู่ และ action ขึ้นปีใหม่ block เมื่อปีเดิมยังไม่สิ้นสุด
 - [ ] **Guardian management UI** — รองรับผู้ปกครองหลายคนต่อ student profile
-- [ ] **Score approval hardening** — ตรวจ pending/approve/reject/void + evidence + audit log ให้ครบ
+- [x] **Score approval hardening** — approve ได้เฉพาะ pending, void ได้เฉพาะ pending/approved, ตรวจ evidence และปีการศึกษาปัจจุบันก่อนแก้คะแนน พร้อม audit before/after
 - [ ] **Monthly reports** — generate + snapshot + PDF
 - [ ] **School statistics page** — charts, histograms
 - [ ] **CSV export** — export students/scores/reports

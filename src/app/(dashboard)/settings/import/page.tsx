@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Upload, AlertCircle, CheckCircle2, Download, FileSpreadsheet } from 'lucide-react';
+import { Upload, AlertCircle, CheckCircle2, Download, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,9 +18,18 @@ export default function ImportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewRows, setPreviewRows] = useState<Record<string, unknown>[]>([]);
+  const [previewErrors, setPreviewErrors] = useState<{ row: number; message: string }[]>([]);
   const [result, setResult] = useState<{ success: number; errors: { row: number; message: string }[] } | null>(null);
   const [selectedYearOpen, setSelectedYearOpen] = useState(false);
   const [closedReason, setClosedReason] = useState('');
+  const previewColumns = previewRows[0] ? Object.keys(previewRows[0]).slice(0, 8) : [];
+
+  function resetPreview() {
+    setPreviewRows([]);
+    setPreviewErrors([]);
+  }
 
   useEffect(() => {
     if (!selectedAcademicYearId) {
@@ -51,19 +60,38 @@ export default function ImportPage() {
     };
   }, [selectedAcademicYearId, settingsT]);
 
-  async function handleImport() {
+  async function handlePreview() {
     if (!file || !selectedYearOpen) return;
+    setPreviewing(true);
+    setResult(null);
+    resetPreview();
+
+    try {
+      const parsed = await parseCsvFile(file);
+      setPreviewRows(parsed.data);
+      setPreviewErrors(parsed.errors);
+    } catch (err) {
+      setResult({ success: 0, errors: [{ row: 0, message: err instanceof Error ? err.message : settingsT('csvReadFailed') }] });
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  async function handleImport() {
+    if (!file || !selectedYearOpen || previewRows.length === 0) return;
     setLoading(true);
     setResult(null);
 
     try {
-      const parsed = await parseCsvFile(file);
-      const res = await importStudentsCsv(parsed.data);
+      const res = await importStudentsCsv(previewRows);
       if (res.success) {
         setResult({
           success: res.data.imported,
-          errors: [...parsed.errors, ...res.data.errors],
+          errors: [...previewErrors, ...res.data.errors],
         });
+        resetPreview();
+        setFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       } else {
         setResult({ success: 0, errors: [{ row: 0, message: res.error?.message || settingsT('genericError') }] });
       }
@@ -113,26 +141,100 @@ export default function ImportPage() {
                 accept=".csv"
                 className="hidden"
                 disabled={!selectedYearOpen}
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] || null);
+                  setResult(null);
+                  resetPreview();
+                }}
               />
             </div>
 
             <Button
               className="w-full"
-              onClick={handleImport}
-              disabled={!file || loading || !selectedYearOpen}
+              onClick={handlePreview}
+              disabled={!file || previewing || loading || !selectedYearOpen}
             >
-              {loading ? (
-                settingsT('importing')
+              {previewing ? (
+                settingsT('previewing')
               ) : (
                 <>
                   <Upload className="mr-2 h-4 w-4" />
-                  {settingsT('importData')}
+                  {settingsT('previewCsv')}
                 </>
               )}
             </Button>
           </CardContent>
         </Card>
+
+        {previewRows.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{settingsT('previewTitle')}</CardTitle>
+              <CardDescription>
+                {settingsT('previewDescription', { count: previewRows.length })}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {previewErrors.length > 0 && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                  <div className="flex items-center gap-2 text-destructive mb-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">{settingsT('previewErrorCount', { count: previewErrors.length })}</span>
+                  </div>
+                  <div className="max-h-[120px] overflow-y-auto space-y-1">
+                    {previewErrors.slice(0, 8).map((e, i) => (
+                      <p key={i} className="text-xs text-destructive">
+                        {settingsT('rowError', { row: e.row, message: e.message })}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="max-h-[260px] overflow-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {previewColumns.map((column) => (
+                        <TableHead key={column} className="whitespace-nowrap text-xs">{column}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {previewRows.slice(0, 10).map((row, index) => (
+                      <TableRow key={index}>
+                        {previewColumns.map((column) => (
+                          <TableCell key={column} className="max-w-[160px] truncate text-xs">
+                            {String(row[column] ?? '')}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  className="flex-1"
+                  onClick={handleImport}
+                  disabled={loading || !selectedYearOpen}
+                >
+                  {loading ? settingsT('importing') : settingsT('confirmImport')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetPreview}
+                  disabled={loading}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  {settingsT('resetPreview')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {result && (
           <Card>
