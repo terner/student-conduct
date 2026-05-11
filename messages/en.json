@@ -659,7 +659,7 @@
     "storageProviderVercelBlob": "Vercel Blob",
     "storageProviderGoogleDrive": "Google Drive",
     "storageProviderSupabase": "Supabase Storage",
-    "vercelBlobHelp": "Use Vercel Blob through BLOB_READ_WRITE_TOKEN. This is best for Vercel deployments and can keep score evidence private.",
+    "vercelBlobHelp": "Use Vercel Blob through BLOB_READ_WRITE_TOKEN. This is best for Vercel deployments and supports private blobs through the app route.",
     "supabaseStorageHelp": "Use Supabase Storage as the system fallback provider.",
     "googleDrive": "Google Drive",
     "googleDriveDescription": "Use Google Drive through a service account and folder IDs for profile photos and score evidence",

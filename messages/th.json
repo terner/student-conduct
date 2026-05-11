@@ -661,7 +661,7 @@
     "storageProviderVercelBlob": "Vercel Blob",
     "storageProviderGoogleDrive": "Google Drive",
     "storageProviderSupabase": "Supabase Storage",
-    "vercelBlobHelp": "ใช้ Vercel Blob ผ่าน BLOB_READ_WRITE_TOKEN เหมาะสำหรับ deploy บน Vercel โดยหลักฐานคะแนนตั้ง private ได้",
+    "vercelBlobHelp": "ใช้ Vercel Blob ผ่าน BLOB_READ_WRITE_TOKEN เหมาะสำหรับ deploy บน Vercel และรองรับ private blob ผ่าน route ของระบบ",
     "supabaseStorageHelp": "ใช้ Supabase Storage เป็น fallback เดิมของระบบ",
     "googleDrive": "Google Drive",
     "googleDriveDescription": "ใช้ Google Drive ผ่าน service account และ folder id สำหรับรูปโปรไฟล์และหลักฐานคะแนน",

@@ -54,15 +54,16 @@ export async function POST(request: Request) {
 
     if (storageProvider === 'vercel_blob') {
       const upload = await uploadFileToVercelBlob('profile', file, fileName);
+      const url = upload.access === 'private' ? `/api/blob/${upload.pathname}` : upload.url;
       await logAudit({
         actorId: profile.id,
         action: 'avatar_upload',
         targetType: ownerType,
         targetId: profileOwnerId,
-        afterData: { url: upload.url, provider: upload.provider, pathname: upload.pathname, access: upload.access },
+        afterData: { url, provider: upload.provider, pathname: upload.pathname, access: upload.access },
         metadata: { file_name: file.name, file_type: file.type, file_size: file.size },
       });
-      return NextResponse.json({ success: true, url: upload.url, provider: upload.provider });
+      return NextResponse.json({ success: true, url, provider: upload.provider });
     }
 
     const driveConfig = await getGoogleDriveConfig(adminClient);

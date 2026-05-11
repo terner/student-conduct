@@ -25,7 +25,7 @@ function accessForTarget(target: BlobUploadTarget): 'public' | 'private' {
   const access = targetAccess || allAccess;
   if (access === 'private') return 'private';
   if (access === 'public') return 'public';
-  return target === 'evidence' ? 'private' : 'public';
+  return 'private';
 }
 
 export async function uploadFileToVercelBlob(target: BlobUploadTarget, file: File, fileName: string): Promise<BlobUploadResult> {
