@@ -99,6 +99,15 @@
     "addButton": "Add",
     "recordTitle": "Record score",
     "recordDescription": "Find a student to record conduct score",
+    "studentRequired": "Student *",
+    "categoryRequired": "Score category *",
+    "pointsRequired": "Points *",
+    "selectCategory": "Select category",
+    "searchStudentWithEllipsis": "Search student name or ID...",
+    "noStudentsMatched": "No students found",
+    "evidenceRequiredOne": "Please attach at least 1 evidence image",
+    "evidenceRequiredForCategory": "Evidence * (required for this category)",
+    "evidenceOptional": "Evidence (optional)",
     "selectedYearClosedTitle": "Scores can't be recorded for the selected academic year",
     "currentYearOnly": "Available for the current academic year only",
     "searchStudent": "Search student name or ID",
@@ -232,6 +241,22 @@
     "bondStatusSigned": "Signed",
     "bondStatusCancelled": "Cancelled"
   },
+  "intervention": {
+    "title": "Intervention logs",
+    "description": "Student contact and follow-up history",
+    "noRecords": "No intervention records yet",
+    "phoneCall": "Phone call",
+    "parentMeeting": "Parent meeting",
+    "warning": "Warning",
+    "bond": "Behavior bond",
+    "homeVisit": "Home visit",
+    "counseling": "Counseling",
+    "other": "Other",
+    "date": "Date",
+    "type": "Type",
+    "summary": "Summary",
+    "outcome": "Outcome"
+  },
   "dashboard": {
     "title": "Dashboard",
     "description": "Overview of student conduct scores",
@@ -285,7 +310,14 @@
     "deleteConfirm": "Delete classroom \"{name}\"?",
     "loadError": "Unable to load classrooms",
     "addSuccess": "Classroom added",
-    "editSuccess": "Classroom updated"
+    "editSuccess": "Classroom updated",
+    "nameRequired": "Classroom name *",
+    "stageRequired": "Stage *",
+    "gradeRequired": "Grade level *",
+    "roomCountRequired": "Number of rooms *",
+    "willCreateLabel": "Will create:",
+    "selectHomeroomTeacher": "Select homeroom teacher",
+    "selectAdvisorTeacher": "Select advisor teacher"
   },
   "teacher": {
     "title": "Teaching Staff",
@@ -461,7 +493,11 @@
     "guardianPhonePlaceholder": "e.g. 081-234-5678",
     "conductScore": "Conduct score",
     "deducted": "Deducted",
-    "added": "Added"
+    "added": "Added",
+    "myScoreTitle": "My score",
+    "myScoreDescription": "View conduct score and history",
+    "classroomNotSpecified": "Classroom not specified",
+    "scoreHistory": "Score history"
   },
   "auth": {
     "login": "Login",
@@ -483,7 +519,13 @@
     "studentIdPlaceholder": "1234567890",
     "studentIdLabel": "Student ID (10 digits)",
     "passwordPlaceholder": "••••••••",
-    "emailPlaceholder": "admin@school.com"
+    "emailPlaceholder": "admin@school.com",
+    "loginFailed": "Sign in failed",
+    "quickLoginDescription": "Choose a test account below to sign in immediately",
+    "quickLoginPrompt": "Choose to sign in immediately:",
+    "manualLoginDivider": "Or enter manually",
+    "superadminRole": "Superadmin",
+    "adminRole": "Admin"
   },
   "settings": {
     "title": "Settings",

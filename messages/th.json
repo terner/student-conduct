@@ -100,6 +100,15 @@
     "addButton": "เพิ่ม",
     "recordTitle": "บันทึกคะแนน",
     "recordDescription": "ค้นหานักเรียนเพื่อบันทึกคะแนนความประพฤติ",
+    "studentRequired": "นักเรียน *",
+    "categoryRequired": "ประเภทคะแนน *",
+    "pointsRequired": "คะแนน *",
+    "selectCategory": "เลือกประเภท",
+    "searchStudentWithEllipsis": "ค้นหาชื่อหรือรหัสนักเรียน...",
+    "noStudentsMatched": "ไม่พบนักเรียน",
+    "evidenceRequiredOne": "กรุณาแนบหลักฐานอย่างน้อย 1 รูป",
+    "evidenceRequiredForCategory": "หลักฐาน * (จำเป็นสำหรับหมวดนี้)",
+    "evidenceOptional": "หลักฐาน (ไม่บังคับ)",
     "selectedYearClosedTitle": "ไม่สามารถบันทึกคะแนนในปีการศึกษาที่เลือก",
     "currentYearOnly": "ใช้ได้เฉพาะปีการศึกษาปัจจุบัน",
     "searchStudent": "ค้นหาชื่อหรือรหัสนักเรียน",
@@ -234,6 +243,22 @@
     "bondStatusSigned": "ลงนามแล้ว",
     "bondStatusCancelled": "ยกเลิก"
   },
+  "intervention": {
+    "title": "บันทึกการติดตาม",
+    "description": "ประวัติการติดต่อและติดตามนักเรียน",
+    "noRecords": "ยังไม่มีการบันทึกการติดตาม",
+    "phoneCall": "โทรศัพท์",
+    "parentMeeting": "ประชุมผู้ปกครอง",
+    "warning": "ตักเตือน",
+    "bond": "ทัณฑ์บน",
+    "homeVisit": "เยี่ยมบ้าน",
+    "counseling": "ให้คำปรึกษา",
+    "other": "อื่นๆ",
+    "date": "วันที่",
+    "type": "ประเภท",
+    "summary": "สรุป",
+    "outcome": "ผลลัพธ์"
+  },
   "dashboard": {
     "title": "แดชบอร์ด",
     "description": "ภาพรวมระบบคะแนนความประพฤตินักเรียน",
@@ -287,7 +312,14 @@
     "deleteConfirm": "ลบห้องเรียน \"{name}\" ใช่หรือไม่?",
     "loadError": "โหลดข้อมูลห้องเรียนไม่สำเร็จ",
     "addSuccess": "เพิ่มห้องเรียนสำเร็จ",
-    "editSuccess": "แก้ไขห้องเรียนสำเร็จ"
+    "editSuccess": "แก้ไขห้องเรียนสำเร็จ",
+    "nameRequired": "ชื่อห้องเรียน *",
+    "stageRequired": "ระดับ *",
+    "gradeRequired": "ชั้นปี *",
+    "roomCountRequired": "จำนวนห้อง *",
+    "willCreateLabel": "จะสร้าง:",
+    "selectHomeroomTeacher": "เลือกครูประจำชั้น",
+    "selectAdvisorTeacher": "เลือกครูที่ปรึกษา"
   },
   "teacher": {
     "title": "รายชื่อครูผู้สอน",
@@ -463,7 +495,11 @@
     "guardianPhonePlaceholder": "เช่น 081-234-5678",
     "conductScore": "คะแนนความประพฤติ",
     "deducted": "ถูกหัก",
-    "added": "ได้เพิ่ม"
+    "added": "ได้เพิ่ม",
+    "myScoreTitle": "คะแนนของฉัน",
+    "myScoreDescription": "ดูคะแนนความประพฤติและประวัติ",
+    "classroomNotSpecified": "ไม่ระบุชั้นเรียน",
+    "scoreHistory": "ประวัติคะแนน"
   },
   "auth": {
     "login": "เข้าสู่ระบบ",
@@ -485,7 +521,13 @@
     "studentIdPlaceholder": "1234567890",
     "studentIdLabel": "รหัสนักเรียน (10 หลัก)",
     "passwordPlaceholder": "••••••••",
-    "emailPlaceholder": "admin@school.com"
+    "emailPlaceholder": "admin@school.com",
+    "loginFailed": "เข้าสู่ระบบไม่สำเร็จ",
+    "quickLoginDescription": "เลือกบัญชีทดสอบด้านล่างเพื่อเข้าใช้ทันที",
+    "quickLoginPrompt": "เลือกเพื่อเข้าสู่ระบบทันที:",
+    "manualLoginDivider": "หรือกรอกด้วยตนเอง",
+    "superadminRole": "ผู้ดูแลสูงสุด",
+    "adminRole": "ผู้ดูแลระบบ"
   },
   "settings": {
     "title": "การตั้งค่า",

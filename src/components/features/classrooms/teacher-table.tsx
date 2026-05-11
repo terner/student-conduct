@@ -3,6 +3,7 @@
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
+import { useTranslations } from 'next-intl';
 
 interface TeacherAssignmentTableProps {
   classroomId: string;
@@ -11,6 +12,7 @@ interface TeacherAssignmentTableProps {
 }
 
 export function TeacherAssignmentTable({ teachers, classroomId, onAssign }: TeacherAssignmentTableProps) {
+  const classroomT = useTranslations('classroom');
   const homeroomTeacher = teachers.find(t =>
     t.assigned_classrooms?.some(c => c.classroom_id === classroomId && c.assignment_role === 'homeroom')
   );
@@ -27,14 +29,14 @@ export function TeacherAssignmentTable({ teachers, classroomId, onAssign }: Teac
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="space-y-2">
-        <Label>ครูประจำชั้น</Label>
+        <Label>{classroomT('homeroomTeacher')}</Label>
         <Select
           value={homeroomTeacher?.id || null}
           onValueChange={(value) => value && onAssign?.('homeroom', value)}
           itemToStringLabel={(value) => teacherLabel(String(value))}
         >
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="เลือกครูประจำชั้น" />
+            <SelectValue placeholder={classroomT('selectHomeroomTeacher')} />
           </SelectTrigger>
           <SelectContent>
             {teachers.map((teacher) => (
@@ -47,14 +49,14 @@ export function TeacherAssignmentTable({ teachers, classroomId, onAssign }: Teac
       </div>
 
       <div className="space-y-2">
-        <Label>ครูที่ปรึกษา</Label>
+        <Label>{classroomT('advisorTeacher')}</Label>
         <Select
           value={advisorTeacher?.id || null}
           onValueChange={(value) => value && onAssign?.('assistant', value)}
           itemToStringLabel={(value) => teacherLabel(String(value))}
         >
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="เลือกครูที่ปรึกษา" />
+            <SelectValue placeholder={classroomT('selectAdvisorTeacher')} />
           </SelectTrigger>
           <SelectContent>
             {teachers.map((teacher) => (

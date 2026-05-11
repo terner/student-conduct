@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
 import type { ClassroomWithDetails } from '@/lib/db/queries/classroom.queries';
+import { useTranslations } from 'next-intl';
 
 interface ClassroomTableProps {
   data: ClassroomWithDetails[];
@@ -20,12 +21,16 @@ interface ClassroomTableProps {
 }
 
 export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTableProps) {
-  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div></div>;
+  const classroomT = useTranslations('classroom');
+  const commonT = useTranslations('common');
+  const studentT = useTranslations('student');
+
+  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div></div>;
   if (!data || data.length === 0) return (
     <Empty>
       <EmptyHeader>
-        <EmptyTitle>ไม่มีห้องเรียน</EmptyTitle>
-        <EmptyDescription>ยังไม่มีข้อมูลห้องเรียนในระบบ</EmptyDescription>
+        <EmptyTitle>{classroomT('noClassrooms')}</EmptyTitle>
+        <EmptyDescription>{classroomT('noClassroomsDescription')}</EmptyDescription>
       </EmptyHeader>
     </Empty>
   );
@@ -35,13 +40,13 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>ชื่อห้อง</TableHead>
-            <TableHead>ระดับ</TableHead>
-            <TableHead>ชั้นปี</TableHead>
-            <TableHead>จำนวนนักเรียน</TableHead>
-            <TableHead>ครูประจำชั้น</TableHead>
-            <TableHead>ครูที่ปรึกษา</TableHead>
-            <TableHead className="w-[80px]">จัดการ</TableHead>
+            <TableHead>{classroomT('roomName')}</TableHead>
+            <TableHead>{classroomT('stage')}</TableHead>
+            <TableHead>{classroomT('gradeLevel')}</TableHead>
+            <TableHead>{classroomT('studentsCount')}</TableHead>
+            <TableHead>{classroomT('homeroomTeacher')}</TableHead>
+            <TableHead>{classroomT('advisorTeacher')}</TableHead>
+            <TableHead className="w-[80px]">{studentT('actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -53,7 +58,7 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
                 </Link>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{c.education_stage_name || 'ไม่ระบุ'}</Badge>
+                <Badge variant="outline">{c.education_stage_name || classroomT('notSpecified')}</Badge>
               </TableCell>
               <TableCell>{c.grade_level_name || c.grade_level}</TableCell>
               <TableCell>
@@ -63,10 +68,10 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
                 </span>
               </TableCell>
               <TableCell>
-                <span className="text-sm">{c.homeroom_teacher_name || '-'}</span>
+                <span className="text-sm">{c.homeroom_teacher_name || commonT('notAvailable')}</span>
               </TableCell>
               <TableCell>
-                <span className="text-sm">{c.advisor_teacher_name || '-'}</span>
+                <span className="text-sm">{c.advisor_teacher_name || commonT('notAvailable')}</span>
               </TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -75,10 +80,10 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem render={<Link href={`/classrooms/${c.id}`} />}>
-                      <Eye className="mr-2 h-4 w-4" />ดูรายละเอียด
+                      <Eye className="mr-2 h-4 w-4" />{classroomT('viewDetail')}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onEdit?.(c)}><Edit className="mr-2 h-4 w-4" />แก้ไข</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(c)}><Trash2 className="mr-2 h-4 w-4" />ลบ</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onEdit?.(c)}><Edit className="mr-2 h-4 w-4" />{commonT('edit')}</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(c)}><Trash2 className="mr-2 h-4 w-4" />{commonT('delete')}</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

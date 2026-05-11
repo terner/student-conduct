@@ -11,8 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { scoreRecordSchema, type ScoreRecordInput } from '@/lib/validation/schemas';
 import type { ScoreCategory } from '@/types';
-import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 import { EvidenceUploader } from './evidence-uploader';
+import { useTranslations } from 'next-intl';
 
 interface ScoreRecordFormProps {
   students: { id: string; full_name: string; student_id_number: string; classroom_name: string }[];
@@ -22,6 +22,8 @@ interface ScoreRecordFormProps {
 }
 
 export function ScoreRecordForm({ students, categories, onSubmit, loading }: ScoreRecordFormProps) {
+  const scoreT = useTranslations('score');
+  const studentT = useTranslations('student');
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ScoreCategory | null>(null);
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
@@ -41,7 +43,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
   const studentId = watch('student_id');
   const categoryId = watch('category_id');
 
-  const filteredStudents = students.filter(
+    const filteredStudents = students.filter(
     (s) =>
       s.full_name.includes(studentSearch) ||
       s.student_id_number.includes(studentSearch)
@@ -63,7 +65,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
 
   const handleFormSubmit = (formData: ScoreRecordInput) => {
     if (selectedCategory?.requires_evidence && evidenceFiles.length === 0) {
-      setEvidenceError('กรุณาแนบหลักฐานอย่างน้อย 1 รูป');
+      setEvidenceError(scoreT('evidenceRequiredOne'));
       return;
     }
     setEvidenceError('');
@@ -73,15 +75,15 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
       <div className="space-y-2">
-        <Label>นักเรียน *</Label>
+        <Label>{scoreT('studentRequired')}</Label>
         <Input
-          placeholder="ค้นหาชื่อหรือรหัสนักเรียน..."
+          placeholder={scoreT('searchStudentWithEllipsis')}
           value={studentSearch}
           onChange={(e) => setStudentSearch(e.target.value)}
         />
         <div className="max-h-[200px] overflow-y-auto rounded-md border">
           {filteredStudents.length === 0 ? (
-            <div className="p-3 text-sm text-muted-foreground text-center">ไม่พบนักเรียน</div>
+            <div className="p-3 text-sm text-muted-foreground text-center">{scoreT('noStudentsMatched')}</div>
           ) : (
             filteredStudents.slice(0, 20).map((s) => (
               <label
@@ -109,7 +111,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
       </div>
 
       <div className="space-y-2">
-        <Label>ประเภทคะแนน *</Label>
+        <Label>{scoreT('categoryRequired')}</Label>
         <Select value={categoryId} onValueChange={handleCategorySelect}
           itemToStringLabel={(value) => {
             const cat = categories.find(c => c.id === value);
@@ -118,16 +120,16 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="เลือกประเภท" />
+            <SelectValue placeholder={scoreT('selectCategory')} />
           </SelectTrigger>
           <SelectContent>
-            <div className="p-2 text-xs font-medium text-muted-foreground">หักคะแนน</div>
+            <div className="p-2 text-xs font-medium text-muted-foreground">{studentT('deductScore')}</div>
             {deductCategories.map((c) => (
               <SelectItem key={c.id} value={c.id} label={`${c.name} (${c.default_points})`}>
                 {c.name} ({c.default_points})
               </SelectItem>
             ))}
-            <div className="p-2 text-xs font-medium text-muted-foreground mt-2">เพิ่มคะแนน</div>
+            <div className="p-2 text-xs font-medium text-muted-foreground mt-2">{studentT('addScore')}</div>
             {addCategories.map((c) => (
               <SelectItem key={c.id} value={c.id} label={`${c.name} (+${Math.abs(c.default_points)})`}>
                 {c.name} (+{Math.abs(c.default_points)})
@@ -139,7 +141,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
       </div>
 
       <div className="space-y-2">
-        <Label>คะแนน *</Label>
+        <Label>{scoreT('pointsRequired')}</Label>
         <div className="flex items-center gap-2">
           {selectedCategory && (
             <span className="text-lg font-bold">
@@ -158,11 +160,11 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="note">หมายเหตุ</Label>
+        <Label htmlFor="note">{studentT('note')}</Label>
         <Textarea
           id="note"
           {...register('note')}
-          placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)"
+          placeholder={studentT('notePlaceholder')}
           rows={2}
         />
         {errors.note && <p className="text-xs text-destructive">{errors.note.message}</p>}
@@ -170,7 +172,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
 
       {selectedCategory?.requires_evidence && (
         <div className="space-y-2">
-          <Label>หลักฐาน * (จำเป็นสำหรับหมวดนี้)</Label>
+          <Label>{scoreT('evidenceRequiredForCategory')}</Label>
           <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} />
           {evidenceError && <p className="text-xs text-destructive">{evidenceError}</p>}
         </div>
@@ -178,7 +180,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
 
       {!selectedCategory?.requires_evidence && evidenceFiles.length > 0 && (
         <div className="space-y-2">
-          <Label>หลักฐาน (ไม่บังคับ)</Label>
+          <Label>{scoreT('evidenceOptional')}</Label>
           <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} />
         </div>
       )}
@@ -187,7 +189,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
         {isSubmitting || loading ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : null}
-        บันทึกคะแนน
+        {scoreT('recordTitle')}
       </Button>
     </form>
   );

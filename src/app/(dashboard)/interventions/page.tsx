@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Phone, Plus, MessageSquare, Home, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Phone, MessageSquare, Home, AlertTriangle, FileText } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
 import { createClient } from '@/lib/supabase/client';
+import { useTranslations } from 'next-intl';
 
 function formatProfileFullName(profile: any) {
   const prefix = (profile?.prefix || '').trim();
@@ -28,16 +28,21 @@ const typeIcon: Record<string, any> = {
   home_visit: Home, counseling: MessageSquare, bond: FileText,
 };
 
-const typeLabel: Record<string, string> = {
-  phone_call: 'โทรศัพท์', parent_meeting: 'ประชุมผู้ปกครอง', warning: 'ตักเตือน',
-  bond: 'ทัณฑ์บน', home_visit: 'เยี่ยมบ้าน', counseling: 'ให้คำปรึกษา', other: 'อื่นๆ',
-};
-
-import { FileText } from 'lucide-react';
-
 export default function InterventionsPage() {
+  const interventionT = useTranslations('intervention');
+  const studentT = useTranslations('student');
+  const commonT = useTranslations('common');
   const [interventions, setInterventions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const typeLabel: Record<string, string> = {
+    phone_call: interventionT('phoneCall'),
+    parent_meeting: interventionT('parentMeeting'),
+    warning: interventionT('warning'),
+    bond: interventionT('bond'),
+    home_visit: interventionT('homeVisit'),
+    counseling: interventionT('counseling'),
+    other: interventionT('other'),
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -58,15 +63,15 @@ export default function InterventionsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">บันทึกการติดตาม</h1>
-        <p className="text-muted-foreground mt-1">ประวัติการติดต่อและติดตามนักเรียน</p>
+        <h1 className="text-2xl font-bold">{interventionT('title')}</h1>
+        <p className="text-muted-foreground mt-1">{interventionT('description')}</p>
       </div>
 
       {interventions.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <Phone className="h-8 w-8 mx-auto mb-2" />
-            ยังไม่มีการบันทึกการติดตาม
+            {interventionT('noRecords')}
           </CardContent>
         </Card>
       ) : (
@@ -75,11 +80,11 @@ export default function InterventionsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>วันที่</TableHead>
-                  <TableHead>นักเรียน</TableHead>
-                  <TableHead>ประเภท</TableHead>
-                  <TableHead>สรุป</TableHead>
-                  <TableHead>ผลลัพธ์</TableHead>
+                  <TableHead>{interventionT('date')}</TableHead>
+                  <TableHead>{studentT('detail')}</TableHead>
+                  <TableHead>{interventionT('type')}</TableHead>
+                  <TableHead>{interventionT('summary')}</TableHead>
+                  <TableHead>{interventionT('outcome')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -88,14 +93,14 @@ export default function InterventionsPage() {
                   return (
                     <TableRow key={iv.id}>
                       <TableCell className="text-xs">{formatDateTime(iv.occurred_at)}</TableCell>
-                      <TableCell className="font-medium">{formatProfileFullName(iv.students?.profiles) || '-'}</TableCell>
+                      <TableCell className="font-medium">{formatProfileFullName(iv.students?.profiles) || commonT('notAvailable')}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="flex items-center gap-1 w-fit">
                           <Icon className="h-3 w-3" /> {typeLabel[iv.intervention_type] || iv.intervention_type}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs max-w-[300px] truncate">{iv.summary}</TableCell>
-                      <TableCell className="text-xs max-w-[200px] truncate">{iv.outcome || '-'}</TableCell>
+                      <TableCell className="text-xs max-w-[200px] truncate">{iv.outcome || commonT('notAvailable')}</TableCell>
                     </TableRow>
                   );
                 })}

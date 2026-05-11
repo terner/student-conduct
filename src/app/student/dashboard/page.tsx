@@ -8,6 +8,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { getStudentDashboard } from '@/lib/actions/student.action';
 import { checkMustChangePassword, checkPDPAConsent } from '@/lib/actions/dashboard.action';
+import { useTranslations } from 'next-intl';
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString('th-TH', {
@@ -17,6 +18,10 @@ function formatDateTime(value: string) {
 }
 
 export default function StudentDashboardPage() {
+  const studentT = useTranslations('student');
+  const classroomT = useTranslations('classroom');
+  const scoreT = useTranslations('score');
+  const commonT = useTranslations('common');
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [studentInfo, setStudentInfo] = useState<any>(null);
@@ -50,13 +55,13 @@ export default function StudentDashboardPage() {
     load();
   }, [router]);
 
-  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div></div>;
+  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div></div>;
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">คะแนนของฉัน</h1>
-        <p className="text-muted-foreground mt-1">ดูคะแนนความประพฤติและประวัติ</p>
+        <h1 className="text-2xl font-bold">{studentT('myScoreTitle')}</h1>
+        <p className="text-muted-foreground mt-1">{studentT('myScoreDescription')}</p>
       </div>
 
       {studentInfo && (
@@ -66,26 +71,26 @@ export default function StudentDashboardPage() {
               {studentInfo.prefix || ''}{studentInfo.full_name || ''}
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              {studentInfo.classroom_name || studentInfo.classrooms?.name || 'ไม่ระบุชั้นเรียน'} · รหัสนักเรียน: {studentInfo.student_id_number}
+              {studentInfo.classroom_name || studentInfo.classrooms?.name || studentT('classroomNotSpecified')} · {studentT('id')}: {studentInfo.student_id_number}
             </p>
           </CardHeader>
           <CardContent>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-muted-foreground">ครูประจำชั้น</dt>
-                <dd className="font-medium">{studentInfo.homeroom_teacher_name || '-'}</dd>
+                <dt className="text-muted-foreground">{classroomT('homeroomTeacher')}</dt>
+                <dd className="font-medium">{studentInfo.homeroom_teacher_name || commonT('notAvailable')}</dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">ครูที่ปรึกษา</dt>
-                <dd className="font-medium">{studentInfo.advisor_teacher_name || '-'}</dd>
+                <dt className="text-muted-foreground">{classroomT('advisorTeacher')}</dt>
+                <dd className="font-medium">{studentInfo.advisor_teacher_name || commonT('notAvailable')}</dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">ชื่อผู้ปกครอง</dt>
-                <dd className="font-medium">{studentInfo.guardian_full_name || '-'}</dd>
+                <dt className="text-muted-foreground">{studentT('guardianName')}</dt>
+                <dd className="font-medium">{studentInfo.guardian_full_name || commonT('notAvailable')}</dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">เบอร์โทรผู้ปกครอง</dt>
-                <dd className="font-medium">{studentInfo.guardian_phone || '-'}</dd>
+                <dt className="text-muted-foreground">{studentT('guardianPhone')}</dt>
+                <dd className="font-medium">{studentInfo.guardian_phone || commonT('notAvailable')}</dd>
               </div>
             </dl>
           </CardContent>
@@ -96,49 +101,49 @@ export default function StudentDashboardPage() {
         <div className="grid gap-4 grid-cols-3">
           <div className="p-4 rounded-lg bg-muted text-center">
             <div className="text-3xl font-bold">{summary.current_score}</div>
-            <div className="text-xs text-muted-foreground">คะแนนปัจจุบัน</div>
+            <div className="text-xs text-muted-foreground">{studentT('score')}</div>
           </div>
           <div className="p-4 rounded-lg bg-muted text-center">
             <div className="text-3xl font-bold text-destructive">{summary.total_deducted}</div>
-            <div className="text-xs text-muted-foreground">ถูกหัก</div>
+            <div className="text-xs text-muted-foreground">{studentT('deducted')}</div>
           </div>
           <div className="p-4 rounded-lg bg-muted text-center">
             <div className="text-3xl font-bold text-green-600">+{summary.total_added}</div>
-            <div className="text-xs text-muted-foreground">ได้เพิ่ม</div>
+            <div className="text-xs text-muted-foreground">{studentT('added')}</div>
           </div>
         </div>
       )}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">ประวัติคะแนน</CardTitle>
+          <CardTitle className="text-lg">{studentT('scoreHistory')}</CardTitle>
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">ยังไม่มีประวัติการบันทึกคะแนน</p>
+            <p className="text-center text-muted-foreground py-4">{studentT('noScoreHistory')}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>วันที่</TableHead>
-                  <TableHead>ประเภท</TableHead>
-                  <TableHead>คะแนน</TableHead>
-                  <TableHead>หมายเหตุ</TableHead>
-                  <TableHead>บันทึกโดย</TableHead>
+                  <TableHead>{scoreT('date')}</TableHead>
+                  <TableHead>{scoreT('type')}</TableHead>
+                  <TableHead>{scoreT('points')}</TableHead>
+                  <TableHead>{studentT('note')}</TableHead>
+                  <TableHead>{scoreT('recordedBy')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions.map((t: any, i: number) => (
                   <TableRow key={i}>
                     <TableCell className="text-xs">{formatDateTime(t.recorded_at)}</TableCell>
-                    <TableCell>{t.score_categories?.name || '-'}</TableCell>
+                    <TableCell>{t.score_categories?.name || commonT('notAvailable')}</TableCell>
                     <TableCell>
                       <span className={t.points > 0 ? 'text-green-600 font-medium' : 'text-destructive font-medium'}>
                         {t.points > 0 ? `+${t.points}` : t.points}
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{t.note || '-'}</TableCell>
-                    <TableCell className="text-xs">{t.profiles?.full_name || '-'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{t.note || commonT('notAvailable')}</TableCell>
+                    <TableCell className="text-xs">{t.profiles?.full_name || commonT('notAvailable')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

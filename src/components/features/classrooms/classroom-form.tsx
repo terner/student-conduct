@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { classroomSchema, type ClassroomInput } from '@/lib/validation/schemas';
 import { getEducationStages } from '@/lib/actions/education-stage.action';
 import { getGradeLevels, type GradeLevelItem } from '@/lib/actions/grade-level.action';
+import { useTranslations } from 'next-intl';
 
 interface ClassroomFormProps {
   defaultValues?: Partial<ClassroomInput>;
@@ -23,6 +24,8 @@ interface ClassroomFormProps {
 type ClassroomFormValues = z.input<typeof classroomSchema>;
 
 export function ClassroomForm({ defaultValues, onSubmit, onCancel }: ClassroomFormProps) {
+  const classroomT = useTranslations('classroom');
+  const commonT = useTranslations('common');
   const isEditing = !!defaultValues?.name;
   const [stages, setStages] = useState<{ id: string; name_th: string; code: string }[]>([]);
   const [gradeLevels, setGradeLevels] = useState<GradeLevelItem[]>([]);
@@ -72,18 +75,18 @@ export function ClassroomForm({ defaultValues, onSubmit, onCancel }: ClassroomFo
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {isEditing && (
         <div className="space-y-2">
-          <Label htmlFor="name">ชื่อห้องเรียน *</Label>
-          <Input id="name" {...register('name')} placeholder="เช่น ป.1/1, ม.1/1" />
+          <Label htmlFor="name">{classroomT('nameRequired')}</Label>
+          <Input id="name" {...register('name')} placeholder={classroomT('namePlaceholder')} />
           {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
         </div>
       )}
 
       <div className="space-y-2">
-        <Label>ระดับ *</Label>
+        <Label>{classroomT('stageRequired')}</Label>
         {loadingStages ? (
           <div className="flex items-center gap-2 h-11 px-3 rounded-md border text-sm text-muted-foreground">
             <Spinner className="size-4" />
-            กำลังโหลด...
+            {commonT('loading')}
           </div>
         ) : (
           <>
@@ -99,7 +102,7 @@ export function ClassroomForm({ defaultValues, onSubmit, onCancel }: ClassroomFo
                 return stage ? stage.name_th : String(value);
               }}
             >
-              <SelectTrigger><SelectValue placeholder="เลือกระดับ" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={classroomT('selectStage')} /></SelectTrigger>
               <SelectContent>
                 {stages.map(s => (
                   <SelectItem key={s.id} value={s.id} label={s.name_th}>
@@ -114,7 +117,7 @@ export function ClassroomForm({ defaultValues, onSubmit, onCancel }: ClassroomFo
       </div>
 
       <div className="space-y-2">
-        <Label>ชั้นปี *</Label>
+        <Label>{classroomT('gradeRequired')}</Label>
         <Select
           value={selectedGradeLevelId || ''}
           onValueChange={(v) => {
@@ -129,7 +132,7 @@ export function ClassroomForm({ defaultValues, onSubmit, onCancel }: ClassroomFo
             return level ? level.name : String(value);
           }}
         >
-          <SelectTrigger><SelectValue placeholder="เลือกชั้นปี" /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder={classroomT('selectGradeLevel')} /></SelectTrigger>
           <SelectContent>
             {availableGradeLevels.map(level => (
               <SelectItem key={level.id} value={level.id} label={level.name}>
@@ -145,22 +148,22 @@ export function ClassroomForm({ defaultValues, onSubmit, onCancel }: ClassroomFo
 
       {!isEditing && (
         <div className="space-y-2">
-          <Label htmlFor="room_count">จำนวนห้อง *</Label>
+          <Label htmlFor="room_count">{classroomT('roomCountRequired')}</Label>
           <Input id="room_count" type="number" min={1} max={20} {...register('room_count', { valueAsNumber: true })} />
           {errors.room_count && <p className="text-xs text-destructive">{errors.room_count.message}</p>}
           {generatedNames.length > 0 && selectedGradeLevel && (
             <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-              จะสร้าง: <span className="font-medium text-foreground">{generatedNames.join(', ')}</span>
+              {classroomT('willCreateLabel')} <span className="font-medium text-foreground">{generatedNames.join(', ')}</span>
             </div>
           )}
         </div>
       )}
 
       <div className="flex justify-end gap-2 pt-2">
-        {onCancel && <Button type="button" variant="outline" onClick={onCancel}>ยกเลิก</Button>}
+        {onCancel && <Button type="button" variant="outline" onClick={onCancel}>{commonT('cancel')}</Button>}
         <Button type="submit" disabled={isSubmitting || loadingStages}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {defaultValues?.name ? 'บันทึก' : 'เพิ่มห้องเรียน'}
+          {defaultValues?.name ? commonT('save') : classroomT('add')}
         </Button>
       </div>
     </form>

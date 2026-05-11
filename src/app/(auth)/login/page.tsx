@@ -10,9 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { loginEmailSchema, loginStudentSchema, type LoginEmailInput, type LoginStudentInput } from '@/lib/validation/schemas';
+import { useTranslations } from 'next-intl';
 
 type QuickUser = {
   label: string;
+  labelKey?: 'superadminRole' | 'adminRole';
   email?: string;
   studentId?: string;
   password: string;
@@ -20,8 +22,8 @@ type QuickUser = {
 };
 
 const staffQuickUsers: QuickUser[] = [
-  { label: 'ผู้ดูแลสูงสุด', email: 'admin@school.com', password: 'Admin123!', icon: ShieldCheck },
-  { label: 'ผู้ดูแลระบบ', email: 'admin.approval@school.com', password: 'Admin123!', icon: ShieldCheck },
+  { label: 'superadmin', labelKey: 'superadminRole', email: 'admin@school.com', password: 'Admin123!', icon: ShieldCheck },
+  { label: 'admin', labelKey: 'adminRole', email: 'admin.approval@school.com', password: 'Admin123!', icon: ShieldCheck },
   { label: 'นางสาวอรทัย ใจดี', email: 'teacher1@school.com', password: 'Teacher@123', icon: GraduationCap },
 ];
 
@@ -32,14 +34,14 @@ const studentQuickUsers: QuickUser[] = [
   { label: 'ณิชา ตั้งใจเรียน', studentId: '2568000004', password: 'Student@123', icon: UserRound },
 ];
 
-async function quickLogin(body: Record<string, string>) {
+async function quickLogin(body: Record<string, string>, fallbackError: string) {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   const result = await res.json();
-  if (!res.ok) throw new Error(result.error || 'เข้าสู่ระบบไม่สำเร็จ');
+  if (!res.ok) throw new Error(result.error || fallbackError);
   if (result.must_change_password) {
     window.location.href = '/change-password';
     return;
@@ -57,9 +59,12 @@ async function quickLogin(body: Record<string, string>) {
 }
 
 export default function LoginPage() {
+  const authT = useTranslations('auth');
+  const commonT = useTranslations('common');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState<'staff' | 'student'>('staff');
+  const getQuickUserLabel = (user: QuickUser) => user.labelKey ? authT(user.labelKey) : user.label;
 
   const emailForm = useForm<LoginEmailInput>({
     resolver: zodResolver(loginEmailSchema),
@@ -75,9 +80,9 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      await quickLogin({ email: data.email, password: data.password });
+      await quickLogin({ email: data.email, password: data.password }, authT('loginFailed'));
     } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาด');
+      setError(err.message || commonT('error'));
     } finally {
       setLoading(false);
     }
@@ -87,9 +92,9 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      await quickLogin({ student_id: data.student_id, password: data.password });
+      await quickLogin({ student_id: data.student_id, password: data.password }, authT('loginFailed'));
     } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาด');
+      setError(err.message || commonT('error'));
     } finally {
       setLoading(false);
     }
@@ -100,12 +105,12 @@ export default function LoginPage() {
     setError('');
     try {
       if (user.email) {
-        await quickLogin({ email: user.email, password: user.password });
+        await quickLogin({ email: user.email, password: user.password }, authT('loginFailed'));
       } else if (user.studentId) {
-        await quickLogin({ student_id: user.studentId, password: user.password });
+        await quickLogin({ student_id: user.studentId, password: user.password }, authT('loginFailed'));
       }
     } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาด');
+      setError(err.message || commonT('error'));
       setLoading(false);
     }
   }
@@ -117,26 +122,26 @@ export default function LoginPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <School className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-xl">ระบบคะแนนความประพฤตินักเรียน</CardTitle>
-          <CardDescription>เลือกบัญชีทดสอบด้านล่างเพื่อเข้าใช้ทันที</CardDescription>
+          <CardTitle className="text-xl">{authT('loginTitle')}</CardTitle>
+          <CardDescription>{authT('quickLoginDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={loginMode} onValueChange={(v) => { setLoginMode(v as 'staff' | 'student'); setError(''); }} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="staff">
                 <Mail className="h-4 w-4 mr-1" />
-                ครู/ผู้ดูแล
+                {authT('staffLogin')}
               </TabsTrigger>
               <TabsTrigger value="student">
                 <UserIcon className="h-4 w-4 mr-1" />
-                นักเรียน
+                {authT('studentLogin')}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="staff">
               {/* Quick login buttons */}
               <div className="space-y-2 mb-4">
-                <p className="text-xs text-muted-foreground font-medium">เลือกเพื่อเข้าสู่ระบบทันที:</p>
+                <p className="text-xs text-muted-foreground font-medium">{authT('quickLoginPrompt')}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {staffQuickUsers.map((user) => {
                     const Icon = user.icon;
@@ -149,7 +154,7 @@ export default function LoginPage() {
                         className="flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50"
                       >
                         <Icon className="h-5 w-5 text-primary" />
-                        <span className="text-xs font-medium leading-tight">{user.label}</span>
+                        <span className="text-xs font-medium leading-tight">{getQuickUserLabel(user)}</span>
                       </button>
                     );
                   })}
@@ -161,7 +166,7 @@ export default function LoginPage() {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-card px-2 text-muted-foreground">หรือกรอกด้วยตนเอง</span>
+                  <span className="bg-card px-2 text-muted-foreground">{authT('manualLoginDivider')}</span>
                 </div>
               </div>
 
@@ -174,11 +179,11 @@ export default function LoginPage() {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">อีเมล</Label>
+                  <Label htmlFor="email">{authT('email')}</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@school.com"
+                    placeholder={authT('emailPlaceholder')}
                     {...emailForm.register('email')}
                     autoComplete="email"
                   />
@@ -188,11 +193,11 @@ export default function LoginPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">รหัสผ่าน</Label>
+                  <Label htmlFor="password">{authT('password')}</Label>
                   <Input
                     id="password"
                     type="password"
-                    placeholder="••••••••"
+                    placeholder={authT('passwordPlaceholder')}
                     {...emailForm.register('password')}
                     autoComplete="current-password"
                   />
@@ -203,7 +208,7 @@ export default function LoginPage() {
 
                 <Button type="submit" className="w-full" disabled={loading}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  {loading ? 'กำลังเข้า...' : 'เข้าสู่ระบบ'}
+                  {loading ? authT('loggingIn') : authT('loginButton')}
                 </Button>
               </form>
             </TabsContent>
@@ -211,7 +216,7 @@ export default function LoginPage() {
             <TabsContent value="student">
               {/* Quick login buttons */}
               <div className="space-y-2 mb-4">
-                <p className="text-xs text-muted-foreground font-medium">เลือกเพื่อเข้าสู่ระบบทันที:</p>
+                <p className="text-xs text-muted-foreground font-medium">{authT('quickLoginPrompt')}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {studentQuickUsers.map((user) => {
                     const Icon = user.icon;
@@ -224,7 +229,7 @@ export default function LoginPage() {
                         className="flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50"
                       >
                         <Icon className="h-5 w-5 text-primary" />
-                        <span className="text-xs font-medium leading-tight">{user.label}</span>
+                        <span className="text-xs font-medium leading-tight">{getQuickUserLabel(user)}</span>
                       </button>
                     );
                   })}
@@ -236,7 +241,7 @@ export default function LoginPage() {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-card px-2 text-muted-foreground">หรือกรอกด้วยตนเอง</span>
+                  <span className="bg-card px-2 text-muted-foreground">{authT('manualLoginDivider')}</span>
                 </div>
               </div>
 
@@ -249,11 +254,11 @@ export default function LoginPage() {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="student_id">รหัสนักเรียน (10 หลัก)</Label>
+                  <Label htmlFor="student_id">{authT('studentIdLabel')}</Label>
                   <Input
                     id="student_id"
                     type="text"
-                    placeholder="1234567890"
+                    placeholder={authT('studentIdPlaceholder')}
                     maxLength={10}
                     {...studentForm.register('student_id')}
                     autoComplete="username"
@@ -264,11 +269,11 @@ export default function LoginPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="student_password">รหัสผ่าน</Label>
+                  <Label htmlFor="student_password">{authT('password')}</Label>
                   <Input
                     id="student_password"
                     type="password"
-                    placeholder="••••••••"
+                    placeholder={authT('passwordPlaceholder')}
                     {...studentForm.register('password')}
                     autoComplete="current-password"
                   />
@@ -279,7 +284,7 @@ export default function LoginPage() {
 
                 <Button type="submit" className="w-full" disabled={loading}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  {loading ? 'กำลังเข้า...' : 'เข้าสู่ระบบ'}
+                  {loading ? authT('loggingIn') : authT('loginButton')}
                 </Button>
               </form>
             </TabsContent>
