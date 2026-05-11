@@ -1023,7 +1023,11 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
 
 export async function getThresholdReport(academicYearId?: string) {
   return withAuth(async (profile) => {
-    const supabase = await createClient();
+    if (!canApproveScores(profile)) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายงานถึงเกณฑ์' } };
+    }
+
+    const supabase = await createAdminClient();
 
     let acYearQuery = supabase
       .from('academic_years')
@@ -1047,7 +1051,17 @@ export async function getThresholdReport(academicYearId?: string) {
       deducted: number;
       action: string;
       color: string;
-    }> = (thresholdsRes.data?.value as any) || [];
+    }> = (((thresholdsRes.data?.value as any) || []) as Array<{
+      deducted: number;
+      action: string;
+      color: string;
+    }>)
+      .map((threshold) => ({
+        ...threshold,
+        deducted: Number(threshold.deducted),
+      }))
+      .filter((threshold) => Number.isFinite(threshold.deducted))
+      .sort((a, b) => a.deducted - b.deducted);
 
     // Get all active students
     const { data: enrollmentRows } = await supabase

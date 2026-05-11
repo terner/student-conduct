@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getDashboard, checkPDPAConsent, checkMustChangePassword } from '@/lib/actions/dashboard.action';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
+import { createClient } from '@/lib/supabase/client';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -24,6 +25,17 @@ export default function DashboardPage() {
   const [atRisk, setAtRisk] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const loadDashboard = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
+    const res = await getDashboard({ academic_year_id: selectedAcademicYearId || undefined });
+    if (res.success) {
+      setStats(res.data.stats);
+      setRecentTx(res.data.recentTransactions || []);
+      setAtRisk(res.data.atRiskStudents?.slice(0, 5) || []);
+    }
+    setLoading(false);
+  }, [selectedAcademicYearId]);
+
   function formatDateTime(value?: string) {
     if (!value) return '';
     return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-US', {
@@ -34,6 +46,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
       // Check must_change_password first
       const passwordRes = await checkMustChangePassword();
       if (passwordRes.success && passwordRes.data?.must_change_password) {
@@ -48,17 +61,48 @@ export default function DashboardPage() {
         return;
       }
 
-      // Single consolidated call
-      const res = await getDashboard({ academic_year_id: selectedAcademicYearId || undefined });
-      if (res.success) {
-        setStats(res.data.stats);
-        setRecentTx(res.data.recentTransactions || []);
-        setAtRisk(res.data.atRiskStudents?.slice(0, 5) || []);
-      }
-      setLoading(false);
+      await loadDashboard();
     }
     load();
-  }, [router, selectedAcademicYearId]);
+  }, [loadDashboard, router, selectedAcademicYearId]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      loadDashboard();
+    }, 30_000);
+    const handleFocus = () => loadDashboard();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadDashboard();
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [loadDashboard]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`dashboard-score-transactions:${selectedAcademicYearId || 'current'}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'score_transactions' },
+        (payload) => {
+          const row = (payload.new || payload.old) as { academic_year_id?: string } | null;
+          if (!selectedAcademicYearId || !row?.academic_year_id || row.academic_year_id === selectedAcademicYearId) {
+            loadDashboard();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadDashboard, selectedAcademicYearId]);
 
   if (loading) return <div className="flex justify-center items-center min-h-[400px]"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{common('loading')}</p></div></div>;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, ChevronLeft, ChevronRight, Download, Eye, Search } from 'lucide-react';
@@ -14,6 +14,7 @@ import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { getThresholdReport, logReportExport } from '@/lib/actions/report.action';
 import { exportCsv } from '@/lib/utils/csv';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
+import { createClient } from '@/lib/supabase/client';
 
 const PAGE_SIZE = 25;
 
@@ -29,15 +30,47 @@ export default function ThresholdReportPage() {
   const [classroomFilter, setClassroomFilter] = useState('all');
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      const result = await getThresholdReport(selectedAcademicYearId || undefined);
-      if (result.success) setReportData(result.data);
-      setLoading(false);
-    }
-    load();
+  const loadReport = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
+    const result = await getThresholdReport(selectedAcademicYearId || undefined);
+    if (result.success) setReportData(result.data);
+    if (showSpinner) setLoading(false);
   }, [selectedAcademicYearId]);
+
+  useEffect(() => {
+    loadReport(true);
+  }, [loadReport]);
+
+  useEffect(() => {
+    const refresh = () => loadReport(false);
+    const interval = window.setInterval(refresh, 30000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [loadReport]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`threshold-report:${selectedAcademicYearId || 'current'}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'score_transactions' },
+        (payload) => {
+          const row = (payload.new || payload.old || {}) as { academic_year_id?: string };
+          if (!selectedAcademicYearId || row.academic_year_id === selectedAcademicYearId) {
+            loadReport(false);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadReport, selectedAcademicYearId]);
 
   const students = reportData?.students || [];
   const classrooms = Array.from(new Set(students.map((s: any) => s.classroom_name).filter(Boolean))).sort() as string[];
