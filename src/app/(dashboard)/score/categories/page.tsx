@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Plus, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import { ScoreCategoryForm } from '@/components/features/scores/score-category-f
 import type { ScoreCategory } from '@/types';
 
 export default function ScoreCategoryPage() {
+  const t = useTranslations('score');
   const [categories, setCategories] = useState<ScoreCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -40,19 +42,19 @@ export default function ScoreCategoryPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">จัดการประเภทคะแนน</h1>
-          <p className="text-muted-foreground mt-1">เพิ่ม แก้ไข จัดการหมวดหมู่คะแนนความประพฤติ</p>
+          <h1 className="text-2xl font-bold">{t('categoryManageTitle')}</h1>
+          <p className="text-muted-foreground mt-1">{t('categoryManageDescription')}</p>
         </div>
         <Button onClick={() => { setEditCategory(null); setShowForm(true); }}>
           <Plus className="mr-2 h-4 w-4" />
-          เพิ่มประเภท
+          {t('addCategory')}
         </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-destructive">หักคะแนน</CardTitle>
+            <CardTitle className="text-lg text-destructive">{t('deductType')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {categories.filter(c => c.type === 'deduct').map(c => (
@@ -63,7 +65,7 @@ export default function ScoreCategoryPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-destructive">{c.default_points}</Badge>
-                  {c.requires_evidence && <Badge variant="outline" className="text-xs">ต้องมีหลักฐาน</Badge>}
+                  {c.requires_evidence && <Badge variant="outline" className="text-xs">{t('requiresEvidence')}</Badge>}
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditCategory(c); setShowForm(true); }}>
                     <Pencil className="h-3 w-3" />
                   </Button>
@@ -75,7 +77,7 @@ export default function ScoreCategoryPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-green-600">เพิ่มคะแนน</CardTitle>
+            <CardTitle className="text-lg text-green-600">{t('addType')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {categories.filter(c => c.type === 'add').map(c => (
@@ -99,7 +101,7 @@ export default function ScoreCategoryPage() {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editCategory ? 'แก้ไขประเภทคะแนน' : 'เพิ่มประเภทคะแนน'}</DialogTitle>
+            <DialogTitle>{editCategory ? t('editCategory') : t('addCategoryTitle')}</DialogTitle>
           </DialogHeader>
           <ScoreCategoryForm
             defaultValues={editCategory || undefined}

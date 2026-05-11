@@ -6,12 +6,14 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 
 Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai Font
 
-## Current Implementation Snapshot — 2026-05-10
+## Current Implementation Snapshot — 2026-05-11
 
 สถานะล่าสุดของระบบใน repo นี้:
 
 - ใช้ Next.js 16 App Router + TypeScript + Supabase
-- มี global academic year selector ใน top bar และปีการศึกษาที่เลือกมีผลกับชุดข้อมูลหลัก เช่น dashboard, รายชื่อนักเรียน, ห้องเรียน, บันทึกคะแนน
+- มี global academic year selector ใน top bar สำหรับเลือกดูข้อมูลย้อนหลังตามปีการศึกษา เช่น dashboard, รายชื่อนักเรียน, ห้องเรียน, รายงาน และประวัติคะแนน
+- Workflow ที่ต้องอิงปีปัจจุบันจริงของระบบ เช่น login นักเรียนและข้อมูลชุดปัจจุบัน ต้องตรวจจาก `academic_years.is_current = true` ไม่ใช่ค่าที่ผู้ใช้เลือกเอง
+- หน้า Settings → ปีการศึกษา ใช้ดูสถานะปีการศึกษา แจ้งเตือนเมื่อใกล้หมดปีหรือยังไม่มีปีปัจจุบัน และมี action เฉพาะสำหรับขึ้นปีการศึกษาถัดไปหลังปีเดิมสิ้นสุดแล้ว
 - โครงสร้างชั้นเรียนเปลี่ยนเป็น master data ตามลำดับ:
   1. ปีการศึกษา (`academic_years`)
   2. ระดับชั้นการศึกษา (`education_stages`) เช่น อนุบาล, ประถมศึกษา, มัธยมศึกษา, มัธยมปลาย
@@ -30,14 +32,27 @@ Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
 - ห้องเรียนรองรับทั้งครูประจำชั้นและครูที่ปรึกษา โดยเป็นคนเดียวกันได้
 - ตารางรายชื่อนักเรียนแสดงคะแนนปัจจุบัน และกด row เพื่อเข้าหน้า profile ได้
 - ประวัติคะแนนรองรับ evidence metadata และ modal แสดงรูปหลักฐานถ้ามี
-- Settings มีช่อง Google Drive config สำหรับงานรูปโปรไฟล์และหลักฐานคะแนนใน phase ถัดไป
+- Google Drive storage มี implementation แล้วสำหรับรูปโปรไฟล์และหลักฐานคะแนนผ่าน Settings config แต่ยังต้อง harden/verify ก่อนใช้งานจริง เช่น bucket fallback, validation, rate limit, test connection และสิทธิ์ folder/service account
+
+## Academic Year Policy — 2026-05-11
+
+- ปีปัจจุบันของระบบมีแหล่งอ้างอิงเดียวคือ `academic_years.is_current = true`
+- ผู้ใช้ไม่ควรเปลี่ยน "ปีปัจจุบันของระบบ" เองจากการใช้งานทั่วไป เพราะจะทำให้ login, คะแนน, รายชื่อนักเรียน และข้อมูลทดสอบอ้างอิงคนละชุด
+- ตัวเลือกปีใน top bar มีไว้เพื่อ "ดูข้อมูลปีเก่า/ข้อมูลย้อนหลัง" เท่านั้น ไม่ใช่การเปลี่ยนปีปัจจุบันของระบบ
+- เมื่อนักเรียน login ระบบต้องหา enrollment ของปีที่ `is_current = true` เสมอ
+- การนำเข้าและบันทึกคะแนนทำได้เฉพาะปีการศึกษาปัจจุบันเท่านั้น ถ้าเลือกปีเก่าจาก top bar ให้แสดงเป็น disabled/read-only แทนการอนุญาตให้ทำรายการ
+- การขึ้นปีการศึกษาใหม่ทำได้ผ่าน action เฉพาะ "ขึ้นปีการศึกษาถัดไป" เท่านั้น โดยต้องตรวจว่า `end_date` ของปีปัจจุบันสิ้นสุดแล้วก่อนทำรายการ
+- เมื่อขึ้นปีการศึกษาถัดไป ระบบต้องสร้าง/ตรวจปีถัดไป, copy ห้องเรียน, copy ครูประจำห้อง/ครูที่ปรึกษา แล้วจึงตั้งปีถัดไปเป็น `is_current = true` อัตโนมัติ
+- ห้ามมีปุ่มเปลี่ยน `is_current` แบบเลือกปีใดก็ได้ใน UI ปกติ
+- หากยังไม่มีปีปัจจุบัน หรือปีปัจจุบันใกล้หมด/หมดแล้วแต่ยังไม่มีปีถัดไป ระบบควรแจ้งเตือนผู้ดูแลให้สร้างปีใหม่
 
 ## Open Work — ต้องทำต่อ
 
-- ทำ Google Drive upload จริงสำหรับรูปโปรไฟล์และรูปหลักฐานคะแนน โดยใช้ค่าจาก Settings
+- ทำ Google Drive upload ให้พร้อม production: ทดสอบ service account/folder จริง, เพิ่มปุ่ม test connection, ตรวจ private key handling, จำกัด type/size/count/rate limit, แก้ fallback bucket evidence และบันทึก audit log
 - ทำ permission/admin UI ให้กำหนด role หรือเพิ่ม admin ให้ครูบางคนจากหน้า UI ได้ครบ
 - เก็บ audit/action logs ให้ครบทุก action สำคัญ เช่น import, export, setting change, role change, score change
-- ทำ i18n ให้ครบทุกหน้า ตอนนี้มี config และ switcher แล้ว แต่ยังมี hardcoded Thai หลายจุด
+- ทำ i18n ให้ครบทุกหน้า ตอนนี้มี config และ switcher แล้ว แต่ยังมี hardcoded Thai จำนวนมาก โดยเฉพาะ reports, score, settings, teacher, student profile/PDF, notification และ server/API error messages
+- ทำรายงานนักเรียนถึงเกณฑ์และการแจ้งเตือนให้ครบ: i18n, filter/search/pagination, export naming, notification generation เมื่อถึง threshold, notification ให้ admin/ครูประจำห้อง/ครูที่ปรึกษาตาม assignment และ mark-read ownership
 - ทำ annual promotion/rollover: สร้างปีใหม่, copy/create ห้องตามโครงสร้าง, ย้าย enrollment นักเรียนรายปี
 - ทำ import wizard สำหรับปีการศึกษาใหม่ให้ preview ก่อนบันทึก และจัดการนักเรียนซ้ำ/ย้าย/จบการศึกษา
 - ทำรายงาน/สถิติเพิ่มเติม เช่น monthly snapshot, school statistics, export PDF/Excel
@@ -1669,6 +1684,24 @@ type ErrorResponse = {
 
 - ประเภท notification เริ่มต้น: score_recorded, pending_approval, threshold_reached, report_ready
 
+### 7.1.1 Threshold Notifications — ต้องกลับมาทำต่อ
+
+- เมื่อคะแนนหักสะสมของนักเรียนถึงเกณฑ์ใน Settings → เกณฑ์แจ้งเตือน ระบบต้องสร้าง notification ประเภท `threshold_reached`
+
+- ผู้รับ notification:
+  - admin/superadmin ที่มีสิทธิ์ดูรายงานถึงเกณฑ์
+  - ครูประจำชั้นและครูที่ปรึกษาของห้องเรียนนั้นตาม `teacher_classrooms`
+
+- Notification ต้องอ้างอิงข้อมูลปีการศึกษาปัจจุบันเท่านั้น และต้องบันทึก metadata อย่างน้อย: `student_id`, `academic_year_id`, `classroom_id`, `threshold_level`, `deducted_total`, `current_score`
+
+- ต้องป้องกัน duplicate notification ต่อ `student_id + academic_year_id + threshold_level` เพื่อไม่ให้แจ้งซ้ำทุกครั้งที่เปิดรายงานหรือ refresh
+
+- Bell notification ต้องแสดงจำนวน unread, type/status, เวลาสร้าง, และมี target link ไปหน้า student profile หรือรายงานถึงเกณฑ์
+
+- `PATCH /api/notifications` สำหรับ mark read ต้องตรวจ ownership ของ notification ก่อน update เสมอ
+
+- รายงาน `/reports/threshold` ต้องสัมพันธ์กับระบบ notification: ใช้ปีที่เลือกจาก topbar เพื่อดูย้อนหลังได้ แต่การสร้าง notification จริงต้องเกิดจาก event ของปีปัจจุบันเท่านั้น
+
 ### 7.2 Line Notify (Optional)
 
 - ส่ง Line message ไปหาผู้ปกครองเมื่อคะแนนถึง threshold
@@ -3233,6 +3266,8 @@ export async function POST(req: Request) { ... }
 - Admin receives notification for pending approvals.
 
 - Assigned teachers receive notification when students in assigned classrooms reach configured thresholds.
+
+- Threshold notifications must follow section 7.1.1: current-year event only, duplicate-safe per student/year/level, and mark-read ownership enforced.
 
 - Teacher/Admin can create intervention logs for phone calls, parent meetings, warnings, bonds, home visits, counseling, and other follow-ups.
 

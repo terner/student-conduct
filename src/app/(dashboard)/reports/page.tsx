@@ -1,37 +1,38 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { FileText, Users, AlertTriangle, ChartBar } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const reports = [
   {
-    title: 'รายงานอันดับนักเรียน',
-    description: 'ดู ranking รายคน รายห้อง รายชั้นปี และปีการศึกษา',
+    titleKey: 'individualRanking',
+    descriptionKey: 'individualRankingDescription',
     icon: FileText,
     href: '/reports/individual',
     color: 'text-blue-600',
     bg: 'bg-blue-100 dark:bg-blue-900',
   },
   {
-    title: 'รายงานรายห้องเรียน',
-    description: 'ภาพรวมคะแนนของนักเรียนในห้องเรียน',
+    titleKey: 'classroomFull',
+    descriptionKey: 'classroomDescription',
     icon: Users,
     href: '/reports/classroom',
     color: 'text-green-600',
     bg: 'bg-green-100 dark:bg-green-900',
   },
   {
-    title: 'รายงานนักเรียนถึงเกณฑ์',
-    description: 'นักเรียนที่ถูกหักคะแนนถึงเกณฑ์ที่กำหนด',
+    titleKey: 'threshold',
+    descriptionKey: 'thresholdDescription',
     icon: AlertTriangle,
     href: '/reports/threshold',
     color: 'text-red-600',
     bg: 'bg-red-100 dark:bg-red-900',
   },
   {
-    title: 'สถิติภาพรวม',
-    description: 'แดชบอร์ดสถิติและการกระจายคะแนน',
+    titleKey: 'statistics',
+    descriptionKey: 'statisticsDescription',
     icon: ChartBar,
     href: '/dashboard',
     color: 'text-purple-600',
@@ -40,11 +41,13 @@ const reports = [
 ];
 
 export default function ReportsPage() {
+  const t = useTranslations('report');
+
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">รายงาน</h1>
-        <p className="text-muted-foreground mt-1">เลือกรายงานที่ต้องการดู</p>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
+        <p className="text-muted-foreground mt-1">{t('description')}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -58,8 +61,8 @@ export default function ReportsPage() {
                     <Icon className={`h-6 w-6 ${r.color}`} />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">{r.title}</CardTitle>
-                    <CardDescription>{r.description}</CardDescription>
+                    <CardTitle className="text-lg">{t(r.titleKey)}</CardTitle>
+                    <CardDescription>{t(r.descriptionKey)}</CardDescription>
                   </div>
                 </CardHeader>
               </Card>

@@ -157,7 +157,7 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="ระดับ" />
+            <SelectValue placeholder={t('stage')} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">{common('all')}</SelectItem>
@@ -180,7 +180,7 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="ชั้นปี" />
+            <SelectValue placeholder={t('gradeLevel')} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">{common('all')}</SelectItem>

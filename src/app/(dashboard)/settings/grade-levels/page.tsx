@@ -21,6 +21,7 @@ import {
   type GradeLevelItem,
   updateGradeLevel,
 } from '@/lib/actions/grade-level.action';
+import { useTranslations } from 'next-intl';
 
 interface StageItem {
   id: string;
@@ -29,6 +30,10 @@ interface StageItem {
 }
 
 export default function GradeLevelsPage() {
+  const settingsT = useTranslations('settings');
+  const commonT = useTranslations('common');
+  const studentT = useTranslations('student');
+  const classroomT = useTranslations('classroom');
   const [stages, setStages] = useState<StageItem[]>([]);
   const [levels, setLevels] = useState<GradeLevelItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +92,7 @@ export default function GradeLevelsPage() {
 
   async function handleSave() {
     if (!formData.education_stage_id || !formData.code.trim() || !formData.name.trim()) {
-      toast('กรุณากรอกข้อมูลให้ครบถ้วน');
+      toast(settingsT('fillRequiredFields'));
       return;
     }
 
@@ -110,11 +115,11 @@ export default function GradeLevelsPage() {
         });
 
       if (result.success) {
-        toast(editing ? 'แก้ไขชั้นปีสำเร็จ' : 'เพิ่มชั้นปีสำเร็จ');
+        toast(editing ? settingsT('gradeLevelEditSuccess') : settingsT('gradeLevelAddSuccess'));
         setShowForm(false);
         await load();
       } else {
-        toast('บันทึกไม่สำเร็จ', { description: result.error.message });
+        toast(settingsT('saveFailed'), { description: result.error.message });
       }
     } finally {
       setSaving(false);
@@ -127,13 +132,13 @@ export default function GradeLevelsPage() {
       const result = await deleteGradeLevel(level.id);
       if (result.success) {
         const data = result.data as { deactivated?: boolean; used_count?: number } | null;
-        toast(data?.deactivated ? 'ปิดใช้งานชั้นปีแล้ว' : 'ลบชั้นปีสำเร็จ', {
-          description: data?.deactivated ? `มีห้องเรียน ${data.used_count} ห้องใช้อยู่ จึงปิดใช้งานแทนการลบ` : undefined,
+        toast(data?.deactivated ? settingsT('gradeLevelDeactivated') : settingsT('gradeLevelDeleteSuccess'), {
+          description: data?.deactivated ? settingsT('gradeLevelDeactivatedDescription', { count: data.used_count || 0 }) : undefined,
         });
         setDeleteConfirm(null);
         await load();
       } else {
-        toast('ลบไม่สำเร็จ', { description: result.error.message });
+        toast(settingsT('deleteFailed'), { description: result.error.message });
       }
     } finally {
       setSaving(false);
@@ -148,11 +153,11 @@ export default function GradeLevelsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">จัดการชั้นปี</h1>
-          <p className="text-muted-foreground mt-1">กำหนดชั้นปีภายใต้ระดับชั้น เช่น ประถมศึกษา: ป.1-ป.6</p>
+          <h1 className="text-2xl font-bold">{settingsT('manageGradeLevelsTitle')}</h1>
+          <p className="text-muted-foreground mt-1">{settingsT('manageGradeLevelsDescription')}</p>
         </div>
         <Button onClick={openAddForm}>
-          <Plus className="mr-2 h-4 w-4" />เพิ่มชั้นปี
+          <Plus className="mr-2 h-4 w-4" />{settingsT('addGradeLevel')}
         </Button>
       </div>
 
@@ -161,19 +166,19 @@ export default function GradeLevelsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ระดับชั้น</TableHead>
-                <TableHead>ชั้นปี</TableHead>
-                <TableHead>รหัส</TableHead>
-                <TableHead className="w-[100px]">เลขชั้น</TableHead>
-                <TableHead className="w-[100px]">ลำดับ</TableHead>
-                <TableHead className="w-[120px]">สถานะ</TableHead>
-                <TableHead className="w-[120px]">จัดการ</TableHead>
+                <TableHead>{classroomT('stage')}</TableHead>
+                <TableHead>{studentT('gradeLevel')}</TableHead>
+                <TableHead>{settingsT('code')}</TableHead>
+                <TableHead className="w-[100px]">{settingsT('levelNumber')}</TableHead>
+                <TableHead className="w-[100px]">{settingsT('sortOrder')}</TableHead>
+                <TableHead className="w-[120px]">{settingsT('status')}</TableHead>
+                <TableHead className="w-[120px]">{studentT('actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {levels.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">ยังไม่มีชั้นปี</TableCell>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">{settingsT('noGradeLevels')}</TableCell>
                 </TableRow>
               ) : levels.map((level) => (
                 <TableRow key={level.id}>
@@ -183,7 +188,7 @@ export default function GradeLevelsPage() {
                   <TableCell>{level.level_no}</TableCell>
                   <TableCell>{level.sort_order}</TableCell>
                   <TableCell>
-                    {level.is_active ? <Badge>ใช้งาน</Badge> : <Badge variant="outline">ปิดใช้งาน</Badge>}
+                    {level.is_active ? <Badge>{commonT('active')}</Badge> : <Badge variant="outline">{commonT('inactive')}</Badge>}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -205,19 +210,19 @@ export default function GradeLevelsPage() {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editing ? 'แก้ไขชั้นปี' : 'เพิ่มชั้นปี'}</DialogTitle>
-            <DialogDescription>ชั้นปีนี้จะใช้เป็นตัวเลือกในหน้าสร้างห้องเรียน</DialogDescription>
+            <DialogTitle>{editing ? settingsT('editGradeLevel') : settingsT('addGradeLevel')}</DialogTitle>
+            <DialogDescription>{settingsT('gradeLevelDialogDescription')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>ระดับชั้น *</Label>
+              <Label>{classroomT('stage')} {commonT('requiredMark')}</Label>
               <Select
                 value={formData.education_stage_id}
                 onValueChange={(v) => v && setFormData({ ...formData, education_stage_id: v })}
                 disabled={!!editing}
                 itemToStringLabel={(value) => stages.find(s => s.id === value)?.name_th || String(value)}
               >
-                <SelectTrigger><SelectValue placeholder="เลือกระดับชั้น" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={settingsT('selectEducationStage')} /></SelectTrigger>
                 <SelectContent>
                   {stages.map(stage => (
                     <SelectItem key={stage.id} value={stage.id} label={stage.name_th}>
@@ -229,27 +234,27 @@ export default function GradeLevelsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="name">ชื่อชั้นปี *</Label>
+                <Label htmlFor="name">{settingsT('gradeLevelName')}</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="เช่น ป.1"
+                  placeholder={settingsT('gradeLevelNamePlaceholder')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="code">รหัส *</Label>
+                <Label htmlFor="code">{settingsT('code')} {commonT('requiredMark')}</Label>
                 <Input
                   id="code"
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  placeholder="เช่น primary-1"
+                  placeholder={settingsT('gradeLevelCodePlaceholder')}
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="level_no">เลขชั้น</Label>
+                <Label htmlFor="level_no">{settingsT('levelNumber')}</Label>
                 <Input
                   id="level_no"
                   type="number"
@@ -258,7 +263,7 @@ export default function GradeLevelsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sort_order">ลำดับการเรียง</Label>
+                <Label htmlFor="sort_order">{settingsT('sortOrder')}</Label>
                 <Input
                   id="sort_order"
                   type="number"
@@ -269,7 +274,7 @@ export default function GradeLevelsPage() {
             </div>
             {editing && (
               <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <Label htmlFor="is_active">เปิดใช้งาน</Label>
+                <Label htmlFor="is_active">{commonT('active')}</Label>
                 <Switch
                   id="is_active"
                   checked={formData.is_active}
@@ -279,9 +284,9 @@ export default function GradeLevelsPage() {
             )}
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowForm(false)}>ยกเลิก</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{commonT('cancel')}</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'กำลังบันทึก...' : <><Save className="mr-2 h-4 w-4" />บันทึก</>}
+              {saving ? commonT('saving') : <><Save className="mr-2 h-4 w-4" />{commonT('save')}</>}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -290,16 +295,15 @@ export default function GradeLevelsPage() {
       <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>ยืนยันการลบ</DialogTitle>
+            <DialogTitle>{settingsT('deleteConfirmTitle')}</DialogTitle>
             <DialogDescription>
-              ต้องการลบชั้นปี <strong>{deleteConfirm?.name}</strong> ใช่หรือไม่?
-              หากมีห้องเรียนใช้อยู่ ระบบจะปิดใช้งานแทน
+              {settingsT('deleteGradeLevelDescription', { name: deleteConfirm?.name || '' })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>ยกเลิก</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>{commonT('cancel')}</Button>
             <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)} disabled={saving}>
-              {saving ? 'กำลังลบ...' : 'ยืนยัน'}
+              {saving ? settingsT('deleting') : commonT('confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>

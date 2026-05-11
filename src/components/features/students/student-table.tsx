@@ -86,7 +86,7 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
               <TableHead>{t('classroomFull')}</TableHead>
               <TableHead>{t('gradeLevel')}</TableHead>
               <TableHead>{t('stage')}</TableHead>
-              <TableHead>คะแนนปัจจุบัน</TableHead>
+              <TableHead>{t('score')}</TableHead>
               <TableHead>{t('status')}</TableHead>
               <TableHead className="w-[80px] text-right">{t('actions')}</TableHead>
             </TableRow>

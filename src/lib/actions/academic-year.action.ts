@@ -108,36 +108,6 @@ export async function updateAcademicYear(id: string, input: {
   });
 }
 
-export async function setCurrentAcademicYear(id: string) {
-  return withAuth(async (profile) => {
-    if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
-    }
-
-    const supabase = await createClient();
-    const { error: activateError } = await supabase
-      .from('academic_years')
-      .update({ is_current: true })
-      .eq('id', id);
-
-    if (activateError) {
-      return { success: false, error: { code: 'DB_ERROR', message: activateError.message } };
-    }
-
-    const { error: deactivateError } = await supabase
-      .from('academic_years')
-      .update({ is_current: false })
-      .neq('id', id);
-
-    if (deactivateError) {
-      return { success: false, error: { code: 'DB_ERROR', message: deactivateError.message } };
-    }
-
-    clearTtlCacheByPrefix('academic-years:');
-    return { success: true, data: null };
-  });
-}
-
 function nextAcademicYearName(name: string) {
   const numeric = Number(name);
   if (Number.isInteger(numeric)) return String(numeric + 1);
@@ -150,6 +120,19 @@ function addOneYear(date: string | null) {
   if (Number.isNaN(parsed.getTime())) return null;
   parsed.setUTCFullYear(parsed.getUTCFullYear() + 1);
   return parsed.toISOString().slice(0, 10);
+}
+
+function todayInBangkok() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
 }
 
 function classroomKey(classroom: {
@@ -180,6 +163,21 @@ export async function createNextAcademicYearFromCurrent() {
     if (sourceError) return { success: false, error: { code: 'DB_ERROR', message: sourceError.message } };
     if (!sourceYear?.id) {
       return { success: false, error: { code: 'NO_CURRENT_YEAR', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' } };
+    }
+
+    if (!sourceYear.end_date) {
+      return { success: false, error: { code: 'MISSING_END_DATE', message: 'ยังไม่ได้กำหนดวันที่สิ้นสุดของปีการศึกษาปัจจุบัน' } };
+    }
+
+    const today = todayInBangkok();
+    if (today <= sourceYear.end_date) {
+      return {
+        success: false,
+        error: {
+          code: 'CURRENT_YEAR_NOT_ENDED',
+          message: `ยังไม่สามารถขึ้นปีการศึกษาใหม่ได้ ปี ${sourceYear.name} จะสิ้นสุดวันที่ ${sourceYear.end_date}`,
+        },
+      };
     }
 
     const nextName = nextAcademicYearName(String(sourceYear.name));
@@ -302,6 +300,18 @@ export async function createNextAcademicYearFromCurrent() {
       }
     }
 
+    const { error: activateError } = await supabase
+      .from('academic_years')
+      .update({ is_current: true })
+      .eq('id', targetYearId);
+    if (activateError) return { success: false, error: { code: 'DB_ERROR', message: activateError.message } };
+
+    const { error: deactivateError } = await supabase
+      .from('academic_years')
+      .update({ is_current: false })
+      .neq('id', targetYearId);
+    if (deactivateError) return { success: false, error: { code: 'DB_ERROR', message: deactivateError.message } };
+
     clearTtlCacheByPrefix('academic-years:');
     clearTtlCacheByPrefix('classrooms:');
     clearTtlCacheByPrefix('classrooms-for-select:');
@@ -315,6 +325,7 @@ export async function createNextAcademicYearFromCurrent() {
         created_year: createdYear,
         created_classrooms: createdClassrooms,
         created_assignments: createdAssignments,
+        activated_current: true,
       },
     };
   });

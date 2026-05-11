@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { getEducationStages, addEducationStage, updateEducationStage, deleteEducationStage } from '@/lib/actions/education-stage.action';
+import { useTranslations } from 'next-intl';
 
 interface StageItem {
   id: string;
@@ -23,6 +24,9 @@ interface StageItem {
 }
 
 export default function EducationStagesPage() {
+  const settingsT = useTranslations('settings');
+  const commonT = useTranslations('common');
+  const studentT = useTranslations('student');
   const [stages, setStages] = useState<StageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -54,7 +58,7 @@ export default function EducationStagesPage() {
 
   async function handleSave() {
     if (!formData.code.trim() || !formData.name_th.trim()) {
-      toast('กรุณากรอกข้อมูลให้ครบถ้วน');
+      toast(settingsT('fillRequiredFields'));
       return;
     }
     setSaving(true);
@@ -66,11 +70,11 @@ export default function EducationStagesPage() {
           sort_order: formData.sort_order,
         });
         if (res.success) {
-          toast('แก้ไขระดับชั้นสำเร็จ');
+          toast(settingsT('educationStageEditSuccess'));
           setShowForm(false);
           await load();
         } else {
-          toast('เกิดข้อผิดพลาด', { description: res.error?.message });
+          toast(settingsT('genericError'), { description: res.error?.message });
         }
       } else {
         const res = await addEducationStage({
@@ -80,15 +84,15 @@ export default function EducationStagesPage() {
           sort_order: formData.sort_order,
         });
         if (res.success) {
-          toast('เพิ่มระดับชั้นสำเร็จ');
+          toast(settingsT('educationStageAddSuccess'));
           setShowForm(false);
           await load();
         } else {
-          toast('เกิดข้อผิดพลาด', { description: res.error?.message });
+          toast(settingsT('genericError'), { description: res.error?.message });
         }
       }
     } catch {
-      toast('เกิดข้อผิดพลาด');
+      toast(settingsT('genericError'));
     } finally {
       setSaving(false);
     }
@@ -99,15 +103,15 @@ export default function EducationStagesPage() {
     try {
       const res = await deleteEducationStage(stage.id);
       if (res.success) {
-        toast('ลบระดับชั้นสำเร็จ');
+        toast(settingsT('educationStageDeleteSuccess'));
         setDeleteConfirm(null);
         await load();
       } else {
-        toast('ไม่สามารถลบได้', { description: res.error?.message });
+        toast(settingsT('educationStageDeleteFailed'), { description: res.error?.message });
         setDeleteConfirm(null);
       }
     } catch {
-      toast('เกิดข้อผิดพลาด');
+      toast(settingsT('genericError'));
     } finally {
       setSaving(false);
     }
@@ -119,11 +123,11 @@ export default function EducationStagesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">จัดการระดับชั้นการศึกษา</h1>
-          <p className="text-muted-foreground mt-1">เพิ่ม แก้ไข และจัดการระดับชั้นการศึกษาที่ใช้ในระบบ</p>
+          <h1 className="text-2xl font-bold">{settingsT('manageEducationStagesTitle')}</h1>
+          <p className="text-muted-foreground mt-1">{settingsT('manageEducationStagesDescription')}</p>
         </div>
         <Button onClick={openAddForm}>
-          <Plus className="mr-2 h-4 w-4" />เพิ่มระดับชั้น
+          <Plus className="mr-2 h-4 w-4" />{settingsT('addEducationStage')}
         </Button>
       </div>
 
@@ -132,18 +136,18 @@ export default function EducationStagesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[60px]">ลำดับ</TableHead>
-                <TableHead>รหัส</TableHead>
-                <TableHead>ชื่อ (ไทย)</TableHead>
-                <TableHead>ชื่อ (อังกฤษ)</TableHead>
-                <TableHead>สถานะ</TableHead>
-                <TableHead className="w-[120px]">จัดการ</TableHead>
+                <TableHead className="w-[60px]">{settingsT('sortOrder')}</TableHead>
+                <TableHead>{settingsT('code')}</TableHead>
+                <TableHead>{settingsT('nameTh')}</TableHead>
+                <TableHead>{settingsT('nameEn')}</TableHead>
+                <TableHead>{settingsT('status')}</TableHead>
+                <TableHead className="w-[120px]">{studentT('actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {stages.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">ยังไม่มีระดับชั้นการศึกษา</TableCell>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">{settingsT('noEducationStages')}</TableCell>
                 </TableRow>
               ) : stages.map((s) => (
                 <TableRow key={s.id}>
@@ -153,9 +157,9 @@ export default function EducationStagesPage() {
                   <TableCell className="text-sm text-muted-foreground">{s.name_en || '-'}</TableCell>
                   <TableCell>
                     {s.is_active ? (
-                      <Badge className="bg-green-500 text-white">Active</Badge>
+                      <Badge className="bg-green-500 text-white">{commonT('active')}</Badge>
                     ) : (
-                      <Badge variant="outline">Inactive</Badge>
+                      <Badge variant="outline">{commonT('inactive')}</Badge>
                     )}
                   </TableCell>
                   <TableCell>
@@ -179,40 +183,40 @@ export default function EducationStagesPage() {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingStage ? 'แก้ไขระดับชั้น' : 'เพิ่มระดับชั้นใหม่'}</DialogTitle>
+            <DialogTitle>{editingStage ? settingsT('editEducationStage') : settingsT('addEducationStageNew')}</DialogTitle>
             <DialogDescription>
-              {editingStage ? 'แก้ไขข้อมูลระดับชั้นการศึกษา' : 'เพิ่มระดับชั้นการศึกษาใหม่ที่ใช้ในระบบ'}
+              {editingStage ? settingsT('editEducationStageDescription') : settingsT('addEducationStageDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>รหัส *</Label>
+              <Label>{settingsT('code')} {commonT('requiredMark')}</Label>
               <Input
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="เช่น primary, secondary"
+                placeholder={settingsT('codePlaceholder')}
                 disabled={!!editingStage}
               />
-              <p className="text-xs text-muted-foreground">รหัสภาษาอังกฤษ ไม่มีเว้นวรรค เปลี่ยนภายหลังไม่ได้</p>
+              <p className="text-xs text-muted-foreground">{settingsT('codeHelp')}</p>
             </div>
             <div className="space-y-2">
-              <Label>ชื่อ (ภาษาไทย) *</Label>
+              <Label>{settingsT('nameTh')} {commonT('requiredMark')}</Label>
               <Input
                 value={formData.name_th}
                 onChange={(e) => setFormData({ ...formData, name_th: e.target.value })}
-                placeholder="เช่น ประถมศึกษา"
+                placeholder={settingsT('nameThPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label>ชื่อ (ภาษาอังกฤษ)</Label>
+              <Label>{settingsT('nameEn')}</Label>
               <Input
                 value={formData.name_en}
                 onChange={(e) => setFormData({ ...formData, name_en: e.target.value })}
-                placeholder="เช่น Primary Education"
+                placeholder={settingsT('nameEnPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label>ลำดับการเรียง</Label>
+              <Label>{settingsT('sortOrder')}</Label>
               <Input
                 type="number"
                 value={formData.sort_order}
@@ -222,9 +226,9 @@ export default function EducationStagesPage() {
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowForm(false)}>ยกเลิก</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{commonT('cancel')}</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'กำลังบันทึก...' : <><Save className="mr-2 h-4 w-4" />บันทึก</>}
+              {saving ? commonT('saving') : <><Save className="mr-2 h-4 w-4" />{commonT('save')}</>}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -234,16 +238,18 @@ export default function EducationStagesPage() {
       <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>ยืนยันการลบ</DialogTitle>
+            <DialogTitle>{settingsT('deleteConfirmTitle')}</DialogTitle>
             <DialogDescription>
-              คุณต้องการลบระดับชั้น <strong>{deleteConfirm?.name_th}</strong> ({deleteConfirm?.code})?
-              การดำเนินการนี้ไม่สามารถย้อนกลับได้
+              {settingsT('deleteEducationStageDescription', {
+                name: deleteConfirm?.name_th || '',
+                code: deleteConfirm?.code || '',
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>ยกเลิก</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>{commonT('cancel')}</Button>
             <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)} disabled={saving}>
-              {saving ? 'กำลังลบ...' : 'ยืนยันการลบ'}
+              {saving ? settingsT('deleting') : settingsT('confirmDelete')}
             </Button>
           </DialogFooter>
         </DialogContent>

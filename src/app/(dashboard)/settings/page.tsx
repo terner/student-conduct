@@ -13,8 +13,11 @@ import { getSettingsPageData, saveSystemSettings } from '@/lib/actions/settings.
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export default function SettingsPage() {
+  const settingsT = useTranslations('settings');
+  const commonT = useTranslations('common');
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -67,7 +70,7 @@ export default function SettingsPage() {
     if (!result.success) {
       alert(result.error.message);
     } else {
-      toast('บันทึกการตั้งค่าสำเร็จ');
+      toast(settingsT('saveSuccess'));
       await loadAccessAndSettings();
     }
     setSaving(false);
@@ -81,14 +84,14 @@ export default function SettingsPage() {
     setThresholds(thresholds.filter((_, i) => i !== index));
   }
 
-  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div></div>;
+  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div></div>;
 
   if (!roles.includes('superadmin')) {
     return (
       <div className="p-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">การตั้งค่า</h1>
-          <p className="text-muted-foreground mt-1">เครื่องมือสำหรับผู้ดูแลระบบ</p>
+          <h1 className="text-2xl font-bold">{settingsT('title')}</h1>
+          <p className="text-muted-foreground mt-1">{settingsT('adminToolsDescription')}</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -97,13 +100,13 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Upload className="h-5 w-5" />
-                  นำเข้าข้อมูล
+                  {settingsT('importData')}
                 </CardTitle>
-                <CardDescription>นำเข้ารายชื่อนักเรียนจากไฟล์ CSV</CardDescription>
+                <CardDescription>{settingsT('importDataDescription')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button variant="outline" nativeButton={false} render={<a href="/settings/import" />}>
-                  เปิดหน้านำเข้าข้อมูล
+                  {settingsT('openImportPage')}
                 </Button>
               </CardContent>
             </Card>
@@ -113,13 +116,13 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <UserCog className="h-5 w-5" />
-                โปรไฟล์ของฉัน
+                {settingsT('myProfile')}
               </CardTitle>
-              <CardDescription>ดูข้อมูลบัญชีและสิทธิ์การใช้งานของคุณ</CardDescription>
+              <CardDescription>{settingsT('myProfileDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
               <Button variant="outline" nativeButton={false} render={<a href="/settings/profile" />}>
-                เปิดหน้าโปรไฟล์
+                {settingsT('openProfilePage')}
               </Button>
             </CardContent>
           </Card>
@@ -132,42 +135,42 @@ export default function SettingsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">การตั้งค่า</h1>
-          <p className="text-muted-foreground mt-1">จัดการระบบ: ข้อมูลโรงเรียน, คะแนน, เกณฑ์การแจ้งเตือน</p>
+          <h1 className="text-2xl font-bold">{settingsT('title')}</h1>
+          <p className="text-muted-foreground mt-1">{settingsT('description')}</p>
         </div>
         <Button onClick={saveSettings} disabled={saving}>
           <Save className="mr-2 h-4 w-4" />
-          {saving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
+          {saving ? commonT('saving') : settingsT('saveSettings')}
         </Button>
       </div>
 
       <Tabs defaultValue="school">
         <TabsList className="h-auto flex-wrap justify-start">
-          <TabsTrigger value="school">ข้อมูลโรงเรียน</TabsTrigger>
-          <TabsTrigger value="scores">คะแนน</TabsTrigger>
-          <TabsTrigger value="thresholds">เกณฑ์แจ้งเตือน</TabsTrigger>
-          <TabsTrigger value="academic-structure">โครงสร้างชั้นเรียน</TabsTrigger>
-          <TabsTrigger value="google-drive">Google Drive</TabsTrigger>
-          <TabsTrigger value="tools">เครื่องมือ</TabsTrigger>
+          <TabsTrigger value="school">{settingsT('schoolInfo')}</TabsTrigger>
+          <TabsTrigger value="scores">{settingsT('scores')}</TabsTrigger>
+          <TabsTrigger value="thresholds">{settingsT('thresholds')}</TabsTrigger>
+          <TabsTrigger value="academic-structure">{settingsT('academicStructure')}</TabsTrigger>
+          <TabsTrigger value="google-drive">{settingsT('googleDrive')}</TabsTrigger>
+          <TabsTrigger value="tools">{settingsT('tools')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="school" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>ข้อมูลโรงเรียน</CardTitle>
-              <CardDescription>ชื่อโรงเรียนและข้อมูลพื้นฐาน</CardDescription>
+              <CardTitle>{settingsT('schoolInfo')}</CardTitle>
+              <CardDescription>{settingsT('schoolInfoDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>ชื่อโรงเรียน (ภาษาไทย)</Label>
+                <Label>{settingsT('schoolNameTh')}</Label>
                 <Input value={settings.school_name || ''} onChange={e => setSettings({...settings, school_name: e.target.value})} />
               </div>
               <div className="space-y-2">
-                <Label>ชื่อโรงเรียน (ภาษาอังกฤษ)</Label>
+                <Label>{settingsT('schoolNameEn')}</Label>
                 <Input value={settings.school_name_en || ''} onChange={e => setSettings({...settings, school_name_en: e.target.value})} />
               </div>
               <div className="space-y-2">
-                <Label>โลโก้โรงเรียน</Label>
+                <Label>{settingsT('schoolLogo')}</Label>
                 <div className="flex items-center gap-4">
                   {settings.school_logo ? (
                     <div className="relative">
@@ -188,7 +191,7 @@ export default function SettingsPage() {
                   <label className="cursor-pointer">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
                       <Upload className="size-4" />
-                      <span>เลือกรูปภาพ</span>
+                      <span>{settingsT('chooseImage')}</span>
                     </div>
                     <input
                       type="file"
@@ -199,7 +202,7 @@ export default function SettingsPage() {
                         const file = e.target.files?.[0];
                         if (!file) return;
                         if (file.size > 2 * 1024 * 1024) {
-                          alert('ไฟล์ต้องมีขนาดไม่เกิน 2MB');
+                          alert(settingsT('logoFileTooLarge'));
                           return;
                         }
                         // Validate dimensions
@@ -208,13 +211,13 @@ export default function SettingsPage() {
                         try {
                           await new Promise<void>((resolve, reject) => {
                             img.onload = () => resolve();
-                            img.onerror = () => reject(new Error('โหลดรูปไม่สำเร็จ'));
+                            img.onerror = () => reject(new Error(settingsT('logoLoadFailed')));
                             img.src = url;
                           });
                           // Warn if not roughly square
                           const ratio = Math.max(img.width, img.height) / Math.min(img.width, img.height);
                           if (ratio > 1.1) {
-                            if (!confirm('รูปไม่เป็นสี่เหลี่ยมจัตุรัส แนะนำให้ใช้ 512x512px หรือ 1024x1024px\n\nต้องการอัปโหลดต่อหรือไม่?')) {
+                            if (!confirm(settingsT('logoNotSquareConfirm'))) {
                               URL.revokeObjectURL(url);
                               e.currentTarget.value = '';
                               return;
@@ -238,14 +241,14 @@ export default function SettingsPage() {
                             if (!saveResult.success) {
                               alert(saveResult.error.message);
                             } else {
-                              toast('อัปโหลดโลโก้โรงเรียนสำเร็จ');
+                              toast(settingsT('logoUploadSuccess'));
                               await loadAccessAndSettings();
                             }
                           } else {
-                            alert(result.error || 'อัปโหลดไม่สำเร็จ');
+                            alert(result.error || settingsT('logoUploadFailed'));
                           }
                         } catch {
-                          alert('เกิดข้อผิดพลาดในการอัปโหลด');
+                          alert(settingsT('logoUploadError'));
                         } finally {
                           setSaving(false);
                           e.currentTarget.value = '';
@@ -255,7 +258,7 @@ export default function SettingsPage() {
                   </label>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  รองรับ PNG, JPG, GIF, WebP ขนาดไฟล์ไม่เกิน 2MB แนะนำรูปสี่เหลี่ยมจัตุรัส 512x512px หรือ 1024x1024px
+                  {settingsT('logoHelp')}
                 </p>
               </div>
             </CardContent>
@@ -265,12 +268,12 @@ export default function SettingsPage() {
         <TabsContent value="scores" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>การตั้งค่าคะแนน</CardTitle>
-              <CardDescription>คะแนนตั้งต้นและขอบเขต</CardDescription>
+              <CardTitle>{settingsT('scoreSettings')}</CardTitle>
+              <CardDescription>{settingsT('scoreSettingsDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>คะแนนตั้งต้น (Base Score)</Label>
+                <Label>{settingsT('baseScore')}</Label>
                 <Input
                   type="number"
                   value={settings.base_score || 100}
@@ -279,7 +282,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>คะแนนขั้นต่ำ (Score Floor)</Label>
+                <Label>{settingsT('scoreFloor')}</Label>
                 <Input
                   type="number"
                   value={settings.score_floor || 0}
@@ -295,18 +298,18 @@ export default function SettingsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>เกณฑ์การแจ้งเตือน</CardTitle>
-                <CardDescription>กำหนดระดับคะแนนที่ถูกหักสะสมที่จะแจ้งเตือน</CardDescription>
+                <CardTitle>{settingsT('thresholdsTitle')}</CardTitle>
+                <CardDescription>{settingsT('thresholdsDescription')}</CardDescription>
               </div>
               <Button variant="outline" size="sm" onClick={addThreshold}>
-                <Plus className="mr-2 h-4 w-4" />เพิ่มเกณฑ์
+                <Plus className="mr-2 h-4 w-4" />{settingsT('addThreshold')}
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
               {thresholds.map((t, i) => (
                 <div key={i} className="flex items-end gap-3 p-3 rounded-lg border">
                   <div className="space-y-1 w-24">
-                    <Label className="text-xs">หักถึง</Label>
+                    <Label className="text-xs">{settingsT('deductedAt')}</Label>
                     <Input type="number" value={t.deducted} onChange={e => {
                       const n = [...thresholds];
                       n[i].deducted = parseInt(e.target.value) || 0;
@@ -314,15 +317,15 @@ export default function SettingsPage() {
                     }} />
                   </div>
                   <div className="space-y-1 flex-1">
-                    <Label className="text-xs">การดำเนินการ</Label>
+                    <Label className="text-xs">{settingsT('thresholdAction')}</Label>
                     <Input value={t.action} onChange={e => {
                       const n = [...thresholds];
                       n[i].action = e.target.value;
                       setThresholds(n);
-                    }} placeholder="เช่น แจ้งผู้ปกครอง" />
+                    }} placeholder={settingsT('thresholdActionPlaceholder')} />
                   </div>
                   <div className="space-y-1 w-20">
-                    <Label className="text-xs">สี</Label>
+                    <Label className="text-xs">{settingsT('color')}</Label>
                     <Input type="color" value={t.color || '#FEF3C7'} onChange={e => {
                       const n = [...thresholds];
                       n[i].color = e.target.value;
@@ -341,26 +344,26 @@ export default function SettingsPage() {
         <TabsContent value="academic-structure" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>โครงสร้างชั้นเรียน</CardTitle>
-              <CardDescription>ตั้งค่าตามลำดับ: ปีการศึกษา ระดับชั้น ชั้นปี แล้วจึงสร้างห้องเรียน</CardDescription>
+              <CardTitle>{settingsT('academicStructure')}</CardTitle>
+              <CardDescription>{settingsT('academicStructureDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/settings/academic-years" />}>
                   <CalendarDays className="mr-2 h-4 w-4" />
-                  จัดการปีการศึกษา
+                  {settingsT('manageAcademicYears')}
                 </Button>
                 <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/settings/education-stages" />}>
                   <ListChecks className="mr-2 h-4 w-4" />
-                  จัดการระดับชั้น
+                  {settingsT('manageEducationStages')}
                 </Button>
                 <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/settings/grade-levels" />}>
                   <Layers className="mr-2 h-4 w-4" />
-                  จัดการชั้นปี
+                  {settingsT('manageGradeLevels')}
                 </Button>
                 <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/classrooms" />}>
                   <School className="mr-2 h-4 w-4" />
-                  สร้างห้องเรียน
+                  {settingsT('createClassroom')}
                 </Button>
               </div>
             </CardContent>
@@ -374,13 +377,13 @@ export default function SettingsPage() {
                 <HardDrive className="h-5 w-5" />
                 Google Drive
               </CardTitle>
-              <CardDescription>ตั้งค่าสำหรับเก็บรูปโปรไฟล์และรูปหลักฐานการบันทึกคะแนน</CardDescription>
+              <CardDescription>{settingsT('googleDriveDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between rounded-md border px-3 py-2">
                 <div>
-                  <Label htmlFor="google_drive_enabled">ใช้งาน Google Drive Storage</Label>
-                  <p className="text-xs text-muted-foreground">เมื่อเปิดใช้งาน ระบบจะใช้ค่านี้สำหรับ feature อัปโหลดไฟล์ผ่าน Google Drive</p>
+                  <Label htmlFor="google_drive_enabled">{settingsT('googleDriveEnabled')}</Label>
+                  <p className="text-xs text-muted-foreground">{settingsT('googleDriveEnabledDescription')}</p>
                 </div>
                 <input
                   id="google_drive_enabled"
@@ -433,7 +436,7 @@ export default function SettingsPage() {
                   className="font-mono text-xs"
                 />
                 <p className="text-xs text-muted-foreground">
-                  ค่านี้เป็นความลับ ควรจำกัดสิทธิ์หน้า settings ให้เฉพาะผู้ดูแลระบบเท่านั้น
+                  {settingsT('privateKeySecretHelp')}
                 </p>
               </div>
             </CardContent>
@@ -443,47 +446,47 @@ export default function SettingsPage() {
         <TabsContent value="tools" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>เครื่องมือ</CardTitle>
-              <CardDescription>รวมทางลัดสำหรับจัดการข้อมูลและตั้งค่าระบบทั้งหมด</CardDescription>
+              <CardTitle>{settingsT('tools')}</CardTitle>
+              <CardDescription>{settingsT('toolsDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/students" />}>
                 <Users className="mr-2 h-4 w-4" />
-                จัดการนักเรียน
+                {settingsT('manageStudents')}
               </Button>
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/teachers" />}>
                 <BookOpen className="mr-2 h-4 w-4" />
-                จัดการครู
+                {settingsT('manageTeachers')}
               </Button>
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/classrooms" />}>
                 <School className="mr-2 h-4 w-4" />
-                จัดการห้องเรียน
+                {settingsT('manageClassrooms')}
               </Button>
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/score/categories" />}>
                 <Tags className="mr-2 h-4 w-4" />
-                ประเภทคะแนน
+                {settingsT('scoreCategories')}
               </Button>
               {selectedYearOpen && (
                 <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/import" />}>
                   <Download className="mr-2 h-4 w-4" />
-                  นำเข้านักเรียนจาก CSV
+                  {settingsT('importStudentsCsv')}
                 </Button>
               )}
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/academic-years" />}>
                 <CalendarDays className="mr-2 h-4 w-4" />
-                จัดการปีการศึกษา
+                {settingsT('manageAcademicYears')}
               </Button>
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/education-stages" />}>
                 <ListChecks className="mr-2 h-4 w-4" />
-                จัดการระดับชั้น
+                {settingsT('manageEducationStages')}
               </Button>
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/grade-levels" />}>
                 <Layers className="mr-2 h-4 w-4" />
-                จัดการชั้นปี
+                {settingsT('manageGradeLevels')}
               </Button>
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/teacher-positions" />}>
                 <UserCog className="mr-2 h-4 w-4" />
-                กำหนดตำแหน่งครู
+                {settingsT('manageTeacherPositions')}
               </Button>
             </CardContent>
           </Card>

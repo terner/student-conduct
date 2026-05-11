@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, Download, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +15,9 @@ import { exportCsv } from '@/lib/utils/csv';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 
 export default function ThresholdReportPage() {
+  const t = useTranslations('threshold');
+  const reportT = useTranslations('report');
+  const commonT = useTranslations('common');
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -28,42 +32,42 @@ export default function ThresholdReportPage() {
     load();
   }, [selectedAcademicYearId]);
 
-  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div></div>;
+  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div></div>;
 
   const students = reportData?.students || [];
 
   function handleExport() {
     const data = students.map((s: any) => ({
-      รหัสนักเรียน: s.student_id_number,
-      'ชื่อ-นามสกุล': `${s.first_name} ${s.last_name}`,
-      ห้องเรียน: s.classroom_name,
-      'คะแนนปัจจุบัน': s.current_score,
-      'ถูกหักสะสม': s.deducted_total,
-      'ระดับ': s.threshold_level,
-      'การดำเนินการ': s.threshold_action,
+      [reportT('studentId')]: s.student_id_number,
+      [reportT('studentName')]: `${s.first_name} ${s.last_name}`,
+      [t('classroom')]: s.classroom_name,
+      [reportT('currentScore')]: s.current_score,
+      [t('deductedTotal')]: s.deducted_total,
+      [reportT('level')]: s.threshold_level,
+      [t('action')]: s.threshold_action,
     }));
-    exportCsv(data, 'threshold_report');
+    exportCsv(data, t('exportFileName', { year: reportData?.academic_year || 'unknown' }));
   }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">รายงานนักเรียนถึงเกณฑ์</h1>
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
           <p className="text-muted-foreground mt-1">
-            ปีการศึกษา {reportData?.academic_year} · พบ {students.length} คน
+            {t('description', { year: reportData?.academic_year || '-', count: students.length })}
           </p>
         </div>
         <Button variant="outline" onClick={handleExport} disabled={students.length === 0}>
-          <Download className="mr-2 h-4 w-4" />ส่งออก CSV
+          <Download className="mr-2 h-4 w-4" />{t('exportCsv')}
         </Button>
       </div>
 
       {reportData?.thresholds && (
         <div className="flex flex-wrap gap-2">
-          {reportData.thresholds.map((t: any, i: number) => (
-            <Badge key={i} variant="outline" className="text-sm" style={{ borderColor: t.color }}>
-              ระดับ {i + 1}: หัก {t.deducted} คะแนนขึ้นไป — {t.action}
+          {reportData.thresholds.map((threshold: any, i: number) => (
+            <Badge key={i} variant="outline" className="text-sm" style={{ borderColor: threshold.color }}>
+              {t('thresholdRule', { level: i + 1, points: threshold.deducted, action: threshold.action })}
             </Badge>
           ))}
         </div>
@@ -73,7 +77,7 @@ export default function ThresholdReportPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">ไม่มีนักเรียนที่ถึงเกณฑ์แจ้งเตือน</p>
+            <p className="text-muted-foreground">{t('noStudents')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -82,13 +86,13 @@ export default function ThresholdReportPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>รหัสนักเรียน</TableHead>
-                  <TableHead>ชื่อ-นามสกุล</TableHead>
-                  <TableHead>ห้อง</TableHead>
-                  <TableHead>คะแนนปัจจุบัน</TableHead>
-                  <TableHead>หักสะสม</TableHead>
-                  <TableHead>ระดับ</TableHead>
-                  <TableHead>การดำเนินการ</TableHead>
+                  <TableHead>{reportT('studentId')}</TableHead>
+                  <TableHead>{reportT('studentName')}</TableHead>
+                  <TableHead>{t('classroom')}</TableHead>
+                  <TableHead>{reportT('currentScore')}</TableHead>
+                  <TableHead>{t('deductedTotal')}</TableHead>
+                  <TableHead>{reportT('level')}</TableHead>
+                  <TableHead>{t('action')}</TableHead>
                   <TableHead className="w-[60px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -102,7 +106,7 @@ export default function ThresholdReportPage() {
                     <TableCell className="font-bold text-destructive">{s.deducted_total}</TableCell>
                     <TableCell>
                       <Badge variant={s.threshold_level >= 3 ? 'destructive' : 'outline'}>
-                        ระดับ {s.threshold_level}
+                        {t('levelLabel', { level: s.threshold_level })}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{s.threshold_action}</TableCell>

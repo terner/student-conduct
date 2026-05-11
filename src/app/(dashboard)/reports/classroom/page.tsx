@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,14 +15,16 @@ import type { ClassroomWithDetails } from '@/lib/db/queries/classroom.queries';
 import { exportCsv } from '@/lib/utils/csv';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 
-function getScoreLevel(score: number, baseScore = 100) {
-  if (score >= baseScore) return 'ดีเยี่ยม';
-  if (score >= baseScore - 20) return 'ดี';
-  if (score >= baseScore - 40) return 'พอใช้';
-  return 'ควรปรับปรุง';
+function getScoreLevel(score: number, labels: { excellent: string; good: string; fair: string; poor: string }, baseScore = 100) {
+  if (score >= baseScore) return labels.excellent;
+  if (score >= baseScore - 20) return labels.good;
+  if (score >= baseScore - 40) return labels.fair;
+  return labels.poor;
 }
 
 export default function ClassroomReportPage() {
+  const t = useTranslations('report');
+  const levelT = useTranslations('level');
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [classrooms, setClassrooms] = useState<ClassroomWithDetails[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -30,6 +33,10 @@ export default function ClassroomReportPage() {
   const [loadingClassrooms, setLoadingClassrooms] = useState(true);
   const [error, setError] = useState('');
   const [rankMode, setRankMode] = useState<'risk' | 'score'>('risk');
+  const selectedClassroom = useMemo(
+    () => classrooms.find((classroom) => classroom.id === selectedId) || null,
+    [classrooms, selectedId],
+  );
 
   useEffect(() => {
     async function loadClassrooms() {
@@ -37,6 +44,8 @@ export default function ClassroomReportPage() {
       const result = await getClassrooms({ academic_year_id: selectedAcademicYearId || undefined });
       if (result.success) {
         setClassrooms(result.data);
+        setReportData(null);
+        setSelectedId('');
         if (result.data.length === 1) {
           setSelectedId(result.data[0].id);
           await loadReport(result.data[0].id);
@@ -65,16 +74,22 @@ export default function ClassroomReportPage() {
 
   function handleExport() {
     if (!reportData?.students) return;
+    const scoreLevelLabels = {
+      excellent: levelT('excellent'),
+      good: levelT('good'),
+      fair: levelT('fair'),
+      poor: levelT('poor'),
+    };
     exportCsv(reportData.students.map((student: any) => ({
-      อันดับ: student.rank,
-      รหัสนักเรียน: student.student_id_number,
-      ชื่อ: student.full_name,
-      หักคะแนน: student.total_deducted,
-      ได้เพิ่ม: student.total_added,
-      คะแนนปัจจุบัน: student.current_score,
-      ระดับ: getScoreLevel(student.current_score, reportData.base_score),
-      จำนวนหัก: student.deduct_count,
-      จำนวนเพิ่ม: student.add_count,
+      [t('rank')]: student.rank,
+      [t('studentId')]: student.student_id_number,
+      [t('studentName')]: student.full_name,
+      [t('deductedScore')]: student.total_deducted,
+      [t('addedScore')]: student.total_added,
+      [t('currentScore')]: student.current_score,
+      [t('level')]: getScoreLevel(student.current_score, scoreLevelLabels, reportData.base_score),
+      [t('deductCount')]: student.deduct_count,
+      [t('addCount')]: student.add_count,
     })), `classroom_report_${reportData.classroom.name}_${reportData.academic_year}`);
   }
 
@@ -85,8 +100,8 @@ export default function ClassroomReportPage() {
   return (
     <div className="p-6 space-y-6 print:p-0 print:text-black">
       <div className="print:hidden">
-        <h1 className="text-2xl font-bold">รายงานรายห้องเรียน</h1>
-        <p className="text-muted-foreground mt-1">ดูคะแนนและระดับความประพฤติรายห้อง</p>
+        <h1 className="text-2xl font-bold">{t('classroomFull')}</h1>
+        <p className="text-muted-foreground mt-1">{t('classroomReportDescription')}</p>
       </div>
 
       {loadingClassrooms ? (
@@ -94,13 +109,13 @@ export default function ClassroomReportPage() {
       ) : classrooms.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            ยังไม่มีห้องเรียนที่ได้รับมอบหมาย
+            {t('assignedClassroomsEmpty')}
           </CardContent>
         </Card>
       ) : (
         <div className="grid max-w-xl gap-3 sm:grid-cols-2 print:hidden">
           <div className="space-y-1">
-            <label className="text-sm font-medium">เลือกห้องเรียน</label>
+            <label className="text-sm font-medium">{t('selectClassroom')}</label>
             <Select value={selectedId || null} onValueChange={(v) => {
               if (!v) return;
               setSelectedId(v);
@@ -111,7 +126,11 @@ export default function ClassroomReportPage() {
                 return c ? c.name : String(value);
               }}
             >
-              <SelectTrigger><SelectValue placeholder="เลือกห้องเรียน" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder={t('selectClassroom')}>
+                  {selectedClassroom?.name}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 {classrooms.map(c => (
                   <SelectItem key={c.id} value={c.id} label={c.name}>{c.name}</SelectItem>
@@ -120,7 +139,7 @@ export default function ClassroomReportPage() {
             </Select>
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">รูปแบบอันดับ</label>
+            <label className="text-sm font-medium">{t('rankMode')}</label>
             <Select
               value={rankMode}
               onValueChange={(value: 'risk' | 'score' | null) => {
@@ -128,12 +147,12 @@ export default function ClassroomReportPage() {
                 setRankMode(next);
                 if (selectedId) loadReport(selectedId, next);
               }}
-              itemToStringLabel={(value) => value === 'score' ? 'ดีเยี่ยม' : 'เฝ้าระวัง'}
+              itemToStringLabel={(value) => value === 'score' ? t('scoreRanking') : t('riskRanking')}
             >
-              <SelectTrigger><SelectValue placeholder="รูปแบบอันดับ" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t('rankMode')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="risk" label="เฝ้าระวัง">เฝ้าระวัง</SelectItem>
-                <SelectItem value="score" label="ดีเยี่ยม">ดีเยี่ยม</SelectItem>
+                <SelectItem value="risk" label={t('riskRanking')}>{t('riskRanking')}</SelectItem>
+                <SelectItem value="score" label={t('scoreRanking')}>{t('scoreRanking')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -149,22 +168,22 @@ export default function ClassroomReportPage() {
             <CardHeader className="flex flex-row items-start justify-between gap-3">
               <div>
                 <CardTitle className="text-lg">
-                  {reportData.classroom.name} — ปีการศึกษา {reportData.academic_year}
+                  {t('classroomTitle', { classroom: reportData.classroom.name, year: reportData.academic_year })}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
                   {reportData.rank_mode === 'score'
-                    ? 'อันดับดีเยี่ยม: คะแนนสูงสุดเป็นอันดับ 1'
-                    : 'อันดับเฝ้าระวัง: คะแนนต่ำสุดเป็นอันดับ 1'}
+                    ? t('scoreRankingDescription')
+                    : t('riskRankingDescription')}
                 </p>
               </div>
               <div className="flex gap-2 print:hidden">
                 <Button variant="outline" onClick={handlePrint} disabled={!reportData.students?.length}>
                   <Printer className="mr-2 h-4 w-4" />
-                  PDF
+                  {t('pdf')}
                 </Button>
                 <Button variant="outline" onClick={handleExport} disabled={!reportData.students?.length}>
                   <Download className="mr-2 h-4 w-4" />
-                  CSV
+                  {t('csv')}
                 </Button>
               </div>
             </CardHeader>
@@ -172,32 +191,32 @@ export default function ClassroomReportPage() {
               <div className="grid grid-cols-4 gap-4 mb-6 print:grid-cols-4 print:gap-2">
                 <div className="p-3 rounded-lg bg-muted text-center print:border print:bg-white print:p-2">
                   <div className="text-2xl font-bold">{reportData.total_students}</div>
-                  <div className="text-xs text-muted-foreground">นักเรียน</div>
+                  <div className="text-xs text-muted-foreground">{t('students')}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted text-center print:border print:bg-white print:p-2">
                   <div className="text-2xl font-bold">{reportData.average_score}</div>
-                  <div className="text-xs text-muted-foreground">คะแนนเฉลี่ย</div>
+                  <div className="text-xs text-muted-foreground">{t('averageScore')}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted text-center print:border print:bg-white print:p-2">
                   <div className="text-2xl font-bold text-green-600">{reportData.distribution.excellent}</div>
-                  <div className="text-xs text-muted-foreground">ดีเยี่ยม</div>
+                  <div className="text-xs text-muted-foreground">{t('excellent')}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted text-center print:border print:bg-white print:p-2">
                   <div className="text-2xl font-bold text-red-600">{reportData.distribution.poor}</div>
-                  <div className="text-xs text-muted-foreground">ควรปรับปรุง</div>
+                  <div className="text-xs text-muted-foreground">{t('poor')}</div>
                 </div>
               </div>
 
               <Table className="print:text-[11px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[80px]">อันดับ</TableHead>
-                    <TableHead>รหัสนักเรียน</TableHead>
-                    <TableHead>ชื่อ-นามสกุล</TableHead>
-                    <TableHead>หักคะแนน</TableHead>
-                    <TableHead>ได้เพิ่ม</TableHead>
-                    <TableHead>คะแนนปัจจุบัน</TableHead>
-                    <TableHead>ระดับ</TableHead>
+                    <TableHead className="w-[80px]">{t('rank')}</TableHead>
+                    <TableHead>{t('studentId')}</TableHead>
+                    <TableHead>{t('studentName')}</TableHead>
+                    <TableHead>{t('deductedScore')}</TableHead>
+                    <TableHead>{t('addedScore')}</TableHead>
+                    <TableHead>{t('currentScore')}</TableHead>
+                    <TableHead>{t('level')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

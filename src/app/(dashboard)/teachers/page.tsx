@@ -11,8 +11,11 @@ import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
 import type { TeacherInput } from '@/lib/validation/schemas';
 import { exportCsv } from '@/lib/utils/csv';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export default function TeachersPage() {
+  const teacherT = useTranslations('teacher');
+  const studentT = useTranslations('student');
   const [data, setData] = useState<TeacherWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -28,10 +31,10 @@ export default function TeachersPage() {
       return;
     } else {
       setData([]);
-      toast('โหลดข้อมูลครูไม่สำเร็จ', { description: !result.success ? result.error.message : undefined });
+      toast(teacherT('loadError'), { description: !result.success ? result.error.message : undefined });
     }
     setLoading(false);
-  }, []);
+  }, [teacherT]);
 
   useEffect(() => {
     void Promise.resolve().then(fetchData);
@@ -43,7 +46,7 @@ export default function TeachersPage() {
       : await addTeacher(formData);
 
     if (!result.success) {
-      toast('บันทึกข้อมูลครูไม่สำเร็จ', { description: result.error.message });
+      toast(teacherT('saveError'), { description: result.error.message });
       return;
     }
 
@@ -54,16 +57,16 @@ export default function TeachersPage() {
 
   const handleExport = () => {
     exportCsv(data.map((teacher) => ({
-      รหัสเจ้าหน้าที่: teacher.employee_id,
-      คำนำหน้า: teacher.prefix || '',
-      ชื่อ: teacher.first_name || '',
-      นามสกุล: teacher.last_name || '',
-      อีเมล: teacher.email || '',
-      เบอร์โทร: teacher.phone || '',
-      แผนก: teacher.department || '',
-      ตำแหน่ง: teacher.position || 'ครู',
-      สิทธิ์ในระบบ: teacher.roles?.includes('superadmin') ? 'superadmin' : teacher.roles?.includes('admin') ? 'admin' : 'teacher',
-      ห้องที่ปรึกษา: teacher.assigned_classrooms?.map((c) => c.classroom_name).join(', ') || '',
+      [teacherT('employeeId')]: teacher.employee_id,
+      [teacherT('prefix')]: teacher.prefix || '',
+      [studentT('firstName')]: teacher.first_name || '',
+      [studentT('lastName')]: teacher.last_name || '',
+      [teacherT('email')]: teacher.email || '',
+      [teacherT('phone')]: teacher.phone || '',
+      [teacherT('department')]: teacher.department || '',
+      [teacherT('position')]: teacher.position || teacherT('teacher'),
+      [teacherT('systemRole')]: teacher.roles?.includes('superadmin') ? 'superadmin' : teacher.roles?.includes('admin') ? 'admin' : 'teacher',
+      [teacherT('advisorRooms')]: teacher.assigned_classrooms?.map((c) => c.classroom_name).join(', ') || '',
     })), `teachers_${new Date().toISOString().slice(0, 10)}`);
   };
 
@@ -72,12 +75,12 @@ export default function TeachersPage() {
     try {
       const result = await setTeacherActive(teacher.id, isActive);
       if (!result.success) {
-        toast(isActive ? 'เปิดใช้งานครูไม่สำเร็จ' : 'ปิดใช้งานครูไม่สำเร็จ', { description: result.error.message });
+        toast(isActive ? teacherT('activateFailed') : teacherT('deactivateFailed'), { description: result.error.message });
         return;
       }
 
-      toast(isActive ? 'เปิดใช้งานครูแล้ว' : 'ปิดใช้งานครูแล้ว', {
-        description: isActive ? undefined : 'ข้อมูลครูและประวัติครูประจำห้องยังถูกเก็บไว้',
+      toast(isActive ? teacherT('activated') : teacherT('deactivated'), {
+        description: isActive ? undefined : teacherT('deactivatedDescription'),
       });
       fetchData();
     } finally {
@@ -89,15 +92,15 @@ export default function TeachersPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">รายชื่อครูผู้สอน</h1>
-          <p className="text-muted-foreground mt-1">เพิ่ม แก้ไข กำหนดสิทธิ์ และกำหนดครูให้ห้องเรียน</p>
+          <h1 className="text-2xl font-bold">{teacherT('title')}</h1>
+          <p className="text-muted-foreground mt-1">{teacherT('description')}</p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="outline" onClick={handleExport} disabled={data.length === 0}>
-            <Download className="mr-2 h-4 w-4" />ส่งออก CSV
+            <Download className="mr-2 h-4 w-4" />{teacherT('exportCsv')}
           </Button>
           <Button onClick={() => { setEditItem(null); setShowForm(true); }}>
-            <Plus className="mr-2 h-4 w-4" />เพิ่มครู
+            <Plus className="mr-2 h-4 w-4" />{teacherT('add')}
           </Button>
         </div>
       </div>
@@ -112,7 +115,7 @@ export default function TeachersPage() {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editItem ? 'แก้ไขข้อมูลครู' : 'เพิ่มครูใหม่'}</DialogTitle>
+            <DialogTitle>{editItem ? teacherT('edit') : teacherT('addNew')}</DialogTitle>
           </DialogHeader>
           <TeacherForm
             defaultValues={editItem ? {

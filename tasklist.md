@@ -2,7 +2,7 @@
 
 ## ระบบคะแนนความประพฤตินักเรียน
 
-> Actual project status — updated 2026-05-10
+> Actual project status — updated 2026-05-11
 > ระบบทำงานแล้วบน production (Vercel + Supabase)
 
 ---
@@ -179,20 +179,44 @@
 - [x] เพิ่ม teacher positions และ UI กำหนดตำแหน่งครู
 - [x] ตารางรายชื่อนักเรียนแสดงคะแนนปัจจุบัน และคลิก row เพื่อเปิด profile ได้
 - [x] ประวัติคะแนน modal แสดง evidence image ถ้ามี
-- [x] Settings มี Google Drive config fields สำหรับ phase upload ต่อไป
+- [x] Settings มี Google Drive config fields และ upload route เริ่มรองรับ Google Drive สำหรับ profile/evidence แล้ว
+- [x] ปรับ policy ปีการศึกษา: topbar ใช้ดูย้อนหลัง, import/record score ทำได้เฉพาะปีปัจจุบัน, หน้า academic years ไม่มีปุ่มตั้ง current แบบเลือกเอง
+- [x] เพิ่ม action ขึ้นปีการศึกษาถัดไป: เช็คว่าปีเดิมสิ้นสุดแล้ว, copy ห้อง/ครูประจำห้อง, แล้วตั้งปีถัดไปเป็น current อัตโนมัติ
+- [x] ปรับรายงานรายห้องเรียนไม่ให้ Select แสดง classroom id แทนชื่อห้อง
 - [x] Build ผ่านด้วย `npm run build`
 
 ## 📋 ฟีเจอร์ที่ยังต้องทำต่อ
 
 ### High Priority
-- [ ] **i18n integration in pages** — all pages use hardcoded Thai, need `useTranslations()`
-- [ ] **Google Drive upload integration** — ใช้ config ใน Settings เพื่ออัปโหลดรูป profile และ score evidence ไป Google Drive
-- [ ] **Annual rollover/import** — flow ขึ้นปีใหม่, สร้าง/เลือกห้องรายปี, ย้าย enrollment, preview import ก่อนบันทึก
+- [ ] **i18n integration ทั้งระบบ** — ย้าย hardcoded Thai/English ไป `messages/th.json` และ `messages/en.json`
+  - [ ] Reports: classroom, threshold, individual, bond
+  - [ ] Score: record, history, approval, categories, transaction modal
+  - [ ] Settings: academic years, thresholds, Google Drive, profile, logs, master data
+  - [ ] Teacher pages/forms/tables
+  - [ ] Student profile/PDF/dialogs/status management
+  - [ ] Notification bell/list/messages
+  - [ ] Server/API error messages ที่แสดงถึงผู้ใช้
+- [ ] **รายงานนักเรียนถึงเกณฑ์ + การแจ้งเตือน**
+  - [ ] แปลง `/reports/threshold` เป็น i18n
+  - [ ] เพิ่ม filter/search/pagination และ export filename ที่มีปีการศึกษา
+  - [ ] สร้าง notification เมื่อ student reached threshold
+  - [ ] แจ้ง admin และครูประจำห้อง/ครูที่ปรึกษาตาม `teacher_classrooms`
+  - [ ] ป้องกัน duplicate notification ต่อ threshold/ปีการศึกษา
+  - [ ] Notification bell แสดง type/status/link target และ mark read เฉพาะ notification ของตัวเอง
+- [ ] **Google Drive production hardening**
+  - [ ] เพิ่มปุ่ม test connection ใน Settings
+  - [ ] ตรวจ service account email/private key/folder id และ folder permission จริง
+  - [ ] แก้ evidence fallback จาก bucket `school-logos` เป็น bucket สำหรับ evidence หรือ policy ที่ถูกต้อง
+  - [ ] Validate evidence type/size/count ให้ชัด และห้ามไฟล์เสี่ยงตาม req
+  - [ ] เพิ่ม rate limit upload และ audit log สำหรับ upload/delete
+  - [ ] Verify public/private URL rendering ใน evidence modal และ profile photo
+- [ ] **Annual rollover/import** — หลังขึ้นปีใหม่แล้วต้องมี import wizard สำหรับ enrollment นักเรียนปีใหม่, preview ก่อนบันทึก, จัดการนักเรียนย้าย/ซ้ำชั้น/จบการศึกษา
 - [ ] **Permission/Admin UI** — หน้า UI สำหรับกำหนด role/เพิ่ม admin ให้ครูบางคน และจัดการ permissions
 
 ### Medium Priority
 - [ ] **Student status management** — change status (active/inactive/transferred/graduated) พร้อม enrollment history
 - [ ] **Audit/action logs coverage** — บันทึก import/export/settings/role/score/classroom changes ให้ครบ
+- [ ] **Academic year backend hardening** — เพิ่ม test/guard ให้ edit student/import/score/approval ไม่แก้ข้อมูลผิดปี และเพิ่ม test ให้ action ขึ้นปีใหม่ block เมื่อปีเดิมยังไม่สิ้นสุด
 - [ ] **Guardian management UI** — รองรับผู้ปกครองหลายคนต่อ student profile
 - [ ] **Score approval hardening** — ตรวจ pending/approve/reject/void + evidence + audit log ให้ครบ
 - [ ] **Monthly reports** — generate + snapshot + PDF

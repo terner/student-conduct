@@ -12,8 +12,13 @@ import { toast } from 'sonner';
 import { getCurrentUserRole, changeProfileName } from '@/lib/actions/dashboard.action';
 import Link from 'next/link';
 import { displayRole } from '@/lib/security/roles';
+import { useTranslations } from 'next-intl';
 
 export default function ProfilePage() {
+  const settingsT = useTranslations('settings');
+  const commonT = useTranslations('common');
+  const authT = useTranslations('auth');
+  const studentT = useTranslations('student');
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,19 +52,19 @@ export default function ProfilePage() {
 
   const handleSaveName = async () => {
     if (!firstName.trim() || !lastName.trim()) {
-      toast('กรุณากรอกชื่อและนามสกุล');
+      toast(settingsT('profileNameRequired'));
       return;
     }
     setSaving(true);
     try {
       const res = await changeProfileName(firstName.trim(), lastName.trim());
       if (res.success) {
-        toast('บันทึกข้อมูลสำเร็จ');
+        toast(settingsT('profileSaveSuccess'));
       } else {
-        toast('เกิดข้อผิดพลาด', { description: res.error?.message });
+        toast(settingsT('genericError'), { description: res.error?.message });
       }
     } catch {
-      toast('เกิดข้อผิดพลาด');
+      toast(settingsT('genericError'));
     } finally {
       setSaving(false);
     }
@@ -70,7 +75,7 @@ export default function ProfilePage() {
       <div className="flex justify-center py-12">
         <div className="flex flex-col items-center gap-2">
           <Spinner className="size-8" />
-          <p className="text-sm text-muted-foreground">กำลังโหลด...</p>
+          <p className="text-sm text-muted-foreground">{commonT('loading')}</p>
         </div>
       </div>
     );
@@ -83,8 +88,8 @@ export default function ProfilePage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">โปรไฟล์ของฉัน</h1>
-          <p className="text-muted-foreground mt-1">จัดการข้อมูลส่วนตัว</p>
+          <h1 className="text-2xl font-bold">{settingsT('myProfile')}</h1>
+          <p className="text-muted-foreground mt-1">{settingsT('profileManageDescription')}</p>
         </div>
       </div>
 
@@ -93,18 +98,18 @@ export default function ProfilePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <UserIcon className="size-5" />
-              ข้อมูลส่วนตัว
+              {settingsT('personalInfo')}
             </CardTitle>
-            <CardDescription>ชื่อที่แสดงในระบบ</CardDescription>
+            <CardDescription>{settingsT('displayNameDescription')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>อีเมล</Label>
+              <Label>{authT('email')}</Label>
               <Input value={profile.email || ''} disabled className="bg-muted" />
-              <p className="text-xs text-muted-foreground">อีเมลไม่สามารถเปลี่ยนได้ด้วยตนเอง</p>
+              <p className="text-xs text-muted-foreground">{settingsT('emailCannotChange')}</p>
             </div>
             <div className="space-y-2">
-              <Label>บทบาท</Label>
+              <Label>{settingsT('role')}</Label>
               <Input
                 value={displayRole(profile.role)}
                 disabled
@@ -113,17 +118,17 @@ export default function ProfilePage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>ชื่อ *</Label>
-                <Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="ชื่อ" />
+                <Label>{settingsT('firstNameRequired')}</Label>
+                <Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder={studentT('firstName')} />
               </div>
               <div className="space-y-2">
-                <Label>นามสกุล *</Label>
-                <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="นามสกุล" />
+                <Label>{settingsT('lastNameRequired')}</Label>
+                <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder={studentT('lastName')} />
               </div>
             </div>
             <Button onClick={handleSaveName} disabled={saving}>
               <Save className="mr-2 h-4 w-4" />
-              {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+              {saving ? commonT('saving') : commonT('save')}
             </Button>
           </CardContent>
         </Card>
@@ -132,17 +137,17 @@ export default function ProfilePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Lock className="size-5" />
-              รหัสผ่าน
+              {settingsT('password')}
             </CardTitle>
-            <CardDescription>เปลี่ยนรหัสผ่านสำหรับเข้าใช้งาน</CardDescription>
+            <CardDescription>{settingsT('passwordDescription')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              ไปที่หน้าเปลี่ยนรหัสผ่านเพื่อตั้งรหัสผ่านใหม่
+              {settingsT('changePasswordHelp')}
             </p>
             <Button variant="outline" nativeButton={false} render={<Link href="/change-password" />}>
               <Lock className="mr-2 h-4 w-4" />
-              เปลี่ยนรหัสผ่าน
+              {authT('changePassword')}
             </Button>
           </CardContent>
         </Card>

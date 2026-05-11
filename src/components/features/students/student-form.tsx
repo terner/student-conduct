@@ -50,17 +50,17 @@ const PREFIX_LABELS: Record<string, string> = {
   'นาง': 'นาง',
 };
 
-const GUARDIAN_RELATION_LABELS: Record<string, string> = {
-  father: 'บิดา',
-  mother: 'มารดา',
-  guardian: 'ผู้ปกครอง',
-  relative: 'ญาติ',
-  other: 'อื่น ๆ',
-};
-
 export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmit, onCancel, loading }: StudentFormProps) {
   const t = useTranslations('student');
   const common = useTranslations('common');
+  const settingsT = useTranslations('settings');
+  const guardianRelationLabels: Record<string, string> = {
+    father: t('guardianRelationFather'),
+    mother: t('guardianRelationMother'),
+    guardian: t('guardian'),
+    relative: t('guardianRelationRelative'),
+    other: t('guardianRelationOther'),
+  };
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [availableClassrooms, setAvailableClassrooms] = useState<ClassroomOption[]>([]);
   const [stages, setStages] = useState<StageOption[]>([]);
@@ -218,8 +218,8 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      alert('ไฟล์ต้องมีขนาดไม่เกิน 2MB');
+  if (file.size > 2 * 1024 * 1024) {
+      alert(settingsT('logoFileTooLarge'));
       return;
     }
     setUploadingAvatar(true);
@@ -232,10 +232,10 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
       if (res.ok && result.url) {
         setAvatarUrl(result.url);
       } else {
-        alert(result.error || 'อัปโหลดไม่สำเร็จ');
+        alert(result.error || t('uploadFailed'));
       }
     } catch {
-      alert('เกิดข้อผิดพลาดในการอัปโหลด');
+      alert(t('uploadError'));
     } finally {
       setUploadingAvatar(false);
     }
@@ -243,7 +243,6 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
 
   return (
     <form onSubmit={handleSubmit((data) => onSubmit({ ...data, avatar_url: avatarUrl || undefined }))} className="space-y-4">
-      {/* รูปนักเรียน */}
       <div className="space-y-2">
         <Label>{t('photo')}</Label>
         <div className="flex items-center gap-4">
@@ -282,11 +281,10 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
           </label>
         </div>
         <p className="text-xs text-muted-foreground">
-          รองรับ PNG, JPG, GIF, WebP ขนาดไฟล์ไม่เกิน 2MB แนะนำรูปสี่เหลี่ยมจัตุรัส 512x512px
+          {t('photoHelp')}
         </p>
       </div>
 
-      {/* Prefix + First Name + Last Name */}
       <div className="space-y-2">
         <Label>{t('nameFields')}</Label>
         <div className="grid gap-2 sm:grid-cols-[130px_1fr_1fr]">
@@ -325,7 +323,6 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
         {errors.student_id_number && <p className="text-xs text-destructive">{errors.student_id_number.message}</p>}
       </div>
 
-      {/* เลือกชั้นปีก่อน แล้วค่อยเลือกห้อง */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>{t('gradeLevel')} *</Label>
@@ -390,7 +387,6 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
         </div>
       </div>
 
-      {/* เลขที่ในห้องเรียน */}
       <div className="space-y-2">
         <Label htmlFor="class_number">{t('classNumber')}</Label>
         <Input
@@ -406,27 +402,27 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
 
       <div className="space-y-3 rounded-md border p-3">
         <div>
-          <h3 className="text-sm font-medium">ข้อมูลผู้ปกครอง</h3>
-          <p className="text-xs text-muted-foreground">ผู้ปกครองหลักสำหรับติดต่อ</p>
+          <h3 className="text-sm font-medium">{t('guardianSection')}</h3>
+          <p className="text-xs text-muted-foreground">{t('guardianDescription')}</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="guardian_full_name">ชื่อผู้ปกครอง</Label>
-            <Input id="guardian_full_name" {...register('guardian_full_name')} placeholder="เช่น สมปอง ใจดี" />
+            <Label htmlFor="guardian_full_name">{t('guardianName')}</Label>
+            <Input id="guardian_full_name" {...register('guardian_full_name')} placeholder={t('guardianNamePlaceholder')} />
             {errors.guardian_full_name && <p className="text-xs text-destructive">{errors.guardian_full_name.message}</p>}
           </div>
           <div className="space-y-2">
-            <Label>ความสัมพันธ์</Label>
+            <Label>{t('guardianRelation')}</Label>
             <Select
               value={guardianRelationValue}
               onValueChange={(v) => v && setValue('guardian_relation', v as StudentInput['guardian_relation'])}
-              itemToStringLabel={(value) => GUARDIAN_RELATION_LABELS[value] || String(value)}
+              itemToStringLabel={(value) => guardianRelationLabels[value] || String(value)}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(GUARDIAN_RELATION_LABELS).map(([value, label]) => (
+                {Object.entries(guardianRelationLabels).map(([value, label]) => (
                   <SelectItem key={value} value={value} label={label}>
                     {label}
                   </SelectItem>
@@ -436,8 +432,8 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="guardian_phone">เบอร์โทรผู้ปกครอง</Label>
-          <Input id="guardian_phone" {...register('guardian_phone')} placeholder="เช่น 081-234-5678" />
+          <Label htmlFor="guardian_phone">{t('guardianPhone')}</Label>
+          <Input id="guardian_phone" {...register('guardian_phone')} placeholder={t('guardianPhonePlaceholder')} />
           {errors.guardian_phone && <p className="text-xs text-destructive">{errors.guardian_phone.message}</p>}
         </div>
       </div>

@@ -89,9 +89,10 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
     { label: t('threshold'), icon: AlertTriangle, href: '/reports/threshold', roles: ['superadmin', 'admin'], group: 'alert' },
   ]
 
-  const visibleNavigation = allNavigation.filter((item) => item.href !== '/settings/import' || selectedYearOpen)
-  const mainNavItems = visibleNavigation.filter(i => i.group === 'main' && hasAccess(i.roles))
-  const alertNavItems = visibleNavigation.filter(i => i.group === 'alert' && hasAccess(i.roles))
+  const mainNavItems = allNavigation.filter(i => i.group === 'main' && hasAccess(i.roles))
+  const alertNavItems = allNavigation.filter(i => i.group === 'alert' && hasAccess(i.roles))
+  const disabledWhenYearClosed = new Set(['/settings/import', '/score/record'])
+  const yearClosedTooltip = 'ใช้ได้เฉพาะปีการศึกษาปัจจุบัน'
 
   return (
     <Sidebar collapsible="icon">
@@ -119,9 +120,16 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
               {mainNavItems.map((item) => {
                 const Icon = item.icon
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                const isDisabled = disabledWhenYearClosed.has(item.href) && !selectedYearOpen
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton render={<Link href={item.href} onClick={closeMobileSidebar} />} isActive={isActive} tooltip={item.label}>
+                    <SidebarMenuButton
+                      render={isDisabled ? undefined : <Link href={item.href} onClick={closeMobileSidebar} />}
+                      isActive={isActive}
+                      disabled={isDisabled}
+                      title={isDisabled ? yearClosedTooltip : item.label}
+                      tooltip={isDisabled ? yearClosedTooltip : item.label}
+                    >
                       <Icon className="size-4" />
                       <span>{item.label}</span>
                     </SidebarMenuButton>

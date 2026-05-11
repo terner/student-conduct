@@ -9,8 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getTeacher } from '@/lib/actions/teacher.action';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
+import { useTranslations } from 'next-intl';
 
 export default function TeacherDetailPage() {
+  const teacherT = useTranslations('teacher');
+  const commonT = useTranslations('common');
   const params = useParams();
   const router = useRouter();
   const [teacher, setTeacher] = useState<TeacherWithProfile | null>(null);
@@ -25,18 +28,18 @@ export default function TeacherDetailPage() {
       if (res.success && res.data) {
         setTeacher(res.data as TeacherWithProfile);
       } else {
-        setError('ไม่พบข้อมูลครู');
+        setError(teacherT('notFound'));
       }
 
       setLoading(false);
     }
     load();
-  }, [params.id]);
+  }, [params.id, teacherT]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div>
+        <div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div>
       </div>
     );
   }
@@ -46,11 +49,11 @@ export default function TeacherDetailPage() {
       <div className="p-6">
         <div className="flex items-center gap-2 text-destructive">
           <AlertCircle className="h-5 w-5" />
-          <span>{error || 'ไม่พบข้อมูลครู'}</span>
+          <span>{error || teacherT('notFound')}</span>
         </div>
         <Button variant="outline" className="mt-4" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          กลับ
+          {commonT('back')}
         </Button>
       </div>
     );
@@ -64,33 +67,33 @@ export default function TeacherDetailPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold">{teacher.full_name}</h1>
-          <p className="text-muted-foreground text-sm">{teacher.position || 'ครู'} · รหัสเจ้าหน้าที่: {teacher.employee_id}</p>
+          <p className="text-muted-foreground text-sm">{teacher.position || teacherT('teacher')} · {teacherT('employeeId')}: {teacher.employee_id}</p>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">ข้อมูลทั่วไป</CardTitle>
+            <CardTitle className="text-lg">{teacherT('generalInfo')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">{teacher.email || 'ไม่มีอีเมล'}</span>
+              <span className="text-sm">{teacher.email || teacherT('noEmail')}</span>
             </div>
             <div className="flex items-center gap-2">
               <Phone className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">{teacher.phone || 'ไม่มีเบอร์โทร'}</span>
+              <span className="text-sm">{teacher.phone || teacherT('noPhone')}</span>
             </div>
             <div className="flex items-center gap-2">
               <Building className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">{teacher.department || 'ไม่มีแผนก'}</span>
+              <span className="text-sm">{teacher.department || teacherT('noDepartment')}</span>
             </div>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-muted-foreground" />
               <div className="flex flex-wrap gap-1">
-                <Badge variant="secondary">ครู</Badge>
-                {teacher.roles?.includes('superadmin') && <Badge>ผู้ดูแลสูงสุด</Badge>}
+                <Badge variant="secondary">{teacherT('teacher')}</Badge>
+                {teacher.roles?.includes('superadmin') && <Badge>{teacherT('superadmin')}</Badge>}
                 {teacher.roles?.includes('admin') && <Badge>Admin</Badge>}
               </div>
             </div>
@@ -103,7 +106,7 @@ export default function TeacherDetailPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">ห้องเรียนที่ปรึกษา</CardTitle>
+            <CardTitle className="text-lg">{teacherT('advisorClassrooms')}</CardTitle>
           </CardHeader>
           <CardContent>
             {teacher.assigned_classrooms && teacher.assigned_classrooms.length > 0 ? (
@@ -115,18 +118,18 @@ export default function TeacherDetailPage() {
                       <div>
                         <p className="text-sm font-medium">{c.classroom_name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {c.education_stage_name || '-'} ชั้น {c.grade_level}
+                          {c.education_stage_name || commonT('notAvailable')} {teacherT('gradePrefix', { grade: c.grade_level })}
                         </p>
                       </div>
                     </div>
                     <Badge variant="secondary" className="text-xs">
-                      {c.assignment_role === 'homeroom' ? 'ครูที่ปรึกษา' : c.assignment_role}
+                      {c.assignment_role === 'homeroom' ? teacherT('advisorRooms') : c.assignment_role}
                     </Badge>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground py-4 text-center">ยังไม่มีห้องเรียนที่ปรึกษา</p>
+              <p className="text-sm text-muted-foreground py-4 text-center">{teacherT('noAdvisorClassrooms')}</p>
             )}
           </CardContent>
         </Card>

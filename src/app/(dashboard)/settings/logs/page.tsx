@@ -6,8 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { createClient } from '@/lib/supabase/client';
+import { useTranslations } from 'next-intl';
 
 export default function AuditLogPage() {
+  const settingsT = useTranslations('settings');
+  const commonT = useTranslations('common');
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,20 +29,20 @@ export default function AuditLogPage() {
     load();
   }, []);
 
-  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div></div>;
+  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div></div>;
 
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Audit Log</h1>
-        <p className="text-muted-foreground mt-1">บันทึกการดำเนินการในระบบ</p>
+        <p className="text-muted-foreground mt-1">{settingsT('auditLogDescription')}</p>
       </div>
 
       {logs.length === 0 ? (
         <Empty>
           <EmptyHeader>
-            <EmptyTitle>ไม่มีบันทึก</EmptyTitle>
-            <EmptyDescription>ยังไม่มีรายการ Audit Log</EmptyDescription>
+            <EmptyTitle>{settingsT('noAuditLogs')}</EmptyTitle>
+            <EmptyDescription>{settingsT('noAuditLogsDescription')}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
@@ -48,10 +51,10 @@ export default function AuditLogPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>เวลา</TableHead>
-                  <TableHead>ผู้ดำเนินการ</TableHead>
-                  <TableHead>การกระทำ</TableHead>
-                  <TableHead>เป้าหมาย</TableHead>
+                  <TableHead>{settingsT('time')}</TableHead>
+                  <TableHead>{settingsT('actor')}</TableHead>
+                  <TableHead>{settingsT('action')}</TableHead>
+                  <TableHead>{settingsT('target')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

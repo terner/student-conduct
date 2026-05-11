@@ -73,6 +73,14 @@ async function ensureAcademicYearOpenForScoring(
     };
   }
 
+  if (!academicYear.is_current) {
+    return {
+      success: false as const,
+      error: { code: 'ACADEMIC_YEAR_NOT_CURRENT', message: 'บันทึกคะแนนได้เฉพาะปีการศึกษาปัจจุบัน' },
+      academicYear,
+    };
+  }
+
   const closedReason = getAcademicYearClosedReason(academicYear);
   if (closedReason) {
     return {
@@ -98,13 +106,14 @@ export async function getScoreRecordingAvailability(academicYearId?: string) {
     }
 
     const closedReason = getAcademicYearClosedReason(academicYear);
+    const notCurrentReason = academicYear.is_current ? '' : 'บันทึกคะแนนได้เฉพาะปีการศึกษาปัจจุบัน';
     return {
       success: true,
       data: {
         academic_year_id: academicYear.id as string,
         academic_year_name: academicYear.name as string,
-        can_record: !closedReason,
-        reason: closedReason,
+        can_record: !notCurrentReason && !closedReason,
+        reason: notCurrentReason || closedReason,
         start_date: (academicYear.start_date as string | null) || null,
         end_date: (academicYear.end_date as string | null) || null,
       },

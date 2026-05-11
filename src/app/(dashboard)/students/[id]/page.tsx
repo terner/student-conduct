@@ -26,13 +26,14 @@ import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 import { studentPrefixEnum, type StudentInput } from '@/lib/validation/schemas';
 import type { ScoreCategory } from '@/types';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
+import { useTranslations } from 'next-intl';
 
 const STATUS_OPTIONS = [
-  { value: 'active', label: 'กำลังศึกษา' },
-  { value: 'inactive', label: 'ไม่ active' },
-  { value: 'transferred', label: 'ย้ายออก' },
-  { value: 'graduated', label: 'จบการศึกษา' },
-  { value: 'suspended', label: 'พักการเรียน' },
+  { value: 'active', labelKey: 'statusActive' },
+  { value: 'inactive', labelKey: 'statusInactive' },
+  { value: 'transferred', labelKey: 'statusTransferred' },
+  { value: 'graduated', labelKey: 'statusGraduated' },
+  { value: 'suspended', labelKey: 'statusSuspended' },
 ];
 
 type StudentStatusValue = NonNullable<StudentInput['current_status']>;
@@ -85,7 +86,7 @@ function formatPrintDate(value: Date) {
   });
 }
 
-async function uploadEvidenceFiles(transactionId: string, files: File[]) {
+async function uploadEvidenceFiles(transactionId: string, files: File[], fallbackError: string) {
   if (files.length === 0) return;
   const formData = new FormData();
   formData.append('transaction_id', transactionId);
@@ -98,11 +99,15 @@ async function uploadEvidenceFiles(transactionId: string, files: File[]) {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new Error(payload?.error || 'อัปโหลดหลักฐานไม่สำเร็จ');
+    throw new Error(payload?.error || fallbackError);
   }
 }
 
 export default function StudentDetailPage() {
+  const commonT = useTranslations('common');
+  const studentT = useTranslations('student');
+  const scoreT = useTranslations('score');
+  const settingsT = useTranslations('settings');
   const params = useParams();
   const router = useRouter();
   const selectedAcademicYearId = useSelectedAcademicYearId();
@@ -129,6 +134,22 @@ export default function StudentDetailPage() {
   const [recordNote, setRecordNote] = useState('');
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [recording, setRecording] = useState(false);
+  const getStatusLabel = useCallback((status?: string | null) => {
+    switch (status) {
+      case 'active':
+        return studentT('statusActive');
+      case 'inactive':
+        return studentT('statusInactive');
+      case 'transferred':
+        return studentT('statusTransferred');
+      case 'graduated':
+        return studentT('statusGraduated');
+      case 'suspended':
+        return studentT('statusSuspended');
+      default:
+        return status || commonT('notAvailable');
+    }
+  }, [commonT, studentT]);
 
   const loadData = useCallback(async () => {
     const id = params.id as string;
@@ -142,7 +163,7 @@ export default function StudentDetailPage() {
     if (studentRes.success && studentRes.data) {
       setStudent(studentRes.data as StudentWithProfile);
     } else {
-      setError('ไม่พบข้อมูลนักเรียน');
+      setError(studentT('notFound'));
     }
 
     if (reportRes.success && reportRes.data) {
@@ -161,9 +182,9 @@ export default function StudentDetailPage() {
         reason: scoreRecordRes.data.reason,
       });
     } else {
-      setScoreRecordingAvailability({ can_record: false, reason: 'ไม่สามารถตรวจสอบช่วงปีการศึกษาได้' });
+      setScoreRecordingAvailability({ can_record: false, reason: settingsT('academicYearAvailabilityCheckFailed') });
     }
-  }, [params.id, selectedAcademicYearId]);
+  }, [params.id, selectedAcademicYearId, settingsT, studentT]);
 
   useEffect(() => {
     async function load() {
@@ -180,20 +201,20 @@ export default function StudentDetailPage() {
     if (!student || !recordCategory || recordPoints <= 0) return;
     const cat = categories.find(c => c.id === recordCategory);
     if (cat?.requires_evidence && evidenceFiles.length === 0) {
-      toast('กรุณาแนบหลักฐาน', { description: 'รายการนี้ถูกตั้งค่าให้ต้องมีหลักฐานประกอบ' });
+      toast(studentT('evidenceRequiredToastTitle'), { description: studentT('evidenceRequiredToastDescription') });
       return;
     }
     if (!Number.isInteger(extraPoints) || extraPoints < 0 || extraPoints > 999) {
-      toast('คะแนนพิเศษต้องเป็นจำนวนเต็ม 0-999');
+      toast(studentT('extraPointsInvalid'));
       return;
     }
     if (extraPoints > 0 && !extraReason.trim()) {
-      toast('กรุณาระบุเหตุผลคะแนนพิเศษ');
+      toast(studentT('extraReasonRequired'));
       return;
     }
     const totalPoints = Math.abs(recordPoints) + extraPoints;
     if (totalPoints > 999) {
-      toast('คะแนนรวมต้องไม่เกิน 999');
+      toast(studentT('totalPointsTooHigh'));
       return;
     }
     setRecording(true);
@@ -203,7 +224,11 @@ export default function StudentDetailPage() {
       const points = cat?.type === 'deduct' ? -(basePoints + specialPoints) : basePoints + specialPoints;
       const noteParts = [
         recordNote.trim(),
-        specialPoints > 0 ? `คะแนนพิเศษ ${cat?.type === 'deduct' ? 'หักเพิ่ม' : 'เพิ่ม'} ${specialPoints}: ${extraReason.trim()}` : '',
+        specialPoints > 0 ? studentT('specialPointsNote', {
+          type: cat?.type === 'deduct' ? studentT('specialDeduct') : studentT('specialAdd'),
+          points: specialPoints,
+          reason: extraReason.trim(),
+        }) : '',
       ].filter(Boolean);
       const res = await recordScore({
         student_id: student.id,
@@ -214,8 +239,8 @@ export default function StudentDetailPage() {
         has_evidence: evidenceFiles.length > 0,
       });
       if (res.success) {
-        await uploadEvidenceFiles(res.data.id, evidenceFiles);
-        toast(cat?.requires_approval ? 'ส่งรายการเพื่อรออนุมัติแล้ว' : 'บันทึกคะแนนสำเร็จ');
+        await uploadEvidenceFiles(res.data.id, evidenceFiles, studentT('uploadEvidenceFailed'));
+        toast(cat?.requires_approval ? studentT('scoreSubmittedApproval') : studentT('scoreRecordSuccess'));
         setShowRecordDialog(false);
         setRecordType('deduct');
         setRecordCategory('');
@@ -226,10 +251,10 @@ export default function StudentDetailPage() {
         setEvidenceFiles([]);
         await loadData();
       } else {
-        toast('เกิดข้อผิดพลาด', { description: res.error?.message });
+        toast(commonT('error'), { description: res.error?.message });
       }
     } catch {
-      toast('เกิดข้อผิดพลาด');
+      toast(commonT('error'));
     } finally {
       setRecording(false);
     }
@@ -242,13 +267,13 @@ export default function StudentDetailPage() {
     try {
       const result = await editStudent(student.id, { current_status: newStatus as StudentStatusValue });
       if (result.success) {
-        toast('เปลี่ยนสถานะสำเร็จ');
+        toast(studentT('statusChangeSuccess'));
         await loadData();
       } else {
-        toast('เกิดข้อผิดพลาด', { description: result.error?.message });
+        toast(commonT('error'), { description: result.error?.message });
       }
     } catch {
-      toast('เกิดข้อผิดพลาด', { description: 'ไม่สามารถเปลี่ยนสถานะได้' });
+      toast(commonT('error'), { description: studentT('statusChangeFailed') });
     } finally {
       setChangingStatus(false);
     }
@@ -279,10 +304,10 @@ export default function StudentDetailPage() {
 
     if (result.success) {
       setShowEditForm(false);
-      toast('แก้ไขข้อมูลนักเรียนสำเร็จ');
+      toast(studentT('editSuccess'));
       await loadData();
     } else {
-      throw new Error(result.error?.message || 'เกิดข้อผิดพลาด');
+      throw new Error(result.error?.message || commonT('error'));
     }
   };
 
@@ -292,11 +317,12 @@ export default function StudentDetailPage() {
 
   const canRecordScoreInSelectedYear = canManage && scoreRecordingAvailability?.can_record === true;
   const canEditStudentInSelectedYear = canEditProfile && scoreRecordingAvailability?.can_record === true;
+  const scoreActionUnavailableReason = scoreRecordingAvailability?.reason || studentT('currentYearOnly');
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div>
+        <div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div>
       </div>
     );
   }
@@ -306,11 +332,11 @@ export default function StudentDetailPage() {
       <div className="p-6">
         <div className="flex items-center gap-2 text-destructive">
           <AlertCircle className="h-5 w-5" />
-          <span>{error || 'ไม่พบข้อมูลนักเรียน'}</span>
+          <span>{error || studentT('notFound')}</span>
         </div>
         <Button variant="outline" className="mt-4" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          กลับ
+          {commonT('back')}
         </Button>
       </div>
     );
@@ -321,21 +347,21 @@ export default function StudentDetailPage() {
       <div className="hidden border-b border-neutral-300 pb-3 print:block">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-medium text-neutral-500">รายงานนักเรียน</p>
+            <p className="text-[11px] font-medium text-neutral-500">{studentT('reportTitle')}</p>
             <h1 className="mt-1 text-xl font-bold leading-tight">
               {student.prefix}{student.first_name} {student.last_name}
             </h1>
             <p className="mt-1 text-[11px] text-neutral-600">
-              รหัสนักเรียน {student.student_id_number}
-              {student.classroom_name ? ` | ห้อง ${student.classroom_name}` : ''}
+              {studentT('id')} {student.student_id_number}
+              {student.classroom_name ? ` | ${studentT('classroom')} ${student.classroom_name}` : ''}
             </p>
             <p className="mt-0.5 text-[11px] text-neutral-600">
-              วันที่พิมพ์ {formatPrintDate(new Date())}
+              {studentT('printedDate')} {formatPrintDate(new Date())}
             </p>
           </div>
           <div className="text-right text-[11px] text-neutral-600">
             <p className="whitespace-nowrap font-medium">
-              ปีการศึกษา{' '}
+              {commonT('academicYear')}{' '}
               <span className="text-2xl font-bold leading-none text-neutral-900">
                 {reportData?.academic_year || '-'}
               </span>
@@ -356,12 +382,12 @@ export default function StudentDetailPage() {
                 variant="outline"
                 className={student.current_status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}
               >
-                {student.current_status === 'active' ? 'กำลังศึกษา' : student.current_status}
+                {getStatusLabel(student.current_status)}
               </Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground print:mt-0 print:text-xs">
-              รหัสนักเรียน: <span className="font-mono">{student.student_id_number}</span>
-              {student.classroom_name ? ` · ห้อง ${student.classroom_name}` : ''}
+              {studentT('id')}: <span className="font-mono">{student.student_id_number}</span>
+              {student.classroom_name ? ` · ${studentT('classroom')} ${student.classroom_name}` : ''}
             </p>
           </div>
         </div>
@@ -370,46 +396,64 @@ export default function StudentDetailPage() {
             <Printer className="mr-2 h-4 w-4" />
             PDF
           </Button>
-          {canRecordScoreInSelectedYear && (
-            <>
-            <Button size="lg" onClick={() => { setRecordType('deduct'); setRecordCategory(''); setRecordPoints(5); setExtraPoints(0); setExtraReason(''); setRecordNote(''); setEvidenceFiles([]); setShowRecordDialog(true); }}>
+          {canManage && (
+            <Button
+              size="lg"
+              disabled={!canRecordScoreInSelectedYear}
+              title={canRecordScoreInSelectedYear ? undefined : scoreActionUnavailableReason}
+              onClick={() => { setRecordType('deduct'); setRecordCategory(''); setRecordPoints(5); setExtraPoints(0); setExtraReason(''); setRecordNote(''); setEvidenceFiles([]); setShowRecordDialog(true); }}
+            >
               <ClipboardPlus className="mr-2 h-4 w-4" />
-              บันทึกคะแนน
+              {scoreT('recordTitle')}
             </Button>
-            {canEditStudentInSelectedYear && (
-              <Button variant="outline" onClick={() => setShowEditForm(true)}>
-                <Edit3 className="mr-2 h-4 w-4" />
-                แก้ไขข้อมูล
-              </Button>
-            )}
-            </>
+          )}
+          {canEditProfile && (
+            <Button
+              variant="outline"
+              disabled={!canEditStudentInSelectedYear}
+              title={canEditStudentInSelectedYear ? undefined : scoreActionUnavailableReason}
+              onClick={() => setShowEditForm(true)}
+            >
+              <Edit3 className="mr-2 h-4 w-4" />
+              {studentT('edit')}
+            </Button>
           )}
         </div>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 backdrop-blur print:hidden sm:hidden">
-        <div className={`grid gap-2 ${canRecordScoreInSelectedYear ? 'grid-cols-[auto_1fr_auto]' : 'grid-cols-1'}`}>
+        <div className={`grid gap-2 ${canManage || canEditProfile ? 'grid-cols-[auto_1fr_auto]' : 'grid-cols-1'}`}>
           <Button
             variant="outline"
-            size={canRecordScoreInSelectedYear ? 'icon-lg' : 'lg'}
+            size={canManage || canEditProfile ? 'icon-lg' : 'lg'}
             onClick={handlePrint}
-            aria-label="ออก PDF"
+            aria-label={studentT('exportPdf')}
           >
             <Printer className="h-4 w-4" aria-hidden="true" />
-            {!canRecordScoreInSelectedYear && <span>PDF</span>}
+            {!(canManage || canEditProfile) && <span>PDF</span>}
           </Button>
-          {canRecordScoreInSelectedYear && (
-            <>
-            <Button size="lg" onClick={() => { setRecordType('deduct'); setRecordCategory(''); setRecordPoints(5); setExtraPoints(0); setExtraReason(''); setRecordNote(''); setEvidenceFiles([]); setShowRecordDialog(true); }}>
+          {canManage && (
+            <Button
+              size="lg"
+              disabled={!canRecordScoreInSelectedYear}
+              title={canRecordScoreInSelectedYear ? undefined : scoreActionUnavailableReason}
+              onClick={() => { setRecordType('deduct'); setRecordCategory(''); setRecordPoints(5); setExtraPoints(0); setExtraReason(''); setRecordNote(''); setEvidenceFiles([]); setShowRecordDialog(true); }}
+            >
               <ClipboardPlus className="mr-2 h-4 w-4" />
-              บันทึกคะแนน
+              {scoreT('recordTitle')}
             </Button>
-            {canEditStudentInSelectedYear && (
-              <Button variant="outline" size="lg" onClick={() => setShowEditForm(true)} aria-label="แก้ไขข้อมูล">
-                <Edit3 className="h-4 w-4" />
-              </Button>
-            )}
-            </>
+          )}
+          {canEditProfile && (
+            <Button
+              variant="outline"
+              size="lg"
+              disabled={!canEditStudentInSelectedYear}
+              title={canEditStudentInSelectedYear ? undefined : scoreActionUnavailableReason}
+              onClick={() => setShowEditForm(true)}
+              aria-label={studentT('edit')}
+            >
+              <Edit3 className="h-4 w-4" />
+            </Button>
           )}
         </div>
       </div>
@@ -419,7 +463,7 @@ export default function StudentDetailPage() {
       {canChangeStatus && scoreRecordingAvailability?.can_record === true && (
         <Card className="print:hidden">
           <CardHeader>
-            <CardTitle className="text-lg">จัดการสถานะ</CardTitle>
+            <CardTitle className="text-lg">{studentT('manageStatus')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -429,7 +473,7 @@ export default function StudentDetailPage() {
                 disabled={changingStatus}
                 itemToStringLabel={(value) => {
                   const opt = STATUS_OPTIONS.find(o => o.value === value);
-                  return opt ? opt.label : String(value);
+                  return opt ? studentT(opt.labelKey) : String(value);
                 }}
               >
                 <SelectTrigger className="w-full sm:w-[200px]">
@@ -437,14 +481,14 @@ export default function StudentDetailPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {STATUS_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} label={opt.label}>
-                      {opt.label}
+                    <SelectItem key={opt.value} value={opt.value} label={studentT(opt.labelKey)}>
+                      {studentT(opt.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <span className="text-sm text-muted-foreground">
-                {changingStatus ? 'กำลังเปลี่ยนสถานะ...' : 'เปลี่ยนสถานะนักเรียน'}
+                {changingStatus ? studentT('changingStatus') : studentT('changeStatus')}
               </span>
             </div>
           </CardContent>
@@ -455,18 +499,18 @@ export default function StudentDetailPage() {
       {reportData?.transactions && reportData.transactions.length > 0 && (
         <Card className="print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
           <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
-            <CardTitle className="text-lg print:text-[12px] print:font-semibold">ประวัติคะแนนล่าสุด</CardTitle>
+            <CardTitle className="text-lg print:text-[12px] print:font-semibold">{studentT('scoreHistoryLatest')}</CardTitle>
           </CardHeader>
           <CardContent className="print:px-3 print:py-2">
             <div className="overflow-x-auto print:overflow-visible">
             <Table className="print:text-[10px] print:[&_td]:border print:[&_td]:border-neutral-300 print:[&_td]:px-2 print:[&_td]:py-1.5 print:[&_th]:border print:[&_th]:border-neutral-300 print:[&_th]:bg-neutral-100 print:[&_th]:px-2 print:[&_th]:py-1.5">
               <TableHeader>
                 <TableRow>
-                  <TableHead>วันที่</TableHead>
-                  <TableHead>ประเภท</TableHead>
-                  <TableHead>คะแนน</TableHead>
-                  <TableHead>หมายเหตุ</TableHead>
-                  <TableHead>บันทึกโดย</TableHead>
+                  <TableHead>{scoreT('date')}</TableHead>
+                  <TableHead>{scoreT('type')}</TableHead>
+                  <TableHead>{scoreT('points')}</TableHead>
+                  <TableHead>{studentT('note')}</TableHead>
+                  <TableHead>{scoreT('recordedBy')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -492,7 +536,7 @@ export default function StudentDetailPage() {
             </div>
             {reportData.transactions.length > 8 && (
               <p className="mt-1 hidden text-[10px] text-muted-foreground print:block">
-                แสดง 8 รายการล่าสุด จากทั้งหมด {reportData.transactions.length} รายการ
+                {studentT('showLatestTransactions', { count: reportData.transactions.length })}
               </p>
             )}
           </CardContent>
@@ -502,7 +546,7 @@ export default function StudentDetailPage() {
       {(!reportData?.transactions || reportData.transactions.length === 0) && (
         <Card className="print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
           <CardContent className="py-8 text-center text-muted-foreground print:py-4 print:text-[11px]">
-            ยังไม่มีประวัติการบันทึกคะแนน
+            {studentT('noScoreHistory')}
           </CardContent>
         </Card>
       )}
@@ -511,7 +555,7 @@ export default function StudentDetailPage() {
         <Dialog open={showRecordDialog} onOpenChange={setShowRecordDialog}>
         <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>บันทึกคะแนน</DialogTitle>
+            <DialogTitle>{scoreT('recordTitle')}</DialogTitle>
             <DialogDescription>
               {student?.prefix}{student?.first_name} {student?.last_name} ({student?.student_id_number})
             </DialogDescription>
@@ -519,7 +563,7 @@ export default function StudentDetailPage() {
 
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label className="text-xs font-medium">ประเภทการบันทึก</Label>
+              <Label className="text-xs font-medium">{studentT('scoreRecordType')}</Label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -530,7 +574,7 @@ export default function StudentDetailPage() {
                       : 'border-red-200 bg-red-50/40 text-red-700 hover:bg-red-50'
                   }`}
                 >
-                  หักคะแนน
+                  {studentT('deductScore')}
                 </button>
                 <button
                   type="button"
@@ -541,7 +585,7 @@ export default function StudentDetailPage() {
                       : 'border-emerald-200 bg-emerald-50/40 text-emerald-700 hover:bg-emerald-50'
                   }`}
                 >
-                  เพิ่มคะแนน
+                  {studentT('addScore')}
                 </button>
               </div>
             </div>
@@ -549,7 +593,7 @@ export default function StudentDetailPage() {
             {recordType && (
             <div className="space-y-1">
               <Label className={`text-xs font-medium ${recordType === 'deduct' ? 'text-red-700' : 'text-emerald-700'}`}>
-                {recordType === 'deduct' ? 'เลือกรายการหักคะแนน' : 'เลือกรายการเพิ่มคะแนน'}
+                {recordType === 'deduct' ? studentT('selectDeductCategory') : studentT('selectAddCategory')}
               </Label>
               <div className="grid grid-cols-1 gap-2">
                 {categories.filter(c => c.type === recordType).map(c => (
@@ -572,8 +616,8 @@ export default function StudentDetailPage() {
                       {(c.requires_evidence || c.requires_approval) && (
                         <span className="mt-0.5 block text-xs font-normal opacity-75">
                           {[
-                            c.requires_evidence ? 'ต้องมีหลักฐาน' : '',
-                            c.requires_approval ? 'รออนุมัติ' : '',
+                            c.requires_evidence ? studentT('requiresEvidenceShort') : '',
+                            c.requires_approval ? studentT('requiresApprovalShort') : '',
                           ].filter(Boolean).join(' · ')}
                         </span>
                       )}
@@ -589,21 +633,21 @@ export default function StudentDetailPage() {
 
             {recordType && recordCategory && categories.find(c => c.id === recordCategory)?.requires_evidence && (
             <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50/60 p-3">
-              <Label>หลักฐาน * (จำเป็นสำหรับรายการนี้)</Label>
+              <Label>{studentT('evidenceRequiredLabel')}</Label>
               <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} />
             </div>
             )}
 
             {recordType && recordCategory && !categories.find(c => c.id === recordCategory)?.requires_evidence && evidenceFiles.length > 0 && (
             <div className="space-y-1 rounded-md border p-3">
-              <Label>หลักฐาน</Label>
+              <Label>{studentT('evidenceLabel')}</Label>
               <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} />
             </div>
             )}
 
             {recordType && (
             <div className="space-y-1">
-              <Label>คะแนนตามรายการ</Label>
+              <Label>{studentT('categoryPoints')}</Label>
               <div className={`inline-flex rounded-md border px-3 py-2 text-sm font-semibold ${
                 recordType === 'deduct'
                   ? 'border-red-200 bg-red-50 text-red-700'
@@ -617,7 +661,7 @@ export default function StudentDetailPage() {
             {recordType && (
             <div className="space-y-3 rounded-md border p-3">
               <div className="space-y-1">
-                <Label>{recordType === 'deduct' ? 'คะแนนพิเศษที่หักเพิ่ม' : 'คะแนนพิเศษที่เพิ่ม'}</Label>
+                <Label>{recordType === 'deduct' ? studentT('extraDeductPoints') : studentT('extraAddPoints')}</Label>
                 <Input
                   type="number"
                   step={1}
@@ -642,11 +686,11 @@ export default function StudentDetailPage() {
               </div>
               {extraPoints > 0 && (
                 <div className="space-y-1">
-                  <Label>เหตุผลคะแนนพิเศษ *</Label>
+                  <Label>{studentT('extraReason')}</Label>
                   <Textarea
                     value={extraReason}
                     onChange={e => setExtraReason(e.target.value)}
-                    placeholder={recordType === 'deduct' ? 'ระบุเหตุผลที่หักเพิ่ม...' : 'ระบุเหตุผลที่เพิ่มคะแนนพิเศษ...'}
+                    placeholder={recordType === 'deduct' ? studentT('extraDeductReasonPlaceholder') : studentT('extraAddReasonPlaceholder')}
                     rows={2}
                   />
                 </div>
@@ -656,11 +700,11 @@ export default function StudentDetailPage() {
 
             {recordType && (
             <div className="space-y-1">
-              <Label>หมายเหตุ</Label>
+              <Label>{studentT('note')}</Label>
               <Textarea
                 value={recordNote}
                 onChange={e => setRecordNote(e.target.value)}
-                placeholder="รายละเอียดเพิ่มเติม..."
+                placeholder={studentT('notePlaceholder')}
                 rows={2}
               />
             </div>
@@ -673,7 +717,7 @@ export default function StudentDetailPage() {
               onClick={() => setShowRecordDialog(false)}
               className="h-14 w-full px-4 text-base font-semibold"
             >
-              ยกเลิก
+              {commonT('cancel')}
             </Button>
             <Button
               onClick={handleRecordScore}
@@ -681,7 +725,7 @@ export default function StudentDetailPage() {
               className="h-14 w-full px-4 text-base font-semibold"
             >
               {recording && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              บันทึก
+              {commonT('save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -693,9 +737,9 @@ export default function StudentDetailPage() {
       <Dialog open={showEditForm} onOpenChange={(open) => !open && setShowEditForm(false)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>แก้ไขข้อมูลนักเรียน</DialogTitle>
+            <DialogTitle>{studentT('edit')}</DialogTitle>
             <DialogDescription>
-              แก้ไขข้อมูลส่วนตัวของนักเรียน
+              {studentT('editDescription')}
             </DialogDescription>
           </DialogHeader>
           <StudentForm

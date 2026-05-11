@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Search, Filter, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,8 @@ import type { ScoreTransactionWithDetails } from '@/lib/db/queries/score.queries
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 
 export default function ScoreHistoryPage() {
+  const scoreT = useTranslations('score');
+  const commonT = useTranslations('common');
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [data, setData] = useState<ScoreTransactionWithDetails[]>([]);
   const [total, setTotal] = useState(0);
@@ -46,13 +49,13 @@ export default function ScoreHistoryPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">ประวัติคะแนน</h1>
-          <p className="text-muted-foreground mt-1">ดูประวัติการบันทึกคะแนนทั้งหมด</p>
+          <h1 className="text-2xl font-bold">{scoreT('historyTitle')}</h1>
+          <p className="text-muted-foreground mt-1">{scoreT('historyDescription')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => { setPage(1); setSearch(''); fetchData(1, ''); }}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            รีเฟรช
+            {scoreT('refresh')}
           </Button>
         </div>
       </div>
@@ -63,7 +66,7 @@ export default function ScoreHistoryPage() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="ค้นหารหัสนักเรียน..."
+                placeholder={scoreT('searchStudentId')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -72,7 +75,7 @@ export default function ScoreHistoryPage() {
             </div>
             <Button variant="secondary" onClick={handleSearch}>
               <Filter className="mr-2 h-4 w-4" />
-              ค้นหา
+              {commonT('search')}
             </Button>
           </div>
 

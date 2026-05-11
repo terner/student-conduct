@@ -147,10 +147,16 @@ async function ensureStudentEditableInOpenAcademicYear(
   classroomId?: string,
 ) {
   const adminClient = await createAdminClient();
-  let query = adminClient
-    .from('student_enrollments')
-    .select('id, academic_year_id, academic_years!inner(name, start_date, end_date)')
-    .eq('student_id', studentId);
+  const { data: currentYear, error: currentYearError } = await adminClient
+    .from('academic_years')
+    .select('id, name, start_date, end_date')
+    .eq('is_current', true)
+    .maybeSingle();
+
+  if (currentYearError) throw currentYearError;
+  if (!currentYear?.id) {
+    return { success: false as const, message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' };
+  }
 
   if (classroomId) {
     const { data: classroom } = await adminClient
@@ -159,27 +165,28 @@ async function ensureStudentEditableInOpenAcademicYear(
       .eq('id', classroomId)
       .maybeSingle();
 
-    if (classroom?.academic_year_id) {
-      query = query.eq('academic_year_id', classroom.academic_year_id);
+    if (classroom?.academic_year_id !== currentYear.id) {
+      return { success: false as const, message: 'ห้องเรียนนี้ไม่อยู่ในปีการศึกษาปัจจุบัน' };
     }
   }
 
-  const { data: enrollments, error } = await query;
+  const { data: enrollment, error } = await adminClient
+    .from('student_enrollments')
+    .select('id')
+    .eq('student_id', studentId)
+    .eq('academic_year_id', currentYear.id)
+    .maybeSingle();
+
   if (error) throw error;
-  if (!enrollments || enrollments.length === 0) {
-    return { success: false as const, message: 'ไม่พบข้อมูลปีการศึกษาของนักเรียนนี้' };
+  if (!enrollment) {
+    return { success: false as const, message: 'นักเรียนนี้ไม่อยู่ในปีการศึกษาปัจจุบัน' };
   }
 
-  const closedEnrollment = enrollments.find((enrollment) => {
-    const year = enrollment.academic_years as unknown as { start_date?: string | null; end_date?: string | null };
-    return Boolean(getAcademicYearClosedReason(year));
-  });
-
-  if (closedEnrollment) {
-    const year = closedEnrollment.academic_years as unknown as { name?: string; start_date?: string | null; end_date?: string | null };
+  const closedReason = getAcademicYearClosedReason(currentYear);
+  if (closedReason) {
     return {
       success: false as const,
-      message: `ไม่สามารถแก้ไขข้อมูลนักเรียนของปี ${year.name || ''} ได้ (${getAcademicYearClosedReason(year)})`,
+      message: `ไม่สามารถแก้ไขข้อมูลนักเรียนของปี ${currentYear.name || ''} ได้ (${closedReason})`,
     };
   }
 
@@ -771,17 +778,22 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         const { data: acYear } = academicYearName
           ? await adminClient
             .from('academic_years')
-            .select('id, name, start_date, end_date')
+            .select('id, name, start_date, end_date, is_current')
             .eq('name', academicYearName)
             .maybeSingle()
           : await adminClient
             .from('academic_years')
-            .select('id, name, start_date, end_date')
+            .select('id, name, start_date, end_date, is_current')
             .eq('is_current', true)
             .maybeSingle();
 
         if (!acYear?.id) {
           errors.push({ row: i + 1, message: academicYearName ? `ไม่พบปีการศึกษา "${academicYearName}"` : 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' });
+          continue;
+        }
+
+        if (!acYear.is_current) {
+          errors.push({ row: i + 1, message: `นำเข้าได้เฉพาะปีการศึกษาปัจจุบัน (${acYear.name || academicYearName} ไม่ใช่ปีปัจจุบัน)` });
           continue;
         }
 

@@ -19,8 +19,13 @@ import {
   type TeacherPositionItem,
   updateTeacherPosition,
 } from '@/lib/actions/teacher-position.action';
+import { useTranslations } from 'next-intl';
 
 export default function TeacherPositionsPage() {
+  const settingsT = useTranslations('settings');
+  const commonT = useTranslations('common');
+  const studentT = useTranslations('student');
+  const teacherT = useTranslations('teacher');
   const [positions, setPositions] = useState<TeacherPositionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,7 +40,7 @@ export default function TeacherPositionsPage() {
     if (result.success && result.data) {
       setPositions(result.data);
     } else {
-      toast('โหลดตำแหน่งครูไม่สำเร็จ', { description: !result.success ? result.error.message : undefined });
+      toast(settingsT('loadTeacherPositionsFailed'), { description: !result.success ? result.error.message : undefined });
     }
     setLoading(false);
   }
@@ -60,7 +65,7 @@ export default function TeacherPositionsPage() {
 
   async function handleSave() {
     if (!formData.name.trim()) {
-      toast('กรุณากรอกชื่อตำแหน่ง');
+      toast(settingsT('teacherPositionRequired'));
       return;
     }
 
@@ -71,11 +76,11 @@ export default function TeacherPositionsPage() {
         : await addTeacherPosition({ name: formData.name, sort_order: formData.sort_order });
 
       if (result.success) {
-        toast(editing ? 'แก้ไขตำแหน่งครูสำเร็จ' : 'เพิ่มตำแหน่งครูสำเร็จ');
+        toast(editing ? settingsT('teacherPositionEditSuccess') : settingsT('teacherPositionAddSuccess'));
         setShowForm(false);
         await load();
       } else {
-        toast('บันทึกไม่สำเร็จ', { description: result.error.message });
+        toast(settingsT('saveFailed'), { description: result.error.message });
       }
     } finally {
       setSaving(false);
@@ -88,13 +93,13 @@ export default function TeacherPositionsPage() {
       const result = await deleteTeacherPosition(position.id);
       if (result.success) {
         const data = result.data as { deactivated?: boolean; used_count?: number } | null;
-        toast(data?.deactivated ? 'ปิดใช้งานตำแหน่งแล้ว' : 'ลบตำแหน่งครูสำเร็จ', {
-          description: data?.deactivated ? `มีครู ${data.used_count} คนใช้ตำแหน่งนี้อยู่ จึงปิดใช้งานแทนการลบ` : undefined,
+        toast(data?.deactivated ? settingsT('teacherPositionDeactivated') : settingsT('teacherPositionDeleteSuccess'), {
+          description: data?.deactivated ? settingsT('teacherPositionDeactivatedDescription', { count: data.used_count || 0 }) : undefined,
         });
         setDeleteConfirm(null);
         await load();
       } else {
-        toast('ลบไม่สำเร็จ', { description: result.error.message });
+        toast(settingsT('deleteFailed'), { description: result.error.message });
       }
     } finally {
       setSaving(false);
@@ -109,11 +114,11 @@ export default function TeacherPositionsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">กำหนดตำแหน่งครู</h1>
-          <p className="text-muted-foreground mt-1">จัดการรายการตำแหน่งที่ใช้ในฟอร์มรายชื่อครูผู้สอน</p>
+          <h1 className="text-2xl font-bold">{settingsT('manageTeacherPositionsTitle')}</h1>
+          <p className="text-muted-foreground mt-1">{settingsT('manageTeacherPositionsDescription')}</p>
         </div>
         <Button onClick={openAddForm}>
-          <Plus className="mr-2 h-4 w-4" />เพิ่มตำแหน่ง
+          <Plus className="mr-2 h-4 w-4" />{settingsT('addTeacherPosition')}
         </Button>
       </div>
 
@@ -122,17 +127,17 @@ export default function TeacherPositionsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[80px]">ลำดับ</TableHead>
-                <TableHead>ตำแหน่ง</TableHead>
-                <TableHead>สถานะ</TableHead>
-                <TableHead className="w-[120px]">จัดการ</TableHead>
+                <TableHead className="w-[80px]">{settingsT('sortOrder')}</TableHead>
+                <TableHead>{teacherT('position')}</TableHead>
+                <TableHead>{settingsT('status')}</TableHead>
+                <TableHead className="w-[120px]">{studentT('actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {positions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                    ยังไม่มีตำแหน่งครู
+                    {settingsT('noTeacherPositions')}
                   </TableCell>
                 </TableRow>
               ) : positions.map((position) => (
@@ -140,7 +145,7 @@ export default function TeacherPositionsPage() {
                   <TableCell className="text-center text-muted-foreground">{position.sort_order}</TableCell>
                   <TableCell className="font-medium">{position.name}</TableCell>
                   <TableCell>
-                    {position.is_active ? <Badge>ใช้งาน</Badge> : <Badge variant="outline">ปิดใช้งาน</Badge>}
+                    {position.is_active ? <Badge>{commonT('active')}</Badge> : <Badge variant="outline">{commonT('inactive')}</Badge>}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -162,21 +167,21 @@ export default function TeacherPositionsPage() {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editing ? 'แก้ไขตำแหน่งครู' : 'เพิ่มตำแหน่งครู'}</DialogTitle>
-            <DialogDescription>ตำแหน่งนี้จะแสดงเป็นตัวเลือกในหน้ารายชื่อครูผู้สอน</DialogDescription>
+            <DialogTitle>{editing ? settingsT('editTeacherPosition') : settingsT('addTeacherPositionTitle')}</DialogTitle>
+            <DialogDescription>{settingsT('teacherPositionDialogDescription')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="name">ชื่อตำแหน่ง *</Label>
+              <Label htmlFor="name">{settingsT('teacherPositionName')}</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="เช่น ครู, หัวหน้าระดับ"
+                placeholder={settingsT('teacherPositionPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sort_order">ลำดับการเรียง</Label>
+              <Label htmlFor="sort_order">{settingsT('sortOrder')}</Label>
               <Input
                 id="sort_order"
                 type="number"
@@ -187,7 +192,7 @@ export default function TeacherPositionsPage() {
             </div>
             {editing && (
               <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <Label htmlFor="is_active">เปิดใช้งาน</Label>
+                <Label htmlFor="is_active">{commonT('active')}</Label>
                 <Switch
                   id="is_active"
                   checked={formData.is_active}
@@ -197,9 +202,9 @@ export default function TeacherPositionsPage() {
             )}
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowForm(false)}>ยกเลิก</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{commonT('cancel')}</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'กำลังบันทึก...' : <><Save className="mr-2 h-4 w-4" />บันทึก</>}
+              {saving ? commonT('saving') : <><Save className="mr-2 h-4 w-4" />{commonT('save')}</>}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -208,16 +213,15 @@ export default function TeacherPositionsPage() {
       <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>ยืนยันการลบ</DialogTitle>
+            <DialogTitle>{settingsT('deleteConfirmTitle')}</DialogTitle>
             <DialogDescription>
-              ต้องการลบตำแหน่ง <strong>{deleteConfirm?.name}</strong> ใช่หรือไม่?
-              หากมีครูใช้อยู่ ระบบจะปิดใช้งานตำแหน่งนี้แทน
+              {settingsT('deleteTeacherPositionDescription', { name: deleteConfirm?.name || '' })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>ยกเลิก</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>{commonT('cancel')}</Button>
             <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)} disabled={saving}>
-              {saving ? 'กำลังลบ...' : 'ยืนยัน'}
+              {saving ? settingsT('deleting') : commonT('confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>

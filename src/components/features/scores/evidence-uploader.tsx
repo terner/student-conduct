@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Upload, X, FileImage, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -14,6 +15,7 @@ interface EvidenceUploaderProps {
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export function EvidenceUploader({ files, onChange, maxFiles = 5, maxSizeMB = 5 }: EvidenceUploaderProps) {
+  const t = useTranslations('score');
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -21,16 +23,16 @@ export function EvidenceUploader({ files, onChange, maxFiles = 5, maxSizeMB = 5 
     setError('');
     const selected = Array.from(e.target.files || []);
     if (files.length + selected.length > maxFiles) {
-      setError(`อัปโหลดได้สูงสุด ${maxFiles} รูป`);
+      setError(t('maxEvidenceFiles', { maxFiles }));
       return;
     }
     for (const file of selected) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setError('รองรับเฉพาะไฟล์ JPG, PNG, WebP เท่านั้น');
+        setError(t('evidenceTypesOnly'));
         return;
       }
       if (file.size > maxSizeMB * 1024 * 1024) {
-        setError(`ไฟล์ต้องมีขนาดไม่เกิน ${maxSizeMB} MB`);
+        setError(t('maxFileSize', { maxSizeMB }));
         return;
       }
     }
@@ -47,10 +49,10 @@ export function EvidenceUploader({ files, onChange, maxFiles = 5, maxSizeMB = 5 
       <div className="flex items-center gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
           <Upload className="h-4 w-4 mr-1" />
-          แนบรูปหลักฐาน
+          {t('attachEvidence')}
         </Button>
         <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.webp" multiple className="hidden" onChange={handleSelect} />
-        {files.length > 0 && <span className="text-xs text-muted-foreground">{files.length}/{maxFiles} รูป</span>}
+        {files.length > 0 && <span className="text-xs text-muted-foreground">{t('fileCount', { count: files.length, maxFiles })}</span>}
       </div>
       {error && (
         <div className="flex items-center gap-2 text-xs text-destructive">

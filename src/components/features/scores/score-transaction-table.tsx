@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, FileText, UserCheck, Ban, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,16 +48,19 @@ interface ScoreTransactionTableProps {
   showStudentProfileLink?: boolean;
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  approved: { label: 'อนุมัติแล้ว', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  pending: { label: 'รออนุมัติ', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
-  voided: { label: 'ยกเลิก', color: 'bg-red-100 text-red-700', icon: XCircle },
+const statusConfig: Record<string, { labelKey: string; color: string; icon: any }> = {
+  approved: { labelKey: 'approved', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+  pending: { labelKey: 'pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
+  voided: { labelKey: 'voided', color: 'bg-red-100 text-red-700', icon: XCircle },
 };
 
 export function ScoreTransactionTable({
   data, loading, total, page = 1, pageSize = 50,
   onPageChange, onVoid, onApprove, showActions = true, showStudentProfileLink = false,
 }: ScoreTransactionTableProps) {
+  const scoreT = useTranslations('score');
+  const commonT = useTranslations('common');
+  const studentT = useTranslations('student');
   const [voidDialog, setVoidDialog] = useState<{ open: boolean; transactionId: string }>({ open: false, transactionId: '' });
   const [voidReason, setVoidReason] = useState('');
   const [voidLoading, setVoidLoading] = useState(false);
@@ -65,7 +69,7 @@ export function ScoreTransactionTable({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">กำลังโหลด...</p></div>
+        <div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div>
       </div>
     );
   }
@@ -74,8 +78,8 @@ export function ScoreTransactionTable({
     return (
       <Empty>
         <EmptyHeader>
-          <EmptyTitle>ไม่พบรายการ</EmptyTitle>
-          <EmptyDescription>ยังไม่มีการบันทึกคะแนน</EmptyDescription>
+          <EmptyTitle>{scoreT('noTransactionsTitle')}</EmptyTitle>
+          <EmptyDescription>{scoreT('noTransactionsDescription')}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
@@ -103,14 +107,14 @@ export function ScoreTransactionTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>วันที่</TableHead>
-              <TableHead>รหัสนักเรียน</TableHead>
-              <TableHead>ประเภท</TableHead>
-              <TableHead>คะแนน</TableHead>
-              <TableHead>หมายเหตุ</TableHead>
-              <TableHead>บันทึกโดย</TableHead>
-              <TableHead>สถานะ</TableHead>
-              {showActions && <TableHead className="w-[100px]">จัดการ</TableHead>}
+              <TableHead>{scoreT('date')}</TableHead>
+              <TableHead>{scoreT('studentId')}</TableHead>
+              <TableHead>{scoreT('type')}</TableHead>
+              <TableHead>{scoreT('points')}</TableHead>
+              <TableHead>{scoreT('note')}</TableHead>
+              <TableHead>{scoreT('recordedBy')}</TableHead>
+              <TableHead>{scoreT('status')}</TableHead>
+              {showActions && <TableHead className="w-[100px]">{scoreT('actions')}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -150,7 +154,7 @@ export function ScoreTransactionTable({
                   <TableCell>
                     <Badge variant="outline" className={statusConfig[t.status]?.color || ''}>
                       {StatusIcon && <StatusIcon className="mr-1 h-3 w-3 inline" />}
-                      {statusConfig[t.status]?.label || t.status}
+                      {statusConfig[t.status]?.labelKey ? scoreT(statusConfig[t.status].labelKey) : t.status}
                     </Badge>
                   </TableCell>
                   {showActions && (
@@ -162,7 +166,7 @@ export function ScoreTransactionTable({
                             size="icon"
                             className="h-7 w-7 text-green-600"
                             onClick={() => onApprove(t.id)}
-                            title="อนุมัติ"
+                            title={scoreT('approve')}
                           >
                             <CheckCircle className="h-4 w-4" />
                           </Button>
@@ -173,7 +177,7 @@ export function ScoreTransactionTable({
                             size="icon"
                             className="h-7 w-7 text-destructive"
                             onClick={() => setVoidDialog({ open: true, transactionId: t.id })}
-                            title="ยกเลิก"
+                            title={scoreT('void')}
                           >
                             <XCircle className="h-4 w-4" />
                           </Button>
@@ -191,11 +195,11 @@ export function ScoreTransactionTable({
       {totalPages > 1 && onPageChange && (
         <div className="flex items-center justify-center gap-2 py-2">
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-            <ChevronLeft className="h-4 w-4" />ก่อนหน้า
+            <ChevronLeft className="h-4 w-4" />{commonT('previous')}
           </Button>
           <span className="text-sm text-muted-foreground px-2">{page} / {totalPages}</span>
           <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-            ถัดไป<ChevronRight className="h-4 w-4" />
+            {commonT('next')}<ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       )}
@@ -203,21 +207,21 @@ export function ScoreTransactionTable({
       <Dialog open={voidDialog.open} onOpenChange={(open) => setVoidDialog({ ...voidDialog, open })}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>ยกเลิกรายการคะแนน</DialogTitle>
-            <DialogDescription>กรุณาระบุเหตุผลในการยกเลิก</DialogDescription>
+            <DialogTitle>{scoreT('voidTitle')}</DialogTitle>
+            <DialogDescription>{scoreT('voidDescription')}</DialogDescription>
           </DialogHeader>
           <Textarea
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
-            placeholder="เหตุผลในการยกเลิก..."
+            placeholder={scoreT('voidReasonPlaceholder')}
             rows={3}
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setVoidDialog({ open: false, transactionId: '' })}>
-              ยกเลิก
+              {commonT('cancel')}
             </Button>
             <Button variant="destructive" onClick={handleVoid} disabled={!voidReason.trim() || voidLoading}>
-              {voidLoading ? 'กำลังดำเนินการ...' : 'ยืนยันยกเลิก'}
+              {voidLoading ? scoreT('voiding') : scoreT('confirmVoid')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -229,7 +233,7 @@ export function ScoreTransactionTable({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
-              รายละเอียดรายการคะแนน
+              {scoreT('transactionDetail')}
             </DialogTitle>
           </DialogHeader>
           {detailTx && (
@@ -238,7 +242,7 @@ export function ScoreTransactionTable({
               <div className="flex justify-between items-center">
                 <Badge variant="outline" className={statusConfig[detailTx.status]?.color || ''}>
                   {statusConfig[detailTx.status]?.icon && (() => { const Icon = statusConfig[detailTx.status].icon; return <Icon className="mr-1 h-3 w-3 inline" />; })()}
-                  {statusConfig[detailTx.status]?.label || detailTx.status}
+                  {statusConfig[detailTx.status]?.labelKey ? scoreT(statusConfig[detailTx.status].labelKey) : detailTx.status}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   ID: {detailTx.id.slice(0, 8)}...
@@ -252,14 +256,14 @@ export function ScoreTransactionTable({
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <User className="h-3.5 w-3.5" />
-                    <span>ชื่อ-นามสกุล</span>
+                    <span>{studentT('fullName')}</span>
                   </div>
                   <p className="text-sm font-medium">{detailTx.student_name || '-'}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Hash className="h-3.5 w-3.5" />
-                    <span>รหัสนักเรียน</span>
+                    <span>{scoreT('studentId')}</span>
                   </div>
                   <p className="text-sm font-mono">{detailTx.student_id_number || '-'}</p>
                 </div>
@@ -273,7 +277,7 @@ export function ScoreTransactionTable({
                   render={<Link href={`/students/${detailTx.student_id}`} />}
                 >
                   <User className="mr-2 h-4 w-4" />
-                  เปิดโปรไฟล์นักเรียน
+                  {scoreT('openStudentProfile')}
                 </Button>
               )}
 
@@ -281,8 +285,10 @@ export function ScoreTransactionTable({
               {(detailTx.classroom_name || detailTx.classroom_grade) && (
                 <div className="flex items-center gap-1.5 text-sm">
                   <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-muted-foreground">ห้องเรียน:</span>
-                  <span className="font-medium">{detailTx.classroom_name || ''} {detailTx.classroom_grade ? `(ป.${detailTx.classroom_grade})` : ''}</span>
+                  <span className="text-muted-foreground">{scoreT('classroom')}</span>
+                  <span className="font-medium">
+                    {detailTx.classroom_name || ''} {detailTx.classroom_grade ? `(${scoreT('classroomGrade', { grade: detailTx.classroom_grade })})` : ''}
+                  </span>
                 </div>
               )}
 
@@ -293,28 +299,28 @@ export function ScoreTransactionTable({
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <FileText className="h-3.5 w-3.5" />
-                    <span>หมวดคะแนน</span>
+                    <span>{scoreT('category')}</span>
                   </div>
                   <p className="text-sm font-medium">{detailTx.category_name}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <AlertTriangle className="h-3.5 w-3.5" />
-                    <span>ประเภท</span>
+                    <span>{scoreT('type')}</span>
                   </div>
                   <Badge variant="outline" className={detailTx.category_type === 'deduct' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}>
-                    {detailTx.category_type === 'deduct' ? 'ตัดคะแนน' : 'เพิ่มคะแนน'}
+                    {detailTx.category_type === 'deduct' ? scoreT('deductType') : scoreT('addType')}
                   </Badge>
                 </div>
               </div>
 
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <span>คะแนน</span>
+                  <span>{scoreT('points')}</span>
                 </div>
                 <p className={`text-xl font-bold ${(detailTx.points || 0) > 0 ? 'text-green-600' : 'text-destructive'}`}>
                   {(detailTx.points || 0) > 0 ? `+${detailTx.points}` : detailTx.points}
-                  {' '}คะแนน
+                  {' '}{scoreT('points')}
                 </p>
               </div>
 
@@ -322,7 +328,7 @@ export function ScoreTransactionTable({
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <FileText className="h-3.5 w-3.5" />
-                    <span>หมายเหตุ</span>
+                    <span>{scoreT('note')}</span>
                   </div>
                   <p className="text-sm bg-muted/50 rounded-md p-2">{detailTx.note}</p>
                 </div>
@@ -332,7 +338,7 @@ export function ScoreTransactionTable({
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <FileText className="h-3.5 w-3.5" />
-                    <span>รูปหลักฐาน</span>
+                    <span>{scoreT('evidence')}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {detailTx.evidence.map((item) => {
@@ -367,14 +373,14 @@ export function ScoreTransactionTable({
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Calendar className="h-3.5 w-3.5" />
-                    <span>บันทึกเมื่อ</span>
+                    <span>{scoreT('recordedAt')}</span>
                   </div>
                   <p>{formatDateTime(detailTx.recorded_at)}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <User className="h-3.5 w-3.5" />
-                    <span>บันทึกโดย</span>
+                    <span>{scoreT('recordedBy')}</span>
                   </div>
                   <p>{detailTx.recorded_by_name || '-'}</p>
                 </div>
@@ -385,14 +391,14 @@ export function ScoreTransactionTable({
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Calendar className="h-3.5 w-3.5" />
-                      <span>อนุมัติเมื่อ</span>
+                      <span>{scoreT('approvedAt')}</span>
                     </div>
                     <p>{formatDateTime(detailTx.approved_at)}</p>
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <UserCheck className="h-3.5 w-3.5" />
-                      <span>อนุมัติโดย</span>
+                      <span>{scoreT('approvedBy')}</span>
                     </div>
                     <p>{detailTx.approved_by_name || '-'}</p>
                   </div>
@@ -403,15 +409,17 @@ export function ScoreTransactionTable({
                 <div className="space-y-2 rounded-md bg-destructive/5 p-3">
                   <div className="flex items-center gap-1.5 text-sm text-destructive">
                     <Ban className="h-3.5 w-3.5" />
-                    <span className="font-medium">รายการถูกยกเลิก</span>
+                    <span className="font-medium">{scoreT('voidedNotice')}</span>
                   </div>
                   {detailTx.void_reason && (
-                    <p className="text-sm text-muted-foreground ml-5">เหตุผล: {detailTx.void_reason}</p>
+                    <p className="text-sm text-muted-foreground ml-5">{scoreT('reason', { reason: detailTx.void_reason })}</p>
                   )}
                   {detailTx.voided_at && (
                     <p className="text-xs text-muted-foreground ml-5">
-                      เมื่อ {formatDateTime(detailTx.voided_at)}
-                      {detailTx.voided_by_name ? ` โดย ${detailTx.voided_by_name}` : ''}
+                      {scoreT('voidedAtBy', {
+                        date: formatDateTime(detailTx.voided_at),
+                        by: detailTx.voided_by_name ? scoreT('byName', { name: detailTx.voided_by_name }) : '',
+                      })}
                     </p>
                   )}
                 </div>
@@ -426,7 +434,7 @@ export function ScoreTransactionTable({
                         onClick={() => { onApprove(detailTx.id); setDetailTx(null); }}
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        อนุมัติ
+                        {scoreT('approve')}
                       </Button>
                     )}
                     {onVoid && (
@@ -435,13 +443,13 @@ export function ScoreTransactionTable({
                         onClick={() => { setVoidDialog({ open: true, transactionId: detailTx.id }); setDetailTx(null); }}
                       >
                         <XCircle className="mr-2 h-4 w-4" />
-                        ปฏิเสธ
+                        {scoreT('reject')}
                       </Button>
                     )}
                   </>
                 )}
                 <Button variant="outline" onClick={() => setDetailTx(null)}>
-                  ปิด
+                  {scoreT('close')}
                 </Button>
               </DialogFooter>
             </div>

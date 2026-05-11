@@ -1,6 +1,7 @@
 'use client';
 
 import { useForm } from 'react-hook-form';
+import { useTranslations } from 'next-intl';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,8 @@ interface ScoreCategoryFormProps {
 }
 
 export function ScoreCategoryForm({ defaultValues, onSubmit, onCancel }: ScoreCategoryFormProps) {
+  const t = useTranslations('score');
+  const commonT = useTranslations('common');
   const {
     register,
     handleSubmit,
@@ -50,30 +53,30 @@ export function ScoreCategoryForm({ defaultValues, onSubmit, onCancel }: ScoreCa
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">ชื่อประเภท *</Label>
-        <Input id="name" {...register('name')} placeholder="เช่น มาสาย, จิตอาสา" />
+        <Label htmlFor="name">{t('categoryName')} *</Label>
+        <Input id="name" {...register('name')} placeholder={t('categoryNamePlaceholder')} />
         {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
       </div>
 
       <div className="space-y-2">
-        <Label>ประเภท *</Label>
+        <Label>{t('type')} *</Label>
         <Select
           value={type}
           onValueChange={(v) => v && setValue('type', v as 'deduct' | 'add')}
-          itemToStringLabel={(value) => value === 'deduct' ? 'หักคะแนน' : value === 'add' ? 'เพิ่มคะแนน' : String(value)}
+          itemToStringLabel={(value) => value === 'deduct' ? t('deductType') : value === 'add' ? t('addType') : String(value)}
         >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="deduct" label="หักคะแนน">หักคะแนน</SelectItem>
-            <SelectItem value="add" label="เพิ่มคะแนน">เพิ่มคะแนน</SelectItem>
+            <SelectItem value="deduct" label={t('deductType')}>{t('deductType')}</SelectItem>
+            <SelectItem value="add" label={t('addType')}>{t('addType')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="default_points">คะแนนเริ่มต้น *</Label>
+        <Label htmlFor="default_points">{t('defaultPoints')} *</Label>
         <Input
           id="default_points"
           type="number"
@@ -83,8 +86,8 @@ export function ScoreCategoryForm({ defaultValues, onSubmit, onCancel }: ScoreCa
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">คำอธิบาย</Label>
-        <Textarea id="description" {...register('description')} placeholder="รายละเอียดเพิ่มเติม" rows={2} />
+        <Label htmlFor="description">{t('description')}</Label>
+        <Textarea id="description" {...register('description')} placeholder={t('descriptionPlaceholder')} rows={2} />
       </div>
 
       <div className="flex items-center gap-2">
@@ -93,7 +96,7 @@ export function ScoreCategoryForm({ defaultValues, onSubmit, onCancel }: ScoreCa
           checked={requiresEvidence}
           onCheckedChange={(v) => setValue('requires_evidence', v)}
         />
-        <Label htmlFor="requires_evidence">ต้องมีหลักฐานประกอบ</Label>
+        <Label htmlFor="requires_evidence">{t('requiresEvidenceFull')}</Label>
       </div>
 
       <div className="flex items-center gap-2">
@@ -102,16 +105,16 @@ export function ScoreCategoryForm({ defaultValues, onSubmit, onCancel }: ScoreCa
           checked={watch('requires_approval')}
           onCheckedChange={(v) => setValue('requires_approval', v)}
         />
-        <Label htmlFor="requires_approval">ต้องได้รับการอนุมัติ</Label>
+        <Label htmlFor="requires_approval">{t('requiresApproval')}</Label>
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>ยกเลิก</Button>
+          <Button type="button" variant="outline" onClick={onCancel}>{commonT('cancel')}</Button>
         )}
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {defaultValues?.id ? 'บันทึก' : 'เพิ่ม'}
+          {defaultValues?.id ? commonT('save') : t('addButton')}
         </Button>
       </div>
     </form>

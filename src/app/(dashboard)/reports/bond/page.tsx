@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { FileText, Plus, Printer, Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FileText } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
 import { createClient } from '@/lib/supabase/client';
+import { useTranslations } from 'next-intl';
 
 function formatProfileFullName(profile: any) {
   const prefix = (profile?.prefix || '').trim();
@@ -25,7 +24,9 @@ function formatDateTime(value: string) {
 }
 
 export default function BondDocumentsPage() {
-  const router = useRouter();
+  const thresholdT = useTranslations('threshold');
+  const studentT = useTranslations('student');
+  const commonT = useTranslations('common');
   const [bonds, setBonds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,15 +47,18 @@ export default function BondDocumentsPage() {
     draft: 'bg-gray-500', generated: 'bg-blue-500', signed: 'bg-green-500', cancelled: 'bg-red-500',
   };
   const statusLabel: Record<string, string> = {
-    draft: 'ร่าง', generated: 'ออกแล้ว', signed: 'ลงนามแล้ว', cancelled: 'ยกเลิก',
+    draft: thresholdT('bondStatusDraft'),
+    generated: thresholdT('bondStatusGenerated'),
+    signed: thresholdT('bondStatusSigned'),
+    cancelled: thresholdT('bondStatusCancelled'),
   };
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">หนังสือทัณฑ์บน</h1>
-          <p className="text-muted-foreground mt-1">จัดการเอกสารทัณฑ์บนนักเรียน</p>
+          <h1 className="text-2xl font-bold">{thresholdT('bondTitle')}</h1>
+          <p className="text-muted-foreground mt-1">{thresholdT('bondDescription')}</p>
         </div>
       </div>
 
@@ -64,7 +68,7 @@ export default function BondDocumentsPage() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <FileText className="h-8 w-8 mx-auto mb-2" />
-            ยังไม่มีเอกสารทัณฑ์บน
+            {thresholdT('noBondDocuments')}
           </CardContent>
         </Card>
       ) : (
@@ -73,12 +77,12 @@ export default function BondDocumentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>เลขที่เอกสาร</TableHead>
-                  <TableHead>นักเรียน</TableHead>
-                  <TableHead>ปีการศึกษา</TableHead>
-                  <TableHead>คะแนนที่ถูกตัด</TableHead>
-                  <TableHead>สถานะ</TableHead>
-                  <TableHead>วันที่สร้าง</TableHead>
+                  <TableHead>{thresholdT('documentNo')}</TableHead>
+                  <TableHead>{studentT('detail')}</TableHead>
+                  <TableHead>{commonT('academicYear')}</TableHead>
+                  <TableHead>{thresholdT('deductedThreshold')}</TableHead>
+                  <TableHead>{studentT('status')}</TableHead>
+                  <TableHead>{thresholdT('createdDate')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

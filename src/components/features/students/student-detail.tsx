@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
+import { useTranslations } from 'next-intl';
 
 interface StudentDetailProps {
   student: StudentWithProfile;
@@ -16,6 +17,42 @@ interface StudentDetailProps {
 }
 
 export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
+  const studentT = useTranslations('student');
+  const classroomT = useTranslations('classroom');
+  const commonT = useTranslations('common');
+
+  function getStatusLabel(status?: string | null) {
+    switch (status) {
+      case 'active':
+        return studentT('statusActive');
+      case 'inactive':
+        return studentT('statusInactive');
+      case 'transferred':
+        return studentT('statusTransferred');
+      case 'graduated':
+        return studentT('statusGraduated');
+      case 'suspended':
+        return studentT('statusSuspended');
+      default:
+        return status || commonT('notAvailable');
+    }
+  }
+
+  function formatGuardianRelation(relation?: string) {
+    const labels: Record<string, string> = {
+      father: settingsRelation('sampleFather'),
+      mother: settingsRelation('sampleMother'),
+      guardian: studentT('guardian'),
+      relative: studentT('guardianRelationRelative'),
+      other: studentT('guardianRelationOther'),
+    };
+    return relation ? labels[relation] || relation : commonT('notAvailable');
+  }
+
+  function settingsRelation(key: 'sampleFather' | 'sampleMother') {
+    return key === 'sampleFather' ? studentT('guardianRelationFather') : studentT('guardianRelationMother');
+  }
+
   return (
     <div className="grid gap-4 print:grid-cols-3 print:gap-3 xl:grid-cols-[1fr_320px]">
       <div className="grid gap-4 print:contents md:grid-cols-2">
@@ -23,7 +60,7 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
         <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
           <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
             <User className="h-5 w-5 text-muted-foreground print:hidden" />
-            ข้อมูลนักเรียน
+            {studentT('detail')}
           </CardTitle>
         </CardHeader>
         <CardContent className="print:grid print:grid-cols-[64px_1fr] print:gap-3 print:px-3 print:py-2">
@@ -31,7 +68,7 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
             {student.avatar_url ? (
               <img
                 src={student.avatar_url}
-                alt={`รูปนักเรียน ${student.prefix}${student.first_name} ${student.last_name}`}
+                alt={studentT('studentPhotoAlt', { name: `${student.prefix}${student.first_name} ${student.last_name}` })}
                 className="size-20 rounded-lg border object-cover print:size-16 print:rounded-md"
               />
             ) : (
@@ -46,21 +83,21 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
           </div>
           <dl className="space-y-3 text-sm print:grid print:grid-cols-2 print:gap-x-5 print:gap-y-1.5 print:space-y-0 print:text-[11px]">
             <InfoRow
-              label="ชื่อ-นามสกุล"
+              label={studentT('fullName')}
               value={`${student.prefix}${student.first_name} ${student.last_name}`}
               strong
               className="hidden print:col-span-2 print:block"
               valueClassName="print:mt-0.5 print:text-left print:text-[13px] print:leading-snug"
             />
-            <InfoRow label="รหัสนักเรียน" value={student.student_id_number} mono />
+            <InfoRow label={studentT('id')} value={student.student_id_number} mono />
             <div className="flex items-start justify-between gap-3 print:col-start-1 print:row-start-3 print:min-w-0">
-              <dt className="text-muted-foreground">สถานะ</dt>
+              <dt className="text-muted-foreground">{studentT('status')}</dt>
               <dd className="text-right">
                 <Badge
                   variant="outline"
                   className={student.current_status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}
                 >
-                  {student.current_status === 'active' ? 'กำลังศึกษา' : student.current_status}
+                  {getStatusLabel(student.current_status)}
                 </Badge>
               </dd>
             </div>
@@ -72,13 +109,13 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
         <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
           <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
             <School className="h-5 w-5 text-muted-foreground print:hidden" />
-            ห้องเรียน
+            {studentT('classroomFull')}
           </CardTitle>
         </CardHeader>
         <CardContent className="print:px-3 print:py-2">
           <dl className="space-y-3 text-sm print:space-y-1.5 print:text-[11px]">
-            <InfoRow label="ห้องเรียน" value={student.classroom_name || '-'} strong />
-            <InfoRow label="ระดับ" value={student.education_stage_name || '-'} />
+            <InfoRow label={studentT('classroomFull')} value={student.classroom_name || commonT('notAvailable')} strong />
+            <InfoRow label={studentT('stage')} value={student.education_stage_name || commonT('notAvailable')} />
           </dl>
         </CardContent>
       </Card>
@@ -87,13 +124,13 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
         <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
           <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
             <ShieldCheck className="h-5 w-5 text-muted-foreground print:hidden" />
-            ครูดูแล
+            {studentT('careTeachers')}
           </CardTitle>
         </CardHeader>
         <CardContent className="print:px-3 print:py-2">
           <dl className="space-y-3 text-sm print:space-y-1.5 print:text-[11px]">
-            <InfoRow label="ครูประจำชั้น" value={student.homeroom_teacher_name || '-'} />
-            <InfoRow label="ครูที่ปรึกษา" value={student.advisor_teacher_name || '-'} />
+            <InfoRow label={classroomT('homeroomTeacher')} value={student.homeroom_teacher_name || commonT('notAvailable')} />
+            <InfoRow label={classroomT('advisorTeacher')} value={student.advisor_teacher_name || commonT('notAvailable')} />
           </dl>
         </CardContent>
       </Card>
@@ -102,16 +139,16 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
         <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
           <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
             <Users className="h-5 w-5 text-muted-foreground print:hidden" />
-            ผู้ปกครอง
+            {studentT('guardian')}
           </CardTitle>
         </CardHeader>
         <CardContent className="print:px-3 print:py-2">
           <dl className="space-y-3 text-sm print:space-y-1.5 print:text-[11px]">
-            <InfoRow label="ชื่อผู้ปกครอง" value={student.guardian_full_name || '-'} />
-            <InfoRow label="ความสัมพันธ์" value={formatGuardianRelation(student.guardian_relation)} />
+            <InfoRow label={studentT('guardianName')} value={student.guardian_full_name || commonT('notAvailable')} />
+            <InfoRow label={studentT('guardianRelation')} value={formatGuardianRelation(student.guardian_relation)} />
             <InfoRow
-              label="เบอร์โทร"
-              value={student.guardian_phone || '-'}
+              label={studentT('guardianPhoneShort')}
+              value={student.guardian_phone || commonT('notAvailable')}
               icon={student.guardian_phone ? <Phone className="h-3.5 w-3.5" /> : undefined}
             />
           </dl>
@@ -121,21 +158,21 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
 
       <Card className="print:order-2 print:col-span-1 print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none xl:sticky xl:top-20 xl:self-start">
         <CardHeader className="print:border-b print:bg-neutral-900 print:px-3 print:py-2 print:text-white">
-          <CardTitle className="text-lg print:text-[12px] print:font-semibold">คะแนนความประพฤติ</CardTitle>
+          <CardTitle className="text-lg print:text-[12px] print:font-semibold">{studentT('conductScore')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 print:space-y-1.5 print:px-3 print:py-2">
           <div className="rounded-md border bg-muted/30 px-4 py-5 text-center print:border-neutral-300 print:bg-neutral-50 print:px-2 print:py-2">
-            <div className="text-4xl font-bold leading-none print:text-2xl">{scoreSummary?.current_score ?? '-'}</div>
-            <p className="mt-1 text-xs text-muted-foreground print:text-[10px]">คะแนนปัจจุบัน</p>
+            <div className="text-4xl font-bold leading-none print:text-2xl">{scoreSummary?.current_score ?? commonT('notAvailable')}</div>
+            <p className="mt-1 text-xs text-muted-foreground print:text-[10px]">{studentT('score')}</p>
           </div>
           <Separator className="print:bg-neutral-300" />
           <div className="grid grid-cols-2 gap-3 text-sm print:gap-1.5 print:text-[10px]">
             <div className="rounded-md border p-3 print:border-neutral-300 print:p-2">
-              <p className="text-xs text-muted-foreground">ถูกหัก</p>
+              <p className="text-xs text-muted-foreground">{studentT('deducted')}</p>
               <p className="mt-1 text-lg font-semibold text-destructive print:text-xs">{scoreSummary?.total_deducted ?? 0}</p>
             </div>
             <div className="rounded-md border p-3 print:border-neutral-300 print:p-2">
-              <p className="text-xs text-muted-foreground">ได้เพิ่ม</p>
+              <p className="text-xs text-muted-foreground">{studentT('added')}</p>
               <p className="mt-1 text-lg font-semibold text-green-600 print:text-xs">+{scoreSummary?.total_added ?? 0}</p>
             </div>
           </div>
@@ -173,15 +210,4 @@ function InfoRow({
       </dd>
     </div>
   );
-}
-
-function formatGuardianRelation(relation?: string) {
-  const labels: Record<string, string> = {
-    father: 'บิดา',
-    mother: 'มารดา',
-    guardian: 'ผู้ปกครอง',
-    relative: 'ญาติ',
-    other: 'อื่น ๆ',
-  };
-  return relation ? labels[relation] || relation : '-';
 }

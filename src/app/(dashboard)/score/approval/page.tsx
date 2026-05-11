@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +12,8 @@ import type { ScoreTransactionWithDetails } from '@/lib/db/queries/score.queries
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 
 export default function ApprovalPage() {
+  const t = useTranslations('score');
+  const commonT = useTranslations('common');
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [data, setData] = useState<ScoreTransactionWithDetails[]>([]);
   const [total, setTotal] = useState(0);
@@ -54,14 +57,14 @@ export default function ApprovalPage() {
     try {
       const res = await approveScore(transactionId);
       if (res.success) {
-        toast('อนุมัติคะแนนสำเร็จ');
+        toast(t('approveSuccess'));
         fetchData(page);
         setPendingCount((prev) => Math.max(0, prev - 1));
       } else {
-        toast('เกิดข้อผิดพลาด', { description: res.error?.message });
+        toast(commonT('error'), { description: res.error?.message });
       }
     } catch {
-      toast('เกิดข้อผิดพลาด', { description: 'ไม่สามารถอนุมัติได้' });
+      toast(commonT('error'), { description: t('approveFailed') });
     }
   };
 
@@ -69,13 +72,13 @@ export default function ApprovalPage() {
     try {
       const res = await voidScore(transactionId, reason);
       if (res.success) {
-        toast('ยกเลิกรายการสำเร็จ');
+        toast(t('voidSuccess'));
         fetchData(page);
       } else {
-        toast('เกิดข้อผิดพลาด', { description: res.error?.message });
+        toast(commonT('error'), { description: res.error?.message });
       }
     } catch {
-      toast('เกิดข้อผิดพลาด', { description: 'ไม่สามารถยกเลิกได้' });
+      toast(commonT('error'), { description: t('voidFailed') });
     }
   };
 
@@ -83,12 +86,12 @@ export default function ApprovalPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">รออนุมัติ</h1>
-          <p className="text-muted-foreground mt-1">รายการคะแนนที่รอการอนุมัติ</p>
+          <h1 className="text-2xl font-bold">{t('approvalTitle')}</h1>
+          <p className="text-muted-foreground mt-1">{t('approvalDesc')}</p>
         </div>
         <Button variant="outline" onClick={() => { setPage(1); fetchData(1); }}>
           <Clock className="mr-2 h-4 w-4" />
-          รีเฟรช
+          {t('refresh')}
         </Button>
       </div>
 
@@ -96,14 +99,14 @@ export default function ApprovalPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              รอการอนุมัติ
+              {t('pendingCount')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-yellow-500" />
               <span className="text-2xl font-bold">{pendingCount}</span>
-              <span className="text-sm text-muted-foreground">รายการ</span>
+              <span className="text-sm text-muted-foreground">{t('items')}</span>
             </div>
           </CardContent>
         </Card>

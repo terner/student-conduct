@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { teacherPrefixEnum, teacherSchema, type TeacherInput } from '@/lib/validation/schemas';
 import { getTeacherPositions, type TeacherPositionItem } from '@/lib/actions/teacher-position.action';
+import { useTranslations } from 'next-intl';
 
 interface TeacherFormProps {
   defaultValues?: Partial<TeacherInput>;
@@ -19,6 +20,10 @@ interface TeacherFormProps {
 }
 
 export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormProps) {
+  const teacherT = useTranslations('teacher');
+  const studentT = useTranslations('student');
+  const commonT = useTranslations('common');
+  const settingsT = useTranslations('settings');
   const [positions, setPositions] = useState<TeacherPositionItem[]>([]);
   const [avatarUrl, setAvatarUrl] = useState(defaultValues?.avatar_url || '');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -62,7 +67,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      alert('ไฟล์ต้องมีขนาดไม่เกิน 2MB');
+      alert(settingsT('logoFileTooLarge'));
       return;
     }
 
@@ -77,10 +82,10 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
       if (res.ok && result.url) {
         setAvatarUrl(result.url);
       } else {
-        alert(result.error || 'อัปโหลดไม่สำเร็จ');
+        alert(result.error || teacherT('uploadFailed'));
       }
     } catch {
-      alert('เกิดข้อผิดพลาดในการอัปโหลด');
+      alert(teacherT('uploadError'));
     } finally {
       setUploadingAvatar(false);
     }
@@ -89,11 +94,11 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
   return (
     <form onSubmit={handleSubmit((data) => onSubmit({ ...data, avatar_url: avatarUrl || undefined }))} className="space-y-4">
       <div className="space-y-2">
-        <Label>รูปโปรไฟล์</Label>
+        <Label>{teacherT('profilePhoto')}</Label>
         <div className="flex items-center gap-4">
           {avatarUrl ? (
             <div className="relative">
-              <img src={avatarUrl} alt="รูปโปรไฟล์" className="size-16 rounded-full border object-cover" />
+              <img src={avatarUrl} alt={teacherT('profilePhoto')} className="size-16 rounded-full border object-cover" />
               <button
                 type="button"
                 className="absolute -right-1 -top-1 rounded-full bg-destructive p-0.5 text-destructive-foreground"
@@ -110,7 +115,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
           <label className="cursor-pointer">
             <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               {uploadingAvatar ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-              <span>{uploadingAvatar ? 'กำลังอัปโหลด...' : 'เลือกรูป'}</span>
+              <span>{uploadingAvatar ? teacherT('uploadingPhoto') : teacherT('choosePhotoShort')}</span>
             </div>
             <input
               type="file"
@@ -122,12 +127,12 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
           </label>
         </div>
         <p className="text-xs text-muted-foreground">
-          รองรับ PNG, JPG, GIF, WebP ขนาดไฟล์ไม่เกิน 2MB แนะนำรูปสี่เหลี่ยมจัตุรัส 512x512px
+          {teacherT('photoHelp')}
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label>ชื่อ-นามสกุล *</Label>
+        <Label>{teacherT('fullNameRequired')}</Label>
         <div className="grid gap-2 sm:grid-cols-[110px_1fr_1fr]">
           <Select
             value={prefixValue}
@@ -135,7 +140,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
             itemToStringLabel={(value) => String(value)}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="คำนำหน้า" />
+              <SelectValue placeholder={teacherT('prefix')} />
             </SelectTrigger>
             <SelectContent>
               {teacherPrefixEnum.map((prefix) => (
@@ -146,11 +151,11 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
             </SelectContent>
           </Select>
           <div>
-            <Input id="first_name" {...register('first_name')} placeholder="ชื่อ" />
+            <Input id="first_name" {...register('first_name')} placeholder={studentT('firstName')} />
             {errors.first_name && <p className="text-xs text-destructive mt-1">{errors.first_name.message}</p>}
           </div>
           <div>
-            <Input id="last_name" {...register('last_name')} placeholder="นามสกุล" />
+            <Input id="last_name" {...register('last_name')} placeholder={studentT('lastName')} />
             {errors.last_name && <p className="text-xs text-destructive mt-1">{errors.last_name.message}</p>}
           </div>
         </div>
@@ -158,14 +163,14 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="position">ตำแหน่ง</Label>
+          <Label htmlFor="position">{teacherT('position')}</Label>
           <Select
             value={positionValue}
             onValueChange={(v) => v && setValue('position', v)}
             itemToStringLabel={(value) => String(value)}
           >
             <SelectTrigger id="position" className="w-full">
-              <SelectValue placeholder="เลือกตำแหน่ง" />
+              <SelectValue placeholder={teacherT('selectPosition')} />
             </SelectTrigger>
             <SelectContent>
               {positionOptions.map((position) => (
@@ -178,27 +183,27 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
           {errors.position && <p className="text-xs text-destructive">{errors.position.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="department">แผนก</Label>
-          <Input id="department" {...register('department')} placeholder="เช่น ฝ่ายปกครอง" />
+          <Label htmlFor="department">{teacherT('department')}</Label>
+          <Input id="department" {...register('department')} placeholder={teacherT('departmentPlaceholder')} />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="email">อีเมล * (ใช้เป็นชื่อผู้ใช้)</Label>
+          <Label htmlFor="email">{teacherT('emailLoginLabel')}</Label>
           <Input id="email" type="email" {...register('email')} disabled={!!defaultValues?.email} />
           {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="phone">เบอร์โทร</Label>
-          <Input id="phone" type="tel" {...register('phone')} placeholder="เช่น 081-234-5678" />
+          <Label htmlFor="phone">{teacherT('phone')}</Label>
+          <Input id="phone" type="tel" {...register('phone')} placeholder={teacherT('phonePlaceholder')} />
           {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="employee_id">รหัสเจ้าหน้าที่ *</Label>
+          <Label htmlFor="employee_id">{teacherT('employeeIdRequired')}</Label>
           <Input id="employee_id" {...register('employee_id')} />
           {errors.employee_id && <p className="text-xs text-destructive">{errors.employee_id.message}</p>}
         </div>
@@ -206,9 +211,9 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
           <div className="space-y-0.5">
             <Label htmlFor="system_role" className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-              สิทธิ์ในระบบ
+              {teacherT('systemRole')}
             </Label>
-            <p className="text-xs text-muted-foreground">ครูบันทึกคะแนน, ผู้ดูแลอนุมัติ/นำเข้า, ผู้ดูแลสูงสุดตั้งค่าระบบ</p>
+            <p className="text-xs text-muted-foreground">{teacherT('systemRoleDescription')}</p>
           </div>
           <Select
             value={systemRole}
@@ -218,30 +223,30 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
             }}
             itemToStringLabel={(value) => {
               const labels: Record<string, string> = {
-                teacher: 'ครู',
-                admin: 'ผู้ดูแลระบบ',
-                superadmin: 'ผู้ดูแลสูงสุด',
+                teacher: teacherT('teacher'),
+                admin: teacherT('admin'),
+                superadmin: teacherT('superadmin'),
               };
               return labels[String(value)] || String(value);
             }}
           >
             <SelectTrigger id="system_role" className="w-full">
-              <SelectValue placeholder="เลือกสิทธิ์" />
+              <SelectValue placeholder={teacherT('selectRole')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="teacher" label="ครู">ครู</SelectItem>
-              <SelectItem value="admin" label="ผู้ดูแลระบบ">ผู้ดูแลระบบ</SelectItem>
-              <SelectItem value="superadmin" label="ผู้ดูแลสูงสุด">ผู้ดูแลสูงสุด</SelectItem>
+              <SelectItem value="teacher" label={teacherT('teacher')}>{teacherT('teacher')}</SelectItem>
+              <SelectItem value="admin" label={teacherT('admin')}>{teacherT('admin')}</SelectItem>
+              <SelectItem value="superadmin" label={teacherT('superadmin')}>{teacherT('superadmin')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        {onCancel && <Button type="button" variant="outline" onClick={onCancel}>ยกเลิก</Button>}
+        {onCancel && <Button type="button" variant="outline" onClick={onCancel}>{commonT('cancel')}</Button>}
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {defaultValues?.email ? 'บันทึก' : 'เพิ่มครู'}
+          {defaultValues?.email ? commonT('save') : teacherT('add')}
         </Button>
       </div>
     </form>
