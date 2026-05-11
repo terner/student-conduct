@@ -191,6 +191,7 @@
 - [x] เพิ่ม audit/action logging helper กลางแบบ best-effort และต่อกับ settings, teacher role/status/assignment, student add/edit/status/archive/import, score record/bulk/approve/void/category, classroom create/edit/delete/teacher assignment, upload logo/avatar/evidence และ login success/failure
 - [x] ปรับ `/settings/logs` ให้แสดงทั้ง Audit logs และ Action logs แยก tab
 - [x] เพิ่ม storage provider config ให้เลือกได้ระหว่าง Vercel Blob, Google Drive และ Supabase Storage; Vercel Blob ใช้ `BLOB_READ_WRITE_TOKEN`/`STORAGE_PROVIDER` และ evidence รองรับ private blob ผ่าน `/api/blob/...`
+- [x] ทดสอบ Vercel Blob ด้วย token จริงแล้ว: upload/read/delete ผ่านสำหรับ logo, profile และ evidence แบบ private store
 - [x] Build ผ่านด้วย `npm run build`
 
 ## 📋 ฟีเจอร์ที่ยังต้องทำต่อ

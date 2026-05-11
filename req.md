@@ -33,6 +33,7 @@ Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
 - ตารางรายชื่อนักเรียนแสดงคะแนนปัจจุบัน และกด row เพื่อเข้าหน้า profile ได้
 - ประวัติคะแนนรองรับ evidence metadata และ modal แสดงรูปหลักฐานถ้ามี
 - Storage provider เลือกได้ผ่าน Settings/config ระหว่าง Vercel Blob, Google Drive และ Supabase Storage; Vercel Blob ใช้ `BLOB_READ_WRITE_TOKEN`/`STORAGE_PROVIDER` และ evidence รองรับ private blob ผ่าน `/api/blob/...` ส่วน Google Drive ยังเป็น optional provider ที่ใช้ service account/folder id ได้
+- Vercel Blob ผ่านการทดสอบด้วย token จริงแล้วสำหรับ upload/read/delete ของ logo, profile และ evidence บน private store; ระบบจึงคืนไฟล์ private ผ่าน `/api/blob/...` แทน URL ตรงเมื่อ provider เป็น Vercel Blob private
 
 ## Academic Year Policy — 2026-05-11
 
