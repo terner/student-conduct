@@ -47,6 +47,7 @@ interface IndividualReportTransaction {
 }
 
 interface IndividualReportData {
+  academic_year?: string;
   summary?: {
     current_score: number;
     total_deducted: number;
@@ -328,10 +329,17 @@ export default function StudentDetailPage() {
               รหัสนักเรียน {student.student_id_number}
               {student.classroom_name ? ` | ห้อง ${student.classroom_name}` : ''}
             </p>
+            <p className="mt-0.5 text-[11px] text-neutral-600">
+              วันที่พิมพ์ {formatPrintDate(new Date())}
+            </p>
           </div>
           <div className="text-right text-[11px] text-neutral-600">
-            <p>วันที่พิมพ์</p>
-            <p className="mt-1 font-medium text-neutral-900">{formatPrintDate(new Date())}</p>
+            <p className="whitespace-nowrap font-medium">
+              ปีการศึกษา{' '}
+              <span className="text-2xl font-bold leading-none text-neutral-900">
+                {reportData?.academic_year || '-'}
+              </span>
+            </p>
           </div>
         </div>
       </div>
