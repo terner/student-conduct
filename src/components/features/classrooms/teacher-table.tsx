@@ -36,7 +36,9 @@ export function TeacherAssignmentTable({ teachers, classroomId, onAssign }: Teac
           itemToStringLabel={(value) => teacherLabel(String(value))}
         >
           <SelectTrigger className="w-full min-w-0">
-            <SelectValue placeholder={classroomT('selectHomeroomTeacher')} />
+            <SelectValue placeholder={classroomT('selectHomeroomTeacher')}>
+              <span className="truncate">{teacherLabel(homeroomTeacher?.id || '') || classroomT('selectHomeroomTeacher')}</span>
+            </SelectValue>
           </SelectTrigger>
           <SelectContent className="max-h-[min(18rem,var(--available-height))]">
             {teachers.map((teacher) => (
@@ -56,7 +58,9 @@ export function TeacherAssignmentTable({ teachers, classroomId, onAssign }: Teac
           itemToStringLabel={(value) => teacherLabel(String(value))}
         >
           <SelectTrigger className="w-full min-w-0">
-            <SelectValue placeholder={classroomT('selectAdvisorTeacher')} />
+            <SelectValue placeholder={classroomT('selectAdvisorTeacher')}>
+              <span className="truncate">{teacherLabel(advisorTeacher?.id || '') || classroomT('selectAdvisorTeacher')}</span>
+            </SelectValue>
           </SelectTrigger>
           <SelectContent className="max-h-[min(18rem,var(--available-height))]">
             {teachers.map((teacher) => (

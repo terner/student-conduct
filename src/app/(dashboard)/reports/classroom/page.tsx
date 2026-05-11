@@ -55,9 +55,10 @@ export default function ClassroomReportPage() {
         setClassrooms(result.data);
         setReportData(null);
         setSelectedId('');
-        if (result.data.length === 1) {
-          setSelectedId(result.data[0].id);
-          await loadReport(result.data[0].id);
+        const defaultClassroom = result.data[0];
+        if (defaultClassroom) {
+          setSelectedId(defaultClassroom.id);
+          await loadReport(defaultClassroom.id);
         }
       } else {
         setError(result.error.message);

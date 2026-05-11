@@ -202,7 +202,7 @@ export default function DashboardPage() {
                           {tx.student_id_number} · {tx.category_name}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {formatDateTime(tx.recorded_at)}
+                          {formatDateTime(tx.created_at || tx.recorded_at)}
                         </div>
                       </div>
                     </div>

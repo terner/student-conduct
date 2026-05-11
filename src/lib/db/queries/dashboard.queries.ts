@@ -53,6 +53,20 @@ interface ScorePointRow {
   points: number;
 }
 
+async function fetchAll<T>(
+  queryFactory: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  pageSize = 1000,
+) {
+  const rows: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await queryFactory(from, from + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
 /**
  * Get all dashboard data in one shot — single auth check, minimal queries.
  *
@@ -110,20 +124,21 @@ export async function getDashboardData(params: { academic_year_id?: string } = {
     selectedClassroomCount = count || 0;
   }
 
-  const { data: enrollmentData } = acYearId
-    ? await supabase
+  const enrollmentData = acYearId
+    ? await fetchAll<Record<string, unknown>>((from, to) => supabase
       .from('student_enrollments')
       .select(`
-        students!inner(
-          id,
-          student_id_number,
-          profiles!inner(full_name, prefix)
-        ),
-        classrooms!inner(name, grade_level)
-      `)
+          students!inner(
+            id,
+            student_id_number,
+            profiles!inner(full_name, prefix)
+          ),
+          classrooms!inner(name, grade_level)
+        `)
       .eq('academic_year_id', acYearId)
       .in('enrollment_status', ['active', 'promoted', 'repeated', 'transferred', 'graduated'])
-    : { data: [] };
+      .range(from, to))
+    : [];
 
   const students: DashboardStudent[] = (enrollmentData || [])
     .map((enrollment: Record<string, unknown>) => {
@@ -142,20 +157,23 @@ export async function getDashboardData(params: { academic_year_id?: string } = {
 
   const allTransactions: ScorePointRow[] = [];
   if (studentIds.length > 0) {
-    // Fetch in chunks of 1000 to avoid URL length limits in Supabase REST
-    const chunkSize = 1000;
+    // Keep chunks small to avoid URL length limits in Supabase REST.
+    const chunkSize = 100;
     for (let i = 0; i < studentIds.length; i += chunkSize) {
       const chunk = studentIds.slice(i, i + chunkSize);
-      let txQuery = supabase
-        .from('score_transactions')
-        .select('student_id, points, status')
-        .in('student_id', chunk)
-        .eq('status', 'approved');
-      if (acYearId) {
-        txQuery = txQuery.eq('academic_year_id', acYearId);
-      }
-      const { data } = await txQuery;
-      if (data) allTransactions.push(...data as ScorePointRow[]);
+      const rows = await fetchAll<ScorePointRow>((from, to) => {
+        let txQuery = supabase
+          .from('score_transactions')
+          .select('student_id, points, status')
+          .in('student_id', chunk)
+          .eq('status', 'approved')
+          .range(from, to);
+        if (acYearId) {
+          txQuery = txQuery.eq('academic_year_id', acYearId);
+        }
+        return txQuery;
+      });
+      allTransactions.push(...rows);
     }
   }
 
@@ -250,6 +268,7 @@ export async function getDashboardData(params: { academic_year_id?: string } = {
       profiles!score_transactions_recorded_by_fkey(full_name)
     `)
     .eq('status', 'approved')
+    .order('created_at', { ascending: false })
     .order('recorded_at', { ascending: false })
     .limit(10);
   if (acYearId) recentQuery = recentQuery.eq('academic_year_id', acYearId);
@@ -267,6 +286,7 @@ export async function getDashboardData(params: { academic_year_id?: string } = {
       points: transaction.points,
       note: transaction.note,
       recorded_at: transaction.recorded_at,
+      created_at: transaction.created_at,
       recorded_by_name: recorder?.full_name || '',
       student_id_number: student?.student_id_number || '',
     };

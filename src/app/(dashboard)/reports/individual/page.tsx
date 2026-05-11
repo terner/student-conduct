@@ -338,7 +338,9 @@ export default function IndividualReportPage() {
             itemToStringLabel={(value) => classroomOptions.find((classroom) => classroom.name === value)?.name || String(value)}
           >
             <SelectTrigger className="h-10 w-full min-w-0">
-              <SelectValue placeholder={reportT('allClassrooms')} />
+              <SelectValue placeholder={reportT('allClassrooms')}>
+                <span className="truncate">{classroomName || reportT('allClassrooms')}</span>
+              </SelectValue>
             </SelectTrigger>
             <SelectContent className="max-h-[min(18rem,var(--available-height))]">
               {classroomOptions.map((classroom) => (
