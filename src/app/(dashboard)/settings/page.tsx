@@ -452,42 +452,42 @@ export default function SettingsPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="google_drive_client_email">Service Account Email</Label>
+                  <Label htmlFor="google_drive_client_email">{settingsT('googleDriveServiceAccountEmail')}</Label>
                   <Input
                     id="google_drive_client_email"
                     value={settings.google_drive_client_email || ''}
                     onChange={(e) => setSettings({ ...settings, google_drive_client_email: e.target.value })}
-                    placeholder="name@project.iam.gserviceaccount.com"
+                    placeholder={settingsT('googleDriveServiceAccountEmailPlaceholder')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="google_drive_profile_folder_id">Profile Photos Folder ID</Label>
+                  <Label htmlFor="google_drive_profile_folder_id">{settingsT('googleDriveProfileFolderId')}</Label>
                   <Input
                     id="google_drive_profile_folder_id"
                     value={settings.google_drive_profile_folder_id || ''}
                     onChange={(e) => setSettings({ ...settings, google_drive_profile_folder_id: e.target.value })}
-                    placeholder="Google Drive folder id"
+                    placeholder={settingsT('googleDriveFolderIdPlaceholder')}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="google_drive_evidence_folder_id">Score Evidence Folder ID</Label>
+                <Label htmlFor="google_drive_evidence_folder_id">{settingsT('googleDriveEvidenceFolderId')}</Label>
                 <Input
                   id="google_drive_evidence_folder_id"
                   value={settings.google_drive_evidence_folder_id || ''}
                   onChange={(e) => setSettings({ ...settings, google_drive_evidence_folder_id: e.target.value })}
-                  placeholder="Google Drive folder id"
+                  placeholder={settingsT('googleDriveFolderIdPlaceholder')}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="google_drive_private_key">Private Key</Label>
+                <Label htmlFor="google_drive_private_key">{settingsT('googleDrivePrivateKey')}</Label>
                 <Textarea
                   id="google_drive_private_key"
                   value={settings.google_drive_private_key || ''}
                   onChange={(e) => setSettings({ ...settings, google_drive_private_key: e.target.value })}
-                  placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+                  placeholder={settingsT('googleDrivePrivateKeyPlaceholder')}
                   rows={5}
                   className="font-mono text-xs"
                 />

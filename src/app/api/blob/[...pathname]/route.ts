@@ -1,13 +1,14 @@
 import { get } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { getUserFromCookie } from '@/lib/supabase/server';
+import { apiMessage } from '@/lib/i18n/api';
 
 export const runtime = 'nodejs';
 
-export async function GET(_request: Request, { params }: { params: Promise<{ pathname: string[] }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ pathname: string[] }> }) {
   const user = await getUserFromCookie();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: apiMessage(request, 'unauthorized') }, { status: 401 });
   }
 
   const { pathname } = await params;

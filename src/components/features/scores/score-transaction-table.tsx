@@ -32,7 +32,7 @@ function resolveEvidenceUrl(evidence: NonNullable<ScoreTransactionWithDetails['e
   }
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) return '';
-  return `${supabaseUrl}/storage/v1/object/public/school-logos/${evidence.file_path}`;
+  return `${supabaseUrl}/storage/v1/object/public/evidence/${evidence.file_path}`;
 }
 
 interface ScoreTransactionTableProps {

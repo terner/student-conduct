@@ -1,5 +1,6 @@
 import { createAdminClient, getUserFromCookie } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { apiMessage } from '@/lib/i18n/api';
 
 /**
  * GET /api/auth/me/student
@@ -7,13 +8,13 @@ import { NextResponse } from 'next/server';
  * Returns the student record (id) that belongs to the currently authenticated user.
  * Used by /students/me to redirect to the correct student detail page.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getUserFromCookie();
     const adminClient = await createAdminClient();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: apiMessage(request, 'unauthorized') }, { status: 401 });
     }
 
     // Find the student record linked to this profile
@@ -24,7 +25,7 @@ export async function GET() {
       .maybeSingle();
 
     if (!profile) {
-      return NextResponse.json({ error: 'ไม่พบข้อมูลผู้ใช้' }, { status: 404 });
+      return NextResponse.json({ error: apiMessage(request, 'profileNotFound') }, { status: 404 });
     }
 
     const { data: currentYear } = await adminClient
@@ -34,7 +35,7 @@ export async function GET() {
       .maybeSingle();
 
     if (!currentYear?.id) {
-      return NextResponse.json({ error: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' }, { status: 404 });
+      return NextResponse.json({ error: apiMessage(request, 'noCurrentAcademicYear') }, { status: 404 });
     }
 
     const { data: enrollment } = await adminClient
@@ -47,12 +48,12 @@ export async function GET() {
     const student = enrollment?.students as { id?: string } | null | undefined;
 
     if (!student?.id) {
-      return NextResponse.json({ error: 'ไม่พบข้อมูลนักเรียนในปีการศึกษาปัจจุบัน' }, { status: 404 });
+      return NextResponse.json({ error: apiMessage(request, 'studentNotFoundCurrentYear') }, { status: 404 });
     }
 
     return NextResponse.json({ id: student.id });
   } catch (err) {
     console.error('[StudentMe API] Error:', err);
-    return NextResponse.json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }, { status: 500 });
+    return NextResponse.json({ error: apiMessage(request, 'internalError') }, { status: 500 });
   }
 }

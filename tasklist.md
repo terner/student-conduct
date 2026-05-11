@@ -204,12 +204,13 @@
   เหลือทำต่อ:
   - [x] Upload/storage API error messages ที่แสดงถึงผู้ใช้ผ่าน message files แล้ว
   - [x] Notification bell แสดง type label และ event threshold message แล้ว
-  - [ ] Auth login route, server action errors และ API routes อื่นที่ยังเหลือ
+  - [x] Auth login route และ `/api/auth/me/student` ใช้ API message files แล้ว
+  - [ ] Server action errors และ API routes อื่นที่ยังเหลือ
   - [ ] ตรวจ hardcoded ที่เหลือใน reports/score/settings/teacher/student profile/PDF ให้ครบแบบ strict
   - [ ] แยก domain data ที่ไม่ควร i18n เช่น CSV Thai headers, คำนำหน้า, sample import data ออกจาก UI copy ที่ต้อง i18n
 - [ ] **รายงานนักเรียนถึงเกณฑ์ + การแจ้งเตือน**
-  - [ ] แปลง `/reports/threshold` เป็น i18n
-  - [ ] เพิ่ม filter/search/pagination และ export filename ที่มีปีการศึกษา
+  - [x] แปลง `/reports/threshold` เป็น i18n สำหรับ UI/filters หลักแล้ว
+  - [x] เพิ่ม filter/search/pagination และ export filename ที่มีปีการศึกษา
   - [x] สร้าง notification เมื่อ student reached threshold จาก record/approve score event ของปีปัจจุบัน
   - [x] แจ้ง admin/superadmin และครูประจำห้อง/ครูที่ปรึกษาตาม `teacher_classrooms`
   - [x] ป้องกัน duplicate notification ต่อ threshold/ปีการศึกษา/recipient ผ่าน metadata
@@ -220,7 +221,7 @@
   - [x] แก้ evidence fallback จาก bucket `school-logos` เป็น bucket `evidence`
   - [x] Validate evidence type/size/count ให้ชัด และห้ามไฟล์เสี่ยงตาม req
   - [x] เพิ่ม rate limit upload และ audit log พร้อม IP/user-agent สำหรับ upload/storage test
-  - [ ] Verify public/private URL rendering ใน evidence modal และ profile photo
+  - [x] Verify/ปรับ evidence modal fallback URL ให้ใช้ bucket `evidence`; private blob/profile photo ยังใช้ `/api/blob/...` จาก upload route เดิม
 - [ ] **Annual rollover/import** — หลังขึ้นปีใหม่แล้วต้องมี import wizard สำหรับ enrollment นักเรียนปีใหม่, preview ก่อนบันทึก, จัดการนักเรียนย้าย/ซ้ำชั้น/จบการศึกษา
 - [x] **Role assignment UI** — จัดการ role `teacher/admin/superadmin` ผ่านฟอร์มรายชื่อครูแล้ว
 

@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { logAction } from '@/lib/audit/log';
+import { getRequestAuditInfo, logAction } from '@/lib/audit/log';
+import { apiMessage } from '@/lib/i18n/api';
 
 export async function POST(request: Request) {
+  const requestInfo = getRequestAuditInfo(request);
   try {
     const body = await request.json();
     const { email, password, student_id } = body;
@@ -13,9 +15,10 @@ export async function POST(request: Request) {
         event: 'login_failed',
         resourceType: student_id ? 'student' : 'user',
         metadata: { reason: 'missing_credentials', login_type: student_id ? 'student' : 'staff' },
+        ...requestInfo,
       });
       return NextResponse.json(
-        { error: 'กรุณากรอกอีเมล/รหัสนักเรียนและรหัสผ่าน' },
+        { error: apiMessage(request, 'loginMissingCredentials') },
         { status: 400 }
       );
     }
@@ -57,9 +60,9 @@ export async function POST(request: Request) {
         .maybeSingle();
 
       if (currentYearError || !currentYear?.id) {
-        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'no_current_academic_year' } });
+        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'no_current_academic_year' }, ...requestInfo });
         return NextResponse.json(
-          { error: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' },
+          { error: apiMessage(request, 'noCurrentAcademicYear') },
           { status: 401 }
         );
       }
@@ -73,17 +76,17 @@ export async function POST(request: Request) {
         .limit(2);
 
       if (enrollmentError || !enrollmentData || enrollmentData.length === 0) {
-        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'student_not_found_current_year', student_id } });
+        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'student_not_found_current_year', student_id }, ...requestInfo });
         return NextResponse.json(
-          { error: 'ไม่พบรหัสนักเรียนนี้ในปีการศึกษาปัจจุบัน' },
+          { error: apiMessage(request, 'studentNotFoundCurrentYear') },
           { status: 401 }
         );
       }
 
       if (enrollmentData.length > 1) {
-        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'duplicate_student_number_current_year', student_id } });
+        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'duplicate_student_number_current_year', student_id }, ...requestInfo });
         return NextResponse.json(
-          { error: 'พบเลขนักเรียนซ้ำในปีการศึกษาปัจจุบัน กรุณาติดต่อผู้ดูแลระบบ' },
+          { error: apiMessage(request, 'duplicateStudentNumberCurrentYear') },
           { status: 401 }
         );
       }
@@ -98,9 +101,9 @@ export async function POST(request: Request) {
         .single();
 
       if (profileError || !profileData?.user_id) {
-        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'profile_not_found', student_id } });
+        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'profile_not_found', student_id }, ...requestInfo });
         return NextResponse.json(
-          { error: 'ไม่พบข้อมูลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ' },
+          { error: apiMessage(request, 'profileNotFoundContactAdmin') },
           { status: 401 }
         );
       }
@@ -108,9 +111,9 @@ export async function POST(request: Request) {
       // Get the user's email from auth.users (requires service_role key)
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(profileData.user_id);
       if (userError || !userData?.user?.email) {
-        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'auth_email_not_found', student_id } });
+        await logAction({ event: 'login_failed', resourceType: 'student', metadata: { reason: 'auth_email_not_found', student_id }, ...requestInfo });
         return NextResponse.json(
-          { error: 'ไม่พบอีเมลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ' },
+          { error: apiMessage(request, 'authEmailNotFoundContactAdmin') },
           { status: 401 }
         );
       }
@@ -128,17 +131,18 @@ export async function POST(request: Request) {
         event: 'login_failed',
         resourceType: student_id ? 'student' : 'user',
         metadata: { reason: 'invalid_credentials', login_type: student_id ? 'student' : 'staff', status: error.status },
+        ...requestInfo,
       });
       const message = error.message === 'Invalid login credentials'
-        ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
-        : error.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
+        ? apiMessage(request, 'invalidLoginCredentials')
+        : error.message || apiMessage(request, 'genericTryAgain');
       return NextResponse.json({ error: message, details: error.message }, { status: 401 });
     }
 
     if (!data.session) {
-      await logAction({ event: 'login_failed', resourceType: 'user', metadata: { reason: 'missing_session' } });
+      await logAction({ event: 'login_failed', resourceType: 'user', metadata: { reason: 'missing_session' }, ...requestInfo });
       return NextResponse.json(
-        { error: 'ไม่ได้รับข้อมูล session' },
+        { error: apiMessage(request, 'missingSession') },
         { status: 500 }
       );
     }
@@ -151,17 +155,17 @@ export async function POST(request: Request) {
       .single();
 
     if (!profileData) {
-      await logAction({ event: 'login_failed', resourceType: 'user', metadata: { reason: 'profile_not_found_after_login', user_id: data.user.id } });
+      await logAction({ event: 'login_failed', resourceType: 'user', metadata: { reason: 'profile_not_found_after_login', user_id: data.user.id }, ...requestInfo });
       return NextResponse.json(
-        { error: 'ไม่พบข้อมูลผู้ใช้ในระบบ กรุณาติดต่อผู้ดูแลระบบ' },
+        { error: apiMessage(request, 'profileNotFoundContactAdmin') },
         { status: 401 }
       );
     }
 
     if (!profileData.is_active) {
-      await logAction({ actorId: profileData.id, event: 'login_failed', resourceType: 'profile', resourceId: profileData.id, metadata: { reason: 'inactive_account' } });
+      await logAction({ actorId: profileData.id, event: 'login_failed', resourceType: 'profile', resourceId: profileData.id, metadata: { reason: 'inactive_account' }, ...requestInfo });
       return NextResponse.json(
-        { error: 'บัญชีผู้ใช้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ' },
+        { error: apiMessage(request, 'inactiveAccountContactAdmin') },
         { status: 403 }
       );
     }
@@ -178,6 +182,7 @@ export async function POST(request: Request) {
       resourceType: 'profile',
       resourceId: profileData.id,
       metadata: { login_type: student_id ? 'student' : 'staff', role: profileData.role },
+      ...requestInfo,
     });
 
     // Build the response with role info
@@ -217,7 +222,7 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error('[Login API Route] Error:', err);
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดภายในระบบ' },
+      { error: apiMessage(request, 'internalError') },
       { status: 500 }
     );
   }

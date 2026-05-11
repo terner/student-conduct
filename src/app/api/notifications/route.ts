@@ -4,11 +4,11 @@ import { apiMessage } from '@/lib/i18n/api';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const { supabase, user } = await createClientWithUser();
 
   if (!user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: apiMessage(request, 'unauthorized') }, { status: 401 });
   }
 
   const { data: profile } = await supabase

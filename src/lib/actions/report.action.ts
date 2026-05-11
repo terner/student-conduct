@@ -5,6 +5,7 @@ import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { canApproveScores, hasRole } from '@/lib/security/roles';
 import { listStudents, getScoreSummary } from '@/lib/db';
 import type { StudentThresholdInfo } from '@/types';
+import { logAction } from '@/lib/audit/log';
 
 export type RankingSortBy = 'current_score' | 'deducted' | 'transaction_count' | 'latest' | 'name';
 
@@ -746,7 +747,7 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
 }
 
 export async function getThresholdReport(academicYearId?: string) {
-  return withAuth(async () => {
+  return withAuth(async (profile) => {
     const supabase = await createClient();
 
     let acYearQuery = supabase
@@ -795,6 +796,16 @@ export async function getThresholdReport(academicYearId?: string) {
       .filter((student: Record<string, unknown>) => Boolean(student.id));
 
     if (!students || students.length === 0) {
+      await logAction({
+        actorId: profile.id,
+        event: 'view_report',
+        resourceType: 'report',
+        metadata: {
+          report: 'threshold',
+          academic_year_id: acYearId || null,
+          result_count: 0,
+        },
+      });
       return {
         success: true,
         data: {
@@ -890,6 +901,17 @@ export async function getThresholdReport(academicYearId?: string) {
       return b.deducted_total - a.deducted_total;
     });
 
+    await logAction({
+      actorId: profile.id,
+      event: 'view_report',
+      resourceType: 'report',
+      metadata: {
+        report: 'threshold',
+        academic_year_id: acYearId || null,
+        result_count: reportData.length,
+      },
+    });
+
     return {
       success: true,
       data: {
@@ -900,5 +922,17 @@ export async function getThresholdReport(academicYearId?: string) {
         total_at_risk: reportData.length,
       },
     };
+  });
+}
+
+export async function logReportExport(report: string, metadata: Record<string, unknown> = {}) {
+  return withAuth(async (profile) => {
+    await logAction({
+      actorId: profile.id,
+      event: 'export_csv',
+      resourceType: 'report',
+      metadata: { report, ...metadata },
+    });
+    return { success: true, data: null };
   });
 }
