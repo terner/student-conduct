@@ -6,8 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SimplePagination } from '@/components/ui/simple-pagination';
 import { createClient } from '@/lib/supabase/client';
 import { useLocale, useTranslations } from 'next-intl';
+
+const PAGE_SIZE = 25;
 
 export default function AuditLogPage() {
   const settingsT = useTranslations('settings');
@@ -15,28 +18,39 @@ export default function AuditLogPage() {
   const locale = useLocale();
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [actionLogs, setActionLogs] = useState<any[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [actionTotal, setActionTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(1);
+  const [actionPage, setActionPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
       const supabase = createClient();
+      const auditFrom = (auditPage - 1) * PAGE_SIZE;
+      const actionFrom = (actionPage - 1) * PAGE_SIZE;
       const { data: auditData } = await supabase
         .from('audit_logs')
-        .select('*, profiles(full_name)')
+        .select('*, profiles(full_name)', { count: 'exact' })
         .order('created_at', { ascending: false })
-        .limit(50);
+        .range(auditFrom, auditFrom + PAGE_SIZE - 1);
       const { data: actionData } = await supabase
         .from('action_logs')
-        .select('*, profiles(full_name)')
+        .select('*, profiles(full_name)', { count: 'exact' })
         .order('created_at', { ascending: false })
-        .limit(50);
+        .range(actionFrom, actionFrom + PAGE_SIZE - 1);
 
       if (auditData) setAuditLogs(auditData);
       if (actionData) setActionLogs(actionData);
+      const { count: auditCount } = await supabase.from('audit_logs').select('id', { count: 'exact', head: true });
+      const { count: actionCount } = await supabase.from('action_logs').select('id', { count: 'exact', head: true });
+      setAuditTotal(auditCount || 0);
+      setActionTotal(actionCount || 0);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [auditPage, actionPage]);
 
   if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div></div>;
 
@@ -61,6 +75,10 @@ export default function AuditLogPage() {
             targetTypeKey="target_type"
             targetIdKey="target_id"
             locale={locale}
+            page={auditPage}
+            pageSize={PAGE_SIZE}
+            total={auditTotal}
+            onPageChange={setAuditPage}
           />
         </TabsContent>
         <TabsContent value="action" className="mt-4">
@@ -72,6 +90,10 @@ export default function AuditLogPage() {
             targetTypeKey="resource_type"
             targetIdKey="resource_id"
             locale={locale}
+            page={actionPage}
+            pageSize={PAGE_SIZE}
+            total={actionTotal}
+            onPageChange={setActionPage}
           />
         </TabsContent>
       </Tabs>
@@ -87,6 +109,10 @@ function LogTable({
   targetTypeKey,
   targetIdKey,
   locale,
+  page,
+  pageSize,
+  total,
+  onPageChange,
 }: {
   rows: any[];
   emptyTitle: string;
@@ -95,6 +121,10 @@ function LogTable({
   targetTypeKey: string;
   targetIdKey: string;
   locale: string;
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
 }) {
   const settingsT = useTranslations('settings');
 
@@ -137,6 +167,7 @@ function LogTable({
           </TableBody>
         </Table>
       </CardContent>
+      <SimplePagination page={page} pageSize={pageSize} total={total} onPageChange={onPageChange} />
     </Card>
   );
 }

@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
+import { SimplePagination } from '@/components/ui/simple-pagination';
 import { createClient } from '@/lib/supabase/client';
 import { useTranslations } from 'next-intl';
 
@@ -23,23 +24,30 @@ function formatDateTime(value: string) {
   });
 }
 
+const PAGE_SIZE = 25;
+
 export default function BondDocumentsPage() {
   const thresholdT = useTranslations('threshold');
   const studentT = useTranslations('student');
   const commonT = useTranslations('common');
   const [bonds, setBonds] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadBonds(); }, []);
+  useEffect(() => { loadBonds(page); }, [page]);
 
-  async function loadBonds() {
+  async function loadBonds(nextPage = page) {
     setLoading(true);
     const supabase = createClient();
-    const { data } = await supabase
+    const from = (nextPage - 1) * PAGE_SIZE;
+    const { data, count } = await supabase
       .from('bond_documents')
-      .select('*, students(student_id_number, profiles!inner(full_name, prefix)), academic_years(name)')
-      .order('created_at', { ascending: false });
+      .select('*, students(student_id_number, profiles!inner(full_name, prefix)), academic_years(name)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
     if (data) setBonds(data);
+    setTotal(count || 0);
     setLoading(false);
   }
 
@@ -103,6 +111,7 @@ export default function BondDocumentsPage() {
               </TableBody>
             </Table>
           </CardContent>
+          <SimplePagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
         </Card>
       )}
     </div>

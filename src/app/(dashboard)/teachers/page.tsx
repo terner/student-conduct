@@ -1,17 +1,20 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Download, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TeacherTable } from '@/components/features/teachers/teacher-table';
 import { TeacherForm } from '@/components/features/teachers/teacher-form';
+import { SimplePagination } from '@/components/ui/simple-pagination';
 import { getTeachers, addTeacher, editTeacher, setTeacherActive } from '@/lib/actions/teacher.action';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
 import type { TeacherInput } from '@/lib/validation/schemas';
 import { exportCsv } from '@/lib/utils/csv';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+
+const PAGE_SIZE = 25;
 
 export default function TeachersPage() {
   const teacherT = useTranslations('teacher');
@@ -21,12 +24,15 @@ export default function TeachersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<TeacherWithProfile | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [page, setPage] = useState(1);
+  const pagedData = useMemo(() => data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [data, page]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     const result = await getTeachers({ include_inactive: true });
     if (result.success && result.data) {
       setData(result.data);
+      setPage(1);
       setLoading(false);
       return;
     } else {
@@ -106,11 +112,12 @@ export default function TeachersPage() {
       </div>
 
       <TeacherTable
-        data={data}
+        data={pagedData}
         loading={loading || updatingStatus}
         onEdit={(t) => { setEditItem(t); setShowForm(true); }}
         onSetActive={handleSetActive}
       />
+      <SimplePagination page={page} pageSize={PAGE_SIZE} total={data.length} onPageChange={setPage} />
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="sm:max-w-md">

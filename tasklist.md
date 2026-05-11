@@ -194,6 +194,7 @@
 - [x] ทดสอบ Vercel Blob ด้วย token จริงแล้ว: upload/read/delete ผ่านสำหรับ logo, profile และ evidence แบบ private store
 - [x] เพิ่ม storage test connection ใน Settings, upload validation/rate limit กลาง, API error messages ตาม locale, evidence bucket fallback เป็น `evidence`, และ audit IP/user-agent สำหรับ upload/storage test
 - [x] เพิ่ม threshold notification จาก event record/approve คะแนนปีปัจจุบัน พร้อม recipient admin/superadmin + homeroom/assistant, duplicate guard ผ่าน metadata และ mark-read ownership
+- [x] เพิ่ม pagination/load-more ให้หน้า list หลักแล้ว: `/teachers`, `/classrooms`, `/classrooms/[id]`, `/reports/individual`, `/reports/threshold`, `/reports/bond`, `/settings/logs`, `/interventions`, และ notification bell
 - [x] Build ผ่านด้วย `npm run build`
 
 ## 📋 ฟีเจอร์ที่ยังต้องทำต่อ

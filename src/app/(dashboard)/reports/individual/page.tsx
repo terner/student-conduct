@@ -11,6 +11,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { SimplePagination } from '@/components/ui/simple-pagination';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { getStudentRankingReport, type RankingSortBy, type StudentRankingRow } from '@/lib/actions/report.action';
 import { getAcademicYears, getClassroomsForSelect } from '@/lib/actions/student.action';
@@ -45,6 +46,7 @@ const sortOptions: Array<{ value: TableSortBy; labelKey: string }> = [
   { value: 'name', labelKey: 'studentName' },
 ];
 const serverSortValues: TableSortBy[] = ['current_score', 'deducted', 'transaction_count', 'latest', 'name'];
+const PAGE_SIZE = 25;
 
 function formatDateTime(value?: string) {
   if (!value) return '-';
@@ -132,6 +134,7 @@ export default function IndividualReportPage() {
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState<any>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentRankingRow | null>(null);
+  const [page, setPage] = useState(1);
   const sortLabel = (value: TableSortBy) => reportT(sortOptions.find((option) => option.value === value)?.labelKey || 'studentName');
 
   useEffect(() => {
@@ -201,6 +204,7 @@ export default function IndividualReportPage() {
     if (result.success) {
       setReportData(result.data);
       setSelectedStudent(null);
+      setPage(1);
     }
     setLoading(false);
   }
@@ -226,6 +230,7 @@ export default function IndividualReportPage() {
     setSortBy('rank');
     setSortDirection('asc');
     setRankMode('risk');
+    setPage(1);
   }
 
   function handleSort(value: TableSortBy) {
@@ -235,6 +240,7 @@ export default function IndividualReportPage() {
     }
     setSortBy(value);
     setSortDirection(defaultDirection(value));
+    setPage(1);
   }
 
   function handleExport() {
@@ -272,6 +278,7 @@ export default function IndividualReportPage() {
       return result * multiplier || a.full_name.localeCompare(b.full_name);
     });
   }, [baseScore, rows, sortBy, sortDirection]);
+  const pagedRows = useMemo(() => displayedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [displayedRows, page]);
 
   return (
     <div className="p-6 space-y-6">
@@ -465,7 +472,7 @@ export default function IndividualReportPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayedRows.map((row) => {
+                {pagedRows.map((row) => {
                   const status = statusLabel(row, baseScore, reportT);
                   return (
                     <TableRow key={row.id} className="cursor-pointer" onClick={() => setSelectedStudent(row)}>
@@ -515,6 +522,9 @@ export default function IndividualReportPage() {
                 })}
               </TableBody>
             </Table>
+          )}
+          {!loading && displayedRows.length > 0 && (
+            <SimplePagination page={page} pageSize={PAGE_SIZE} total={displayedRows.length} onPageChange={setPage} />
           )}
         </CardContent>
       </Card>

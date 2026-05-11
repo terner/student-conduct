@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
+import { SimplePagination } from '@/components/ui/simple-pagination';
 import { createClient } from '@/lib/supabase/client';
 import { useTranslations } from 'next-intl';
 
@@ -27,12 +28,15 @@ const typeIcon: Record<string, any> = {
   phone_call: Phone, parent_meeting: MessageSquare, warning: AlertTriangle,
   home_visit: Home, counseling: MessageSquare, bond: FileText,
 };
+const PAGE_SIZE = 25;
 
 export default function InterventionsPage() {
   const interventionT = useTranslations('intervention');
   const studentT = useTranslations('student');
   const commonT = useTranslations('common');
   const [interventions, setInterventions] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const typeLabel: Record<string, string> = {
     phone_call: interventionT('phoneCall'),
@@ -44,17 +48,19 @@ export default function InterventionsPage() {
     other: interventionT('other'),
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(page); }, [page]);
 
-  async function load() {
+  async function load(nextPage = page) {
     setLoading(true);
     const supabase = createClient();
-    const { data } = await supabase
+    const from = (nextPage - 1) * PAGE_SIZE;
+    const { data, count } = await supabase
       .from('intervention_logs')
-      .select('*, students(student_id_number, profiles!inner(full_name, prefix))')
+      .select('*, students(student_id_number, profiles!inner(full_name, prefix))', { count: 'exact' })
       .order('occurred_at', { ascending: false })
-      .limit(50);
+      .range(from, from + PAGE_SIZE - 1);
     if (data) setInterventions(data);
+    setTotal(count || 0);
     setLoading(false);
   }
 
@@ -107,6 +113,7 @@ export default function InterventionsPage() {
               </TableBody>
             </Table>
           </CardContent>
+          <SimplePagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
         </Card>
       )}
     </div>

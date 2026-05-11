@@ -6,6 +6,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const { supabase, user } = await createClientWithUser();
+  const limitParam = Number(request.nextUrl.searchParams.get('limit') || 10);
+  const limit = Number.isFinite(limitParam) ? Math.min(Math.max(1, limitParam), 50) : 10;
 
   if (!user?.id) {
     return NextResponse.json({ error: apiMessage(request, 'unauthorized') }, { status: 401 });
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
     .select('*')
     .eq('recipient_id', profile.id)
     .order('created_at', { ascending: false })
-    .limit(10);
+    .limit(limit);
 
   return NextResponse.json(
     { data: notifications ?? [] },

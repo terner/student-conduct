@@ -32,10 +32,11 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [limit, setLimit] = useState(10);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/notifications');
+      const res = await fetch(`/api/notifications?limit=${limit}`);
       if (!res.ok) return;
       const json = await res.json();
       const data = json.data ?? [];
@@ -44,7 +45,7 @@ export function NotificationBell() {
     } catch {
       // silently fail — user may not be authenticated
     }
-  }, []);
+  }, [limit]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -96,6 +97,15 @@ export function NotificationBell() {
                 </div>
               </button>
             ))}
+            {notifications.length >= limit && limit < 50 && (
+              <button
+                type="button"
+                className="w-full p-3 text-center text-xs text-muted-foreground hover:bg-accent"
+                onClick={() => setLimit((current) => Math.min(50, current + 10))}
+              >
+                {t('loadMore')}
+              </button>
+            )}
           </div>
         )}
       </PopoverContent>
