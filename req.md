@@ -51,7 +51,8 @@ Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
 - ทำ Google Drive upload ให้พร้อม production: ทดสอบ service account/folder จริง, เพิ่มปุ่ม test connection, ตรวจ private key handling, จำกัด type/size/count/rate limit, แก้ fallback bucket evidence และบันทึก audit log
 - ทำ permission/admin UI ให้กำหนด role หรือเพิ่ม admin ให้ครูบางคนจากหน้า UI ได้ครบ
 - เก็บ audit/action logs ให้ครบทุก action สำคัญ เช่น import, export, setting change, role change, score change
-- ทำ i18n ให้ครบทุกหน้า ตอนนี้มี config และ switcher แล้ว แต่ยังมี hardcoded Thai จำนวนมาก โดยเฉพาะ reports, score, settings, teacher, student profile/PDF, notification และ server/API error messages
+- ทำ i18n ให้ครบทุกหน้าแบบ strict production-grade: ตอนนี้มี config, switcher และ `messages/th.json` + `messages/en.json` แล้ว และแปลง UI หลักไปหลายส่วนแล้ว รวมถึง validation/Zod messages หลัก, sidebar disabled tooltip, notification bell title/empty state/date locale, dashboard error page และ `/students/me` state แล้ว แต่ยังเหลือ hardcoded Thai/English ที่ต้องไล่ต่อใน auth pages, upload/API routes, server action errors, notification event messages และ hardcoded copy ที่เหลือใน reports/score/settings/teacher/student profile/PDF
+- แยกข้อความที่เป็น domain/import format ออกจากงาน i18n ให้ชัด เช่น CSV Thai headers, คำนำหน้า, sample import data และ grade abbreviations อาจต้องคงไว้เป็นข้อมูลระบบ ไม่ใช่ UI copy
 - ทำรายงานนักเรียนถึงเกณฑ์และการแจ้งเตือนให้ครบ: i18n, filter/search/pagination, export naming, notification generation เมื่อถึง threshold, notification ให้ admin/ครูประจำห้อง/ครูที่ปรึกษาตาม assignment และ mark-read ownership
 - ทำ annual promotion/rollover: สร้างปีใหม่, copy/create ห้องตามโครงสร้าง, ย้าย enrollment นักเรียนรายปี
 - ทำ import wizard สำหรับปีการศึกษาใหม่ให้ preview ก่อนบันทึก และจัดการนักเรียนซ้ำ/ย้าย/จบการศึกษา

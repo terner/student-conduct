@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { Bell, BellDot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -14,14 +15,16 @@ interface Notification {
   created_at: string;
 }
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString('th-TH', {
+function formatDateTime(value: string, locale: string) {
+  return new Date(value).toLocaleString(locale, {
     dateStyle: 'short',
     timeStyle: 'short',
   });
 }
 
 export function NotificationBell() {
+  const t = useTranslations('notifications');
+  const locale = useLocale();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -62,9 +65,9 @@ export function NotificationBell() {
         )}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
-        <div className="p-3 font-medium border-b text-sm">การแจ้งเตือน</div>
+        <div className="p-3 font-medium border-b text-sm">{t('title')}</div>
         {notifications.length === 0 ? (
-          <div className="p-6 text-center text-sm text-muted-foreground">ไม่มีการแจ้งเตือน</div>
+          <div className="p-6 text-center text-sm text-muted-foreground">{t('empty')}</div>
         ) : (
           <div className="max-h-[300px] overflow-y-auto">
             {notifications.map((n) => (
@@ -76,7 +79,7 @@ export function NotificationBell() {
                 <div className="font-medium">{n.title}</div>
                 {n.body && <div className="text-xs text-muted-foreground mt-0.5">{n.body}</div>}
                 <div className="text-[10px] text-muted-foreground mt-1">
-                  {formatDateTime(n.created_at)}
+                  {formatDateTime(n.created_at, locale)}
                 </div>
               </button>
             ))}

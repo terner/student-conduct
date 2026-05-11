@@ -1,23 +1,19 @@
 import { z } from 'zod';
+import thMessages from '../../../messages/th.json';
 
 // ─── Helpers ───
 const thaiPhoneRegex = /^0[0-9]{2}-?[0-9]{3}-?[0-9]{4}$/;
 const studentIdRegex = /^\d{10}$/;
 const thaiNameRegex = /^[฀-๿ a-zA-Zก-ฮ]+$/;
 
+const validationMessages = thMessages.validation;
+const interpolate = (value: string, params: Record<string, string | number>) =>
+  Object.entries(params).reduce((message, [key, param]) => message.replace(`{${key}}`, String(param)), value);
+
 export const errorMessages = {
-  required: 'กรุณากรอกข้อมูล',
-  tooShort: (min: number) => `ต้องมีความยาวอย่างน้อย ${min} ตัวอักษร`,
-  tooLong: (max: number) => `ต้องมีความยาวไม่เกิน ${max} ตัวอักษร`,
-  invalidEmail: 'รูปแบบอีเมลไม่ถูกต้อง',
-  invalidPhone: 'เบอร์โทรศัพท์ไม่ถูกต้อง (เช่น 081-234-5678)',
-  invalidStudentId: 'รหัสนักเรียนต้องเป็นตัวเลข 10 หลัก',
-  invalidName: 'ชื่อต้องเป็นภาษาไทยหรือภาษาอังกฤษเท่านั้น',
-  invalidPoints: 'คะแนนต้องอยู่ระหว่าง 1-999',
-  invalidGradeLevel: 'ชั้นปีต้องอยู่ระหว่าง 1-12',
-  invalidClassNumber: 'เลขที่ต้องอยู่ระหว่าง 1-50',
-  invalidUrl: 'รูปแบบ URL ไม่ถูกต้อง',
-  passwordTooWeak: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร ประกอบด้วยพิมพ์เล็ก พิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ',
+  ...validationMessages,
+  tooShort: (min: number) => interpolate(validationMessages.tooShort, { min }),
+  tooLong: (max: number) => interpolate(validationMessages.tooLong, { max }),
 };
 
 // ─── Auth ───
@@ -42,26 +38,26 @@ export const loginStudentSchema = z.object({
 
 const passwordSchema = z
   .string()
-  .min(8, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร')
-  .max(128, 'รหัสผ่านต้องไม่เกิน 128 ตัวอักษร')
-  .regex(/[a-z]/, 'ต้องมีตัวพิมพ์เล็กอย่างน้อย 1 ตัว')
-  .regex(/[A-Z]/, 'ต้องมีตัวพิมพ์ใหญ่อย่างน้อย 1 ตัว')
-  .regex(/[0-9]/, 'ต้องมีตัวเลขอย่างน้อย 1 ตัว')
-  .regex(/[^a-zA-Z0-9]/, 'ต้องมีอักขระพิเศษอย่างน้อย 1 ตัว');
+  .min(8, errorMessages.passwordMin)
+  .max(128, errorMessages.passwordMax)
+  .regex(/[a-z]/, errorMessages.passwordLowercase)
+  .regex(/[A-Z]/, errorMessages.passwordUppercase)
+  .regex(/[0-9]/, errorMessages.passwordNumber)
+  .regex(/[^a-zA-Z0-9]/, errorMessages.passwordSpecial);
 
 export const changePasswordSchema = z.object({
   current_password: z.string().min(1, errorMessages.required),
   new_password: passwordSchema,
   confirm_password: z.string().min(1, errorMessages.required),
 }).refine(data => data.new_password === data.confirm_password, {
-  message: 'รหัสผ่านไม่ตรงกัน',
+  message: errorMessages.passwordMismatch,
   path: ['confirm_password'],
 });
 
 export const staffPasswordSchema = z
   .string()
-  .min(8, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร')
-  .max(128, 'รหัสผ่านต้องไม่เกิน 128 ตัวอักษร');
+  .min(8, errorMessages.passwordMin)
+  .max(128, errorMessages.passwordMax);
 
 // ─── Profile ───
 export const profileSchema = z.object({
@@ -122,7 +118,7 @@ export const studentSchema = z.object({
 });
 
 export const studentImportSchema = z.object({
-  academic_year: z.string().min(4, 'ปีการศึกษาไม่ถูกต้อง'),
+  academic_year: z.string().min(4, errorMessages.invalidAcademicYear),
   student_id: z.string().regex(studentIdRegex, errorMessages.invalidStudentId),
   class_number: z.coerce.number().int().min(1).max(50),
   first_name: z.string().min(2).max(50),
@@ -143,7 +139,7 @@ export const scoreCategorySchema = z.object({
   default_points: z
     .number()
     .int()
-    .refine(val => val !== 0, 'คะแนนต้องไม่เป็น 0')
+    .refine(val => val !== 0, errorMessages.scoreNotZero)
     .refine(val => Math.abs(val) <= 999, errorMessages.invalidPoints),
   description: z
     .string()
@@ -169,7 +165,7 @@ export const scoreRecordSchema = z.object({
 });
 
 export const scoreBulkRecordSchema = z.object({
-  student_ids: z.array(z.string().min(1)).min(1, 'กรุณาเลือกนักเรียนอย่างน้อย 1 คน'),
+  student_ids: z.array(z.string().min(1)).min(1, errorMessages.selectAtLeastOneStudent),
   category_id: z.string().min(1, errorMessages.required),
   points: z
     .number()
@@ -186,7 +182,7 @@ export const scoreVoidSchema = z.object({
   transaction_id: z.string().min(1, errorMessages.required),
   void_reason: z
     .string()
-    .min(10, 'กรุณาระบุเหตุผลในการยกเลิกอย่างน้อย 10 ตัวอักษร')
+    .min(10, errorMessages.voidReasonMin)
     .max(500, errorMessages.tooLong(500)),
 });
 
@@ -208,8 +204,8 @@ export const classroomSchema = z.object({
   room_count: z
     .number()
     .int()
-    .min(1, 'จำนวนห้องต้องอย่างน้อย 1 ห้อง')
-    .max(20, 'เพิ่มได้ครั้งละไม่เกิน 20 ห้อง')
+    .min(1, errorMessages.roomCountMin)
+    .max(20, errorMessages.roomCountMax)
     .default(1),
 });
 
@@ -302,7 +298,7 @@ export const studentGuardianSchema = z.object({
 // ─── Bond ───
 export const bondDocumentSchema = z.object({
   student_id: z.string().min(1, errorMessages.required),
-  threshold_deducted: z.number().int().min(1, 'กรุณาระบุ threshold'),
+  threshold_deducted: z.number().int().min(1, errorMessages.thresholdRequired),
   status: z.enum(['draft', 'generated', 'signed', 'cancelled']).default('draft'),
 });
 
@@ -312,10 +308,10 @@ export const interventionSchema = z.object({
   intervention_type: z.enum(['phone_call', 'parent_meeting', 'warning', 'bond', 'home_visit', 'counseling', 'other']),
   contacted_guardian_id: z.string().optional().or(z.literal('')),
   contact_method: z.enum(['phone', 'line', 'email', 'in_person', 'letter', 'other']),
-  occurred_at: z.string().min(1, 'กรุณาระบุวันที่'),
+  occurred_at: z.string().min(1, errorMessages.dateRequired),
   summary: z
     .string()
-    .min(10, 'กรุณากรอกสรุปอย่างน้อย 10 ตัวอักษร')
+    .min(10, errorMessages.summaryMin)
     .max(2000, errorMessages.tooLong(2000)),
   outcome: z
     .string()
@@ -352,38 +348,38 @@ export const schoolInfoSchema = z.object({
 });
 
 export const scoreSettingsSchema = z.object({
-  base_score: z.coerce.number().int().min(1, 'คะแนนตั้งต้นต้องมากกว่า 0').max(999),
-  score_floor: z.coerce.number().int().min(0, 'คะแนนขั้นต่ำต้องไม่ต่ำกว่า 0'),
+  base_score: z.coerce.number().int().min(1, errorMessages.baseScoreMin).max(999),
+  score_floor: z.coerce.number().int().min(0, errorMessages.scoreFloorMin),
   score_ceiling: z.coerce.number().int().min(0).nullable().optional(),
   display_score_above_base_as: z.string().default('100+'),
-  academic_year: z.string().min(4, 'ปีการศึกษาไม่ถูกต้อง'),
+  academic_year: z.string().min(4, errorMessages.invalidAcademicYear),
 });
 
 export const thresholdSchema = z.object({
-  deducted: z.coerce.number().int().min(1, 'คะแนนที่ถูกตัดต้องมากกว่า 0'),
+  deducted: z.coerce.number().int().min(1, errorMessages.deductedMin),
   action: z
     .string()
-    .min(5, 'กรุณากรอกการดำเนินการ')
+    .min(5, errorMessages.actionRequired)
     .max(200, errorMessages.tooLong(200)),
   color: z
     .string()
-    .regex(/^#[0-9A-Fa-f]{6}$/, 'สีต้องเป็น hex color (เช่น #FF0000)'),
+    .regex(/^#[0-9A-Fa-f]{6}$/, errorMessages.invalidHexColor),
 });
 
-export const thresholdsArraySchema = z.array(thresholdSchema).min(1, 'ต้องมี threshold อย่างน้อย 1 ระดับ');
+export const thresholdsArraySchema = z.array(thresholdSchema).min(1, errorMessages.thresholdsMin);
 
 // ─── PDPA ───
 export const pdpaConsentSchema = z.object({
   consent_version: z.string().min(1, errorMessages.required),
-  accepted: z.literal(true).refine((v) => v === true, { message: 'กรุณายอมรับนโยบายความเป็นส่วนตัว' }),
+  accepted: z.literal(true).refine((v) => v === true, { message: errorMessages.pdpaConsentRequired }),
   accept_notification: z.boolean().optional().default(false),
 });
 
 // ─── Import ───
 export const csvImportSchema = z.object({
-  file: z.instanceof(File, { message: 'กรุณาเลือกไฟล์ CSV' }),
+  file: z.instanceof(File, { message: errorMessages.csvFileRequired }),
   import_type: z.enum(['students', 'annual']),
-  academic_year: z.string().min(4, 'ปีการศึกษาไม่ถูกต้อง'),
+  academic_year: z.string().min(4, errorMessages.invalidAcademicYear),
 });
 
 // ─── Pagination ───

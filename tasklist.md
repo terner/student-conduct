@@ -183,19 +183,23 @@
 - [x] ปรับ policy ปีการศึกษา: topbar ใช้ดูย้อนหลัง, import/record score ทำได้เฉพาะปีปัจจุบัน, หน้า academic years ไม่มีปุ่มตั้ง current แบบเลือกเอง
 - [x] เพิ่ม action ขึ้นปีการศึกษาถัดไป: เช็คว่าปีเดิมสิ้นสุดแล้ว, copy ห้อง/ครูประจำห้อง, แล้วตั้งปีถัดไปเป็น current อัตโนมัติ
 - [x] ปรับรายงานรายห้องเรียนไม่ให้ Select แสดง classroom id แทนชื่อห้อง
+- [x] ขยาย i18n coverage แล้ว: `messages/th.json` และ `messages/en.json` มีประมาณ 722 strings ต่อภาษา ครอบคลุม navigation, dashboard, reports/settings/students หลายส่วน, ปีการศึกษา, import CSV, master data, profile/audit log และ common UI หลัก
+- [x] แปลง i18n บางส่วนของ reports, score, settings, teacher/student management และ PDF/profile flow แล้ว แต่ยังไม่ครบแบบ strict ทุกข้อความที่ผู้ใช้เห็น
+- [x] ย้าย validation/Zod error messages หลักใน `src/lib/validation/schemas.ts` ไปอยู่ใน namespace `validation` ของ `messages/th.json` และ `messages/en.json` โดย schema ใช้ข้อความ default จาก message file แทนการฝังประโยคไทยใน schema
+- [x] แปลง Layout/UI เล็ก ๆ เป็น i18n แล้ว: sidebar disabled tooltip/current-year text, notification bell title/empty state/date locale, dashboard error page และ `/students/me` loading/not-found state
 - [x] Build ผ่านด้วย `npm run build`
 
 ## 📋 ฟีเจอร์ที่ยังต้องทำต่อ
 
 ### High Priority
-- [ ] **i18n integration ทั้งระบบ** — ย้าย hardcoded Thai/English ไป `messages/th.json` และ `messages/en.json`
-  - [ ] Reports: classroom, threshold, individual, bond
-  - [ ] Score: record, history, approval, categories, transaction modal
-  - [ ] Settings: academic years, thresholds, Google Drive, profile, logs, master data
-  - [ ] Teacher pages/forms/tables
-  - [ ] Student profile/PDF/dialogs/status management
-  - [ ] Notification bell/list/messages
-  - [ ] Server/API error messages ที่แสดงถึงผู้ใช้
+- [ ] **i18n integration ทั้งระบบ — งานคงเหลือหลังทำ partial แล้ว**  
+  ทำไปแล้ว: config + language switcher + message files TH/EN ประมาณ 722 strings ต่อภาษา และแปลงหน้าหลักหลายส่วนแล้ว  
+  เหลือทำต่อ:
+  - [ ] Auth pages: change password, PDPA consent/rejected
+  - [ ] Server/API error messages ที่แสดงถึงผู้ใช้ เช่น auth login, upload routes, server actions
+  - [ ] Notification bell/list/messages และข้อความ notification event
+  - [ ] ตรวจ hardcoded ที่เหลือใน reports/score/settings/teacher/student profile/PDF ให้ครบแบบ strict
+  - [ ] แยก domain data ที่ไม่ควร i18n เช่น CSV Thai headers, คำนำหน้า, sample import data ออกจาก UI copy ที่ต้อง i18n
 - [ ] **รายงานนักเรียนถึงเกณฑ์ + การแจ้งเตือน**
   - [ ] แปลง `/reports/threshold` เป็น i18n
   - [ ] เพิ่ม filter/search/pagination และ export filename ที่มีปีการศึกษา
@@ -246,7 +250,7 @@
 | Pages | ✅ 95% | 30 routes including approval, bonds, interventions, academic years |
 | Auth Flow | ✅ 95% | Login, student login, role redirect, PDPA fix, must_change_password |
 | Academic Structure | ✅ 95% | Manage years/stages/grade levels/classrooms; annual rollover still pending |
-| i18n | ⏳ 25% | Config + switcher done, pages not fully translated |
+| i18n | ⏳ 65% | Config + switcher done; TH/EN messages ~722 strings each; main UI partially translated; strict coverage still pending for auth, validation, API/server errors, notification, and remaining hardcoded copy |
 | Reports | ✅ 80% | Individual, classroom, threshold, bond |
 | Advanced Features | ✅ 60% | Evidence, bonds, interventions, notifications, approval, academic years |
 | Testing | ✅ 新增 | 219 tests across 6 files (vitest) |

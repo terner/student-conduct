@@ -33,7 +33,7 @@ interface AppSidebarProps {
   role?: string | string[] | null
 }
 
-export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo, role }: AppSidebarProps) {
+export function AppSidebar({ schoolName, schoolLogo, role }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('nav')
   const { isMobile, setOpenMobile } = useSidebar()
@@ -92,7 +92,7 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
   const mainNavItems = allNavigation.filter(i => i.group === 'main' && hasAccess(i.roles))
   const alertNavItems = allNavigation.filter(i => i.group === 'alert' && hasAccess(i.roles))
   const disabledWhenYearClosed = new Set(['/settings/import', '/score/record'])
-  const yearClosedTooltip = 'ใช้ได้เฉพาะปีการศึกษาปัจจุบัน'
+  const yearClosedTooltip = t('currentYearOnly')
 
   return (
     <Sidebar collapsible="icon">
@@ -106,7 +106,7 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
             )}
           </div>
           <div className="flex flex-col items-center gap-0.5 leading-none text-center group-data-[collapsible=icon]:hidden">
-            <span className="font-semibold text-base truncate max-w-[180px]">{schoolName}</span>
+            <span className="font-semibold text-base truncate max-w-[180px]">{schoolName || t('schoolFallback')}</span>
             <span className="text-xs text-sidebar-foreground/60">{t('subtitle')}</span>
           </div>
         </Link>

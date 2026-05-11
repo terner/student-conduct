@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Spinner } from '@/components/ui/spinner';
 
 /**
@@ -10,6 +11,8 @@ import { Spinner } from '@/components/ui/spinner';
  */
 export default function StudentMePage() {
   const router = useRouter();
+  const t = useTranslations('studentSelf');
+  const common = useTranslations('common');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -18,21 +21,21 @@ export default function StudentMePage() {
         const res = await fetch('/api/auth/me/student');
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          setError(data.error || 'ไม่พบข้อมูลนักเรียน');
+          setError(data.error || t('notFound'));
           return;
         }
         const data = await res.json();
         if (data.id) {
           router.replace(`/students/${data.id}`);
         } else {
-          setError('ไม่พบข้อมูลนักเรียน');
+          setError(t('notFound'));
         }
       } catch {
-        setError('เกิดข้อผิดพลาด');
+        setError(common('error'));
       }
     }
     resolve();
-  }, [router]);
+  }, [common, router, t]);
 
   if (error) {
     return (
@@ -48,7 +51,7 @@ export default function StudentMePage() {
     <div className="flex items-center justify-center min-h-[400px]">
       <div className="flex flex-col items-center gap-2">
         <Spinner className="size-8" />
-        <p className="text-sm text-muted-foreground">กำลังโหลด...</p>
+        <p className="text-sm text-muted-foreground">{common('loading')}</p>
       </div>
     </div>
   );
