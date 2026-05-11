@@ -32,7 +32,7 @@ Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
 - ห้องเรียนรองรับทั้งครูประจำชั้นและครูที่ปรึกษา โดยเป็นคนเดียวกันได้
 - ตารางรายชื่อนักเรียนแสดงคะแนนปัจจุบัน และกด row เพื่อเข้าหน้า profile ได้
 - ประวัติคะแนนรองรับ evidence metadata และ modal แสดงรูปหลักฐานถ้ามี
-- Google Drive storage มี implementation แล้วสำหรับรูปโปรไฟล์และหลักฐานคะแนนผ่าน Settings config แต่ยังต้อง harden/verify ก่อนใช้งานจริง เช่น bucket fallback, validation, rate limit, test connection และสิทธิ์ folder/service account
+- Storage provider เลือกได้ผ่าน Settings/config ระหว่าง Vercel Blob, Google Drive และ Supabase Storage; Vercel Blob ใช้ `BLOB_READ_WRITE_TOKEN`/`STORAGE_PROVIDER` และ evidence รองรับ private blob ผ่าน `/api/blob/...` ส่วน Google Drive ยังเป็น optional provider ที่ใช้ service account/folder id ได้
 
 ## Academic Year Policy — 2026-05-11
 
@@ -48,7 +48,7 @@ Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
 
 ## Open Work — ต้องทำต่อ
 
-- ทำ Google Drive upload ให้พร้อม production: ทดสอบ service account/folder จริง, เพิ่มปุ่ม test connection, ตรวจ private key handling, จำกัด type/size/count/rate limit, แก้ fallback bucket evidence และบันทึก audit log
+- ทำ storage upload ให้พร้อม production: ทดสอบ provider ที่เลือกจริง (Vercel Blob token หรือ Google Drive service account/folder), เพิ่มปุ่ม test connection, ตรวจ secret handling, จำกัด type/size/count/rate limit, แก้ fallback bucket evidence และบันทึก audit log
 - ทำ permission/admin UI ให้กำหนด role หรือเพิ่ม admin ให้ครูบางคนจากหน้า UI ได้ครบ
 - Audit/action logs ระดับ MVP ต่อใช้งานแล้ว: มี helper กลางแบบ best-effort, บันทึก settings, teacher role/status/assignment, student add/edit/status/archive/import, score record/bulk/approve/void/category, classroom create/edit/delete/teacher assignment, upload logo/avatar/evidence และ login success/failure; หน้า `/settings/logs` แสดง Audit logs และ Action logs แยก tab แล้ว เหลือ hardening เช่น export/view report coverage, IP/user-agent, before/after ที่ละเอียดขึ้น และ automated tests
 - ทำ i18n ให้ครบทุกหน้าแบบ strict production-grade: ตอนนี้มี config, switcher และ `messages/th.json` + `messages/en.json` แล้ว และแปลง UI หลักไปหลายส่วนแล้ว รวมถึง validation/Zod messages หลัก, auth pages, sidebar disabled tooltip, notification bell title/empty state/date locale, dashboard error page และ `/students/me` state แล้ว แต่ยังเหลือ hardcoded Thai/English ที่ต้องไล่ต่อใน upload/API routes, server action errors, notification event messages และ hardcoded copy ที่เหลือใน reports/score/settings/teacher/student profile/PDF

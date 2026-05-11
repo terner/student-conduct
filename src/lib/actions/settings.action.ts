@@ -26,6 +26,9 @@ export async function getSettingsPageData() {
     for (const row of data || []) {
       settings[row.key as string] = row.value;
     }
+    if (!settings.storage_provider) {
+      settings.storage_provider = process.env.STORAGE_PROVIDER || (process.env.BLOB_READ_WRITE_TOKEN ? 'vercel_blob' : 'supabase');
+    }
 
     return {
       success: true,
@@ -59,6 +62,7 @@ export async function saveSystemSettings(input: {
       ['base_score', input.settings.base_score],
       ['score_floor', input.settings.score_floor],
       ['thresholds', input.thresholds],
+      ['storage_provider', input.settings.storage_provider],
       ['google_drive_enabled', input.settings.google_drive_enabled],
       ['google_drive_client_email', input.settings.google_drive_client_email],
       ['google_drive_private_key', input.settings.google_drive_private_key],

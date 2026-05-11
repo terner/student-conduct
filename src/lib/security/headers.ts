@@ -56,7 +56,7 @@ export const defaultSecurityConfig: SecurityHeadersConfig = {
     defaultSrc: ["'self'"],
     scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],  // Next.js needs these
     styleSrc: ["'self'", "'unsafe-inline'"],
-    imgSrc: ["'self'", 'data:', 'blob:', 'https://*.supabase.co', 'https://lh3.googleusercontent.com', 'https://drive.google.com'],
+    imgSrc: ["'self'", 'data:', 'blob:', 'https://*.supabase.co', 'https://*.blob.vercel-storage.com', 'https://lh3.googleusercontent.com', 'https://drive.google.com'],
     fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
     connectSrc: ["'self'", 'https://*.supabase.co', 'https://*.vercel.app', 'https://api.github.com'],
     frameAncestors: ["'none'"],

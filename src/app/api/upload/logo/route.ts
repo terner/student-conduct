@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createClientWithUser } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
+import { getStorageProvider } from '@/lib/storage/config';
+import { uploadFileToVercelBlob } from '@/lib/storage/vercel-blob';
 
 export const runtime = 'nodejs';
 
@@ -50,6 +52,21 @@ export async function POST(request: Request) {
     const adminClient = await createAdminClient();
     const fileExt = file.name.split('.').pop() || 'png';
     const fileName = `school-logo-${Date.now()}.${fileExt}`;
+    const storageProvider = await getStorageProvider(adminClient);
+
+    if (storageProvider === 'vercel_blob') {
+      const upload = await uploadFileToVercelBlob('logo', file, fileName);
+      await logAudit({
+        actorId: profile.id,
+        action: 'logo_upload',
+        targetType: 'settings',
+        afterData: { school_logo: upload.url, provider: upload.provider, pathname: upload.pathname, access: upload.access },
+        metadata: { file_name: file.name, file_type: file.type, file_size: file.size },
+      });
+
+      return NextResponse.json({ success: true, url: upload.url, provider: upload.provider });
+    }
+
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await adminClient

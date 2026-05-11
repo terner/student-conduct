@@ -1,5 +1,7 @@
 import { canApproveScores, canRecordScores } from '@/lib/security/roles';
 import { logAudit } from '@/lib/audit/log';
+import { getStorageProvider } from '@/lib/storage/config';
+import { uploadFileToVercelBlob } from '@/lib/storage/vercel-blob';
 import { getGoogleDriveConfig, isGoogleDriveReady, uploadFileToGoogleDrive } from '@/lib/storage/google-drive';
 import { createAdminClient, createClientWithUser } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
@@ -48,10 +50,11 @@ export async function POST(request: Request) {
     }
 
     const results = [];
-    const driveConfig = await getGoogleDriveConfig(adminClient);
-    const useGoogleDrive = isGoogleDriveReady(driveConfig, 'evidence');
+    const storageProvider = await getStorageProvider(adminClient);
+    const driveConfig = storageProvider === 'google_drive' ? await getGoogleDriveConfig(adminClient) : null;
+    const useGoogleDrive = driveConfig ? isGoogleDriveReady(driveConfig, 'evidence') : false;
 
-    if (driveConfig.enabled && !useGoogleDrive) {
+    if (storageProvider === 'google_drive' && !useGoogleDrive) {
       return NextResponse.json({ error: 'ยังไม่ได้ตั้งค่า Google Drive สำหรับหลักฐานให้ครบถ้วน' }, { status: 500 });
     }
 
@@ -59,7 +62,31 @@ export async function POST(request: Request) {
       const ext = file.name.split('.').pop() || 'jpg';
       const fileName = `evidence-${transactionId}-${crypto.randomUUID()}.${ext}`;
 
-      if (useGoogleDrive) {
+      if (storageProvider === 'vercel_blob') {
+        const upload = await uploadFileToVercelBlob('evidence', file, fileName);
+        const fileUrl = upload.access === 'private' ? `/api/blob/${upload.pathname}` : upload.url;
+
+        await adminClient.from('score_transaction_evidence').insert({
+          transaction_id: transactionId,
+          file_path: upload.pathname,
+          file_url: fileUrl,
+          file_name: file.name,
+          file_type: file.type,
+          file_size: file.size,
+          uploaded_by: profile.id,
+          storage_provider: 'vercel_blob',
+          metadata: {
+            pathname: upload.pathname,
+            blob_url: upload.url,
+            access: upload.access,
+          },
+        });
+
+        results.push(fileUrl);
+        continue;
+      }
+
+      if (storageProvider === 'google_drive' && useGoogleDrive && driveConfig) {
         const upload = await uploadFileToGoogleDrive(driveConfig, 'evidence', file, fileName);
 
         await adminClient.from('score_transaction_evidence').insert({

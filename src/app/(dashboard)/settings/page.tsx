@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { getSettingsPageData, saveSystemSettings } from '@/lib/actions/settings.action';
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
@@ -150,7 +151,7 @@ export default function SettingsPage() {
           <TabsTrigger value="scores">{settingsT('scores')}</TabsTrigger>
           <TabsTrigger value="thresholds">{settingsT('thresholds')}</TabsTrigger>
           <TabsTrigger value="academic-structure">{settingsT('academicStructure')}</TabsTrigger>
-          <TabsTrigger value="google-drive">{settingsT('googleDrive')}</TabsTrigger>
+          <TabsTrigger value="storage">{settingsT('storage')}</TabsTrigger>
           <TabsTrigger value="tools">{settingsT('tools')}</TabsTrigger>
         </TabsList>
 
@@ -370,16 +371,47 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="google-drive" className="mt-6">
+        <TabsContent value="storage" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <HardDrive className="h-5 w-5" />
-                Google Drive
+                {settingsT('storage')}
               </CardTitle>
-              <CardDescription>{settingsT('googleDriveDescription')}</CardDescription>
+              <CardDescription>{settingsT('storageDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="storage_provider">{settingsT('storageProvider')}</Label>
+                <Select
+                  value={String(settings.storage_provider || 'supabase')}
+                  onValueChange={(value) => setSettings({ ...settings, storage_provider: value })}
+                  itemToStringLabel={(value) => String(value)}
+                >
+                  <SelectTrigger id="storage_provider" className="w-full md:w-[320px]">
+                    <SelectValue placeholder={settingsT('storageProvider')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vercel_blob" label={settingsT('storageProviderVercelBlob')}>
+                      {settingsT('storageProviderVercelBlob')}
+                    </SelectItem>
+                    <SelectItem value="google_drive" label={settingsT('storageProviderGoogleDrive')}>
+                      {settingsT('storageProviderGoogleDrive')}
+                    </SelectItem>
+                    <SelectItem value="supabase" label={settingsT('storageProviderSupabase')}>
+                      {settingsT('storageProviderSupabase')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {String(settings.storage_provider || 'supabase') === 'vercel_blob'
+                    ? settingsT('vercelBlobHelp')
+                    : String(settings.storage_provider || 'supabase') === 'google_drive'
+                      ? settingsT('googleDriveDescription')
+                      : settingsT('supabaseStorageHelp')}
+                </p>
+              </div>
+
               <div className="flex items-center justify-between rounded-md border px-3 py-2">
                 <div>
                   <Label htmlFor="google_drive_enabled">{settingsT('googleDriveEnabled')}</Label>

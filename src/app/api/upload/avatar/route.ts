@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClientWithUser, createAdminClient } from '@/lib/supabase/server';
 import { getGoogleDriveConfig, isGoogleDriveReady, uploadFileToGoogleDrive } from '@/lib/storage/google-drive';
 import { logAudit } from '@/lib/audit/log';
+import { getStorageProvider } from '@/lib/storage/config';
+import { uploadFileToVercelBlob } from '@/lib/storage/vercel-blob';
 
 export const runtime = 'nodejs';
 
@@ -48,9 +50,24 @@ export async function POST(request: Request) {
     const adminClient = await createAdminClient();
     const fileExt = file.name.split('.').pop() || 'png';
     const fileName = `${ownerType}-${profileOwnerId}.${fileExt}`;
+    const storageProvider = await getStorageProvider(adminClient);
+
+    if (storageProvider === 'vercel_blob') {
+      const upload = await uploadFileToVercelBlob('profile', file, fileName);
+      await logAudit({
+        actorId: profile.id,
+        action: 'avatar_upload',
+        targetType: ownerType,
+        targetId: profileOwnerId,
+        afterData: { url: upload.url, provider: upload.provider, pathname: upload.pathname, access: upload.access },
+        metadata: { file_name: file.name, file_type: file.type, file_size: file.size },
+      });
+      return NextResponse.json({ success: true, url: upload.url, provider: upload.provider });
+    }
+
     const driveConfig = await getGoogleDriveConfig(adminClient);
 
-    if (driveConfig.enabled) {
+    if (storageProvider === 'google_drive') {
       if (!isGoogleDriveReady(driveConfig, 'profile')) {
         return NextResponse.json({ error: 'ยังไม่ได้ตั้งค่า Google Drive สำหรับรูปโปรไฟล์ให้ครบถ้วน' }, { status: 500 });
       }
