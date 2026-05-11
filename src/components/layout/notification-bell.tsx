@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Bell, BellDot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { createClient } from '@/lib/supabase/client';
 
 interface Notification {
   id: string;
@@ -33,6 +34,7 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState(10);
+  const [recipientId, setRecipientId] = useState<string>('');
 
   const load = useCallback(async () => {
     try {
@@ -42,12 +44,49 @@ export function NotificationBell() {
       const data = json.data ?? [];
       setNotifications(data);
       setUnreadCount(data.filter((n: Notification) => !n.read_at).length);
+      if (json.profile_id) setRecipientId(json.profile_id);
     } catch {
       // silently fail — user may not be authenticated
     }
   }, [limit]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      load();
+    }, 30_000);
+    const handleFocus = () => load();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [load]);
+
+  useEffect(() => {
+    if (!recipientId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`notifications:${recipientId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${recipientId}` },
+        () => {
+          load();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [load, recipientId]);
 
   async function markRead(notification: Notification) {
     await fetch('/api/notifications', {

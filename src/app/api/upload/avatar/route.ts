@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: apiMessage(request, 'uploadForbidden') }, { status: 403 });
     }
 
-    if (!checkUploadRateLimit(`avatar:${profile.id}`)) {
+    if (!(await checkUploadRateLimit(`avatar:${profile.id}`))) {
       return NextResponse.json({ error: apiMessage(request, 'rateLimited') }, { status: 429 });
     }
 

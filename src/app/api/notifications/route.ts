@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     .limit(limit);
 
   return NextResponse.json(
-    { data: notifications ?? [] },
+    { data: notifications ?? [], profile_id: profile.id },
     { status: 200 },
   );
 }

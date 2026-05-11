@@ -27,7 +27,7 @@ export function validateEvidenceFiles(files: File[]) {
   return null;
 }
 
-export function checkUploadRateLimit(key: string, limit = 20, windowMs = 60_000) {
+export async function checkUploadRateLimit(key: string, limit = 20, windowMs = 60_000) {
   return checkRateLimit(`upload:${key}`, limit, windowMs);
 }
 

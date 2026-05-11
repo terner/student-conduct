@@ -34,9 +34,9 @@ const reports = [
     titleKey: 'statistics',
     descriptionKey: 'statisticsDescription',
     icon: ChartBar,
-    href: '/dashboard',
-    color: 'text-purple-600',
-    bg: 'bg-purple-100 dark:bg-purple-900',
+    href: '/reports/statistics',
+    color: 'text-cyan-700',
+    bg: 'bg-cyan-100 dark:bg-cyan-950',
   },
 ];
 

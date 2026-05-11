@@ -1490,6 +1490,7 @@ if (!await checkPermission(user.profile_id, 'score.approve')) {
 | app/(dashboard)/reports/at-risk/page.tsx | At-risk students report |
 | app/(dashboard)/reports/bond/\[id\]/page.tsx | Printable bond document (ทัณฑ์บน) |
 | app/(dashboard)/reports/statistics/page.tsx | School-wide statistics & charts |
+| app/(dashboard)/reports/statistics/page.tsx | ✅ Implemented: ภาพรวมคะแนนโรงเรียน, score distribution, monthly trend, category/classroom/grade breakdown, และ top risk students |
 | app/(dashboard)/interventions/page.tsx | Contact/intervention log list |
 | app/(dashboard)/interventions/\[id\]/page.tsx | Contact/intervention detail |
 | app/(dashboard)/settings/page.tsx | System settings (admin only) |
@@ -1700,6 +1701,7 @@ type ErrorResponse = {
 - ต้องป้องกัน duplicate notification ต่อ `student_id + academic_year_id + threshold_level` เพื่อไม่ให้แจ้งซ้ำทุกครั้งที่เปิดรายงานหรือ refresh
 
 - Bell notification ต้องแสดงจำนวน unread, type/status, เวลาสร้าง, และมี target link ไปหน้า student profile หรือรายงานถึงเกณฑ์
+  - Implemented: bell refresh ผ่าน Supabase Realtime channel เมื่อมี notification ของ recipient ปัจจุบัน และมี fallback polling/focus refresh เพื่อให้ยังอัปเดตได้แม้ยังไม่ได้เปิด realtime replication ใน Supabase
 
 - `PATCH /api/notifications` สำหรับ mark read ต้องตรวจ ownership ของ notification ก่อน update เสมอ
 
@@ -3233,7 +3235,9 @@ export async function POST(req: Request) { ... }
 
 ### 12.5 Reports & Bond Documents
 
-- Individual, class, monthly, at-risk, school statistics, and bond reports render correctly in Thai.
+- Individual, class, at-risk, and school statistics reports render correctly in Thai.
+  - Version scope: monthly snapshot/PDF and bond document flow are deferred; current version focuses on score recording and core reports.
+  - Implemented: `/reports/statistics` renders school-wide charts and summary tables from approved score transactions.
 
 - Monthly reports can be saved as snapshots and finalized so historical report numbers remain stable.
 
@@ -3257,6 +3261,7 @@ export async function POST(req: Request) { ... }
 
 - Login success/failure, student detail views, report views, and exports create action_logs.
   - Implemented: login rate-limit event ถูกบันทึกเป็น action log พร้อม IP/user-agent
+  - Implemented: production rate limit ใช้ Upstash Redis REST (`KV_REST_API_URL`, `KV_REST_API_TOKEN`) และ fallback เป็น in-memory เฉพาะกรณี local/dev ไม่มี env
 
 - PDPA consent is recorded with notice version and can be reviewed by admin.
 

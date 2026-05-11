@@ -29,10 +29,10 @@ describe('upload validation', () => {
     expect(safeFileExtension(file, 'png')).toBe('jpg');
   });
 
-  it('limits repeated uploads in a time window', () => {
+  it('limits repeated uploads in a time window', async () => {
     const key = `test-${crypto.randomUUID()}`;
-    expect(checkUploadRateLimit(key, 2, 60_000)).toBe(true);
-    expect(checkUploadRateLimit(key, 2, 60_000)).toBe(true);
-    expect(checkUploadRateLimit(key, 2, 60_000)).toBe(false);
+    await expect(checkUploadRateLimit(key, 2, 60_000)).resolves.toBe(true);
+    await expect(checkUploadRateLimit(key, 2, 60_000)).resolves.toBe(true);
+    await expect(checkUploadRateLimit(key, 2, 60_000)).resolves.toBe(false);
   });
 });

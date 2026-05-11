@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const requestInfo = getRequestAuditInfo(request);
   try {
     const rateKey = `login:${requestInfo.ipAddress || 'unknown'}`;
-    if (!checkRateLimit(rateKey, 20, 60_000)) {
+    if (!(await checkRateLimit(rateKey, 20, 60_000))) {
       await logAction({
         event: 'login_rate_limited',
         resourceType: 'auth',

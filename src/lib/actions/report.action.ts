@@ -50,6 +50,29 @@ export interface StudentRankingRow {
   }>;
 }
 
+export interface SchoolStatisticsReportData {
+  academic_years: Array<{ id: string; name: string; is_current: boolean }>;
+  academic_year: string;
+  academic_year_id: string;
+  base_score: number;
+  summary: {
+    total_students: number;
+    average_score: number;
+    min_score: number;
+    max_score: number;
+    total_deducted: number;
+    total_added: number;
+    transaction_count: number;
+    at_risk_count: number;
+  };
+  score_distribution: Array<{ name: string; count: number }>;
+  category_breakdown: Array<{ name: string; type: string; total_points: number; count: number }>;
+  classroom_breakdown: Array<{ name: string; total_students: number; average_score: number; total_deducted: number; transaction_count: number }>;
+  grade_breakdown: Array<{ name: string; total_students: number; average_score: number; total_deducted: number; transaction_count: number }>;
+  monthly_trend: Array<{ month: string; deducted: number; added: number; transaction_count: number }>;
+  top_risk_students: Array<{ id: string; student_id_number: string; full_name: string; classroom_name: string; current_score: number; total_deducted: number }>;
+}
+
 interface ClassroomReportStudent {
   id: string;
   full_name: string;
@@ -464,6 +487,258 @@ export async function getDashboardStats() {
           fair: fairCount,
           poor: poorCount,
         },
+      },
+    };
+  });
+}
+
+export async function getSchoolStatisticsReport(academicYearId?: string) {
+  return withAuth<SchoolStatisticsReportData>(async (profile) => {
+    if (!canApproveScores(profile)) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูสถิติโรงเรียน' } };
+    }
+
+    const supabase = await createAdminClient();
+    const { data: academicYears } = await supabase
+      .from('academic_years')
+      .select('id, name, base_score, is_current')
+      .order('name', { ascending: false });
+
+    const selectedYear = (academicYears || []).find((year: any) => year.id === academicYearId)
+      || (academicYears || []).find((year: any) => year.is_current)
+      || (academicYears || [])[0];
+
+    if (!selectedYear?.id) {
+      return {
+        success: true,
+        data: {
+          academic_years: [],
+          academic_year: '',
+          academic_year_id: '',
+          base_score: 100,
+          summary: {
+            total_students: 0,
+            average_score: 100,
+            min_score: 100,
+            max_score: 100,
+            total_deducted: 0,
+            total_added: 0,
+            transaction_count: 0,
+            at_risk_count: 0,
+          },
+          score_distribution: [],
+          category_breakdown: [],
+          classroom_breakdown: [],
+          grade_breakdown: [],
+          monthly_trend: [],
+          top_risk_students: [],
+        },
+      };
+    }
+
+    const selectedAcademicYearId = selectedYear.id as string;
+    const baseScore = (selectedYear.base_score as number | undefined) || 100;
+
+    const { data: enrollmentRows } = await supabase
+      .from('student_enrollments')
+      .select(`
+        student_id,
+        enrollment_status,
+        students!inner(
+          id,
+          student_id_number,
+          profiles!inner(full_name, prefix)
+        ),
+        classrooms!inner(
+          id,
+          name,
+          grade_level,
+          grade_level_id,
+          grade_levels(name, level_no)
+        )
+      `)
+      .eq('academic_year_id', selectedAcademicYearId)
+      .in('enrollment_status', ['active', 'promoted', 'repeated']);
+
+    const students = ((enrollmentRows || []) as Record<string, unknown>[]).map((row) => {
+      const student = row.students as Record<string, unknown>;
+      const classroom = row.classrooms as Record<string, unknown>;
+      return {
+        id: student.id as string,
+        student_id_number: student.student_id_number as string,
+        full_name: formatProfileFullName(student.profiles as Record<string, unknown>),
+        classroom_id: classroom.id as string,
+        classroom_name: classroom.name as string,
+        grade_level_id: (classroom.grade_level_id as string) || '',
+        grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || String(classroom.grade_level || ''),
+      };
+    });
+
+    const studentIds = students.map((student) => student.id);
+    const scoreByStudent = new Map<string, {
+      totalDeducted: number;
+      totalAdded: number;
+      transactionCount: number;
+    }>();
+    const categoryMap = new Map<string, { name: string; type: string; total_points: number; count: number }>();
+    const monthlyMap = new Map<string, { month: string; deducted: number; added: number; transaction_count: number }>();
+
+    if (studentIds.length > 0) {
+      const chunkSize = 1000;
+      for (let i = 0; i < studentIds.length; i += chunkSize) {
+        const chunk = studentIds.slice(i, i + chunkSize);
+        const { data: transactions } = await supabase
+          .from('score_transactions')
+          .select('student_id, points, recorded_at, category_name_at_record, category_type_at_record, score_categories(name, type)')
+          .eq('academic_year_id', selectedAcademicYearId)
+          .eq('status', 'approved')
+          .in('student_id', chunk);
+
+        for (const tx of (transactions || []) as Record<string, unknown>[]) {
+          const studentId = tx.student_id as string;
+          const points = Number(tx.points || 0);
+          const summary = scoreByStudent.get(studentId) || { totalDeducted: 0, totalAdded: 0, transactionCount: 0 };
+          summary.transactionCount++;
+          if (points < 0) summary.totalDeducted += Math.abs(points);
+          else summary.totalAdded += points;
+          scoreByStudent.set(studentId, summary);
+
+          const category = tx.score_categories as Record<string, unknown> | null;
+          const categoryName = (tx.category_name_at_record as string) || (category?.name as string) || 'Uncategorized';
+          const categoryType = (tx.category_type_at_record as string) || (category?.type as string) || (points < 0 ? 'deduct' : 'add');
+          const categoryKey = `${categoryType}:${categoryName}`;
+          const categorySummary = categoryMap.get(categoryKey) || { name: categoryName, type: categoryType, total_points: 0, count: 0 };
+          categorySummary.count++;
+          categorySummary.total_points += Math.abs(points);
+          categoryMap.set(categoryKey, categorySummary);
+
+          const recordedAt = tx.recorded_at as string | undefined;
+          if (recordedAt) {
+            const month = recordedAt.slice(0, 7);
+            const monthly = monthlyMap.get(month) || { month, deducted: 0, added: 0, transaction_count: 0 };
+            monthly.transaction_count++;
+            if (points < 0) monthly.deducted += Math.abs(points);
+            else monthly.added += points;
+            monthlyMap.set(month, monthly);
+          }
+        }
+      }
+    }
+
+    const classroomMap = new Map<string, { name: string; total_students: number; score_sum: number; total_deducted: number; transaction_count: number }>();
+    const gradeMap = new Map<string, { name: string; total_students: number; score_sum: number; total_deducted: number; transaction_count: number }>();
+    const distribution = { excellent: 0, good: 0, fair: 0, poor: 0 };
+
+    const studentScores = students.map((student) => {
+      const summary = scoreByStudent.get(student.id) || { totalDeducted: 0, totalAdded: 0, transactionCount: 0 };
+      const currentScore = baseScore - summary.totalDeducted + summary.totalAdded;
+      if (currentScore >= baseScore) distribution.excellent++;
+      else if (currentScore >= baseScore - 20) distribution.good++;
+      else if (currentScore >= baseScore - 40) distribution.fair++;
+      else distribution.poor++;
+
+      const classroomSummary = classroomMap.get(student.classroom_id) || {
+        name: student.classroom_name,
+        total_students: 0,
+        score_sum: 0,
+        total_deducted: 0,
+        transaction_count: 0,
+      };
+      classroomSummary.total_students++;
+      classroomSummary.score_sum += currentScore;
+      classroomSummary.total_deducted += summary.totalDeducted;
+      classroomSummary.transaction_count += summary.transactionCount;
+      classroomMap.set(student.classroom_id, classroomSummary);
+
+      const gradeKey = student.grade_level_id || student.grade_level_name;
+      const gradeSummary = gradeMap.get(gradeKey) || {
+        name: student.grade_level_name,
+        total_students: 0,
+        score_sum: 0,
+        total_deducted: 0,
+        transaction_count: 0,
+      };
+      gradeSummary.total_students++;
+      gradeSummary.score_sum += currentScore;
+      gradeSummary.total_deducted += summary.totalDeducted;
+      gradeSummary.transaction_count += summary.transactionCount;
+      gradeMap.set(gradeKey, gradeSummary);
+
+      return {
+        ...student,
+        current_score: currentScore,
+        total_deducted: summary.totalDeducted,
+        transaction_count: summary.transactionCount,
+      };
+    });
+
+    const totalStudents = studentScores.length;
+    const totalScore = studentScores.reduce((sum, row) => sum + row.current_score, 0);
+    const totalDeducted = studentScores.reduce((sum, row) => sum + row.total_deducted, 0);
+    const totalAdded = Array.from(scoreByStudent.values()).reduce((sum, row) => sum + row.totalAdded, 0);
+    const transactionCount = Array.from(scoreByStudent.values()).reduce((sum, row) => sum + row.transactionCount, 0);
+
+    return {
+      success: true,
+      data: {
+        academic_years: ((academicYears || []) as Record<string, unknown>[]).map((year) => ({
+          id: year.id as string,
+          name: year.name as string,
+          is_current: Boolean(year.is_current),
+        })),
+        academic_year: (selectedYear.name as string) || '',
+        academic_year_id: selectedAcademicYearId,
+        base_score: baseScore,
+        summary: {
+          total_students: totalStudents,
+          average_score: totalStudents > 0 ? Math.round(totalScore / totalStudents) : baseScore,
+          min_score: totalStudents > 0 ? Math.min(...studentScores.map((row) => row.current_score)) : baseScore,
+          max_score: totalStudents > 0 ? Math.max(...studentScores.map((row) => row.current_score)) : baseScore,
+          total_deducted: totalDeducted,
+          total_added: totalAdded,
+          transaction_count: transactionCount,
+          at_risk_count: studentScores.filter((row) => row.current_score < baseScore - 20 || row.total_deducted >= 20).length,
+        },
+        score_distribution: [
+          { name: 'excellent', count: distribution.excellent },
+          { name: 'good', count: distribution.good },
+          { name: 'fair', count: distribution.fair },
+          { name: 'poor', count: distribution.poor },
+        ],
+        category_breakdown: Array.from(categoryMap.values())
+          .sort((a, b) => b.count - a.count || b.total_points - a.total_points)
+          .slice(0, 10),
+        classroom_breakdown: Array.from(classroomMap.values())
+          .map((row) => ({
+            name: row.name,
+            total_students: row.total_students,
+            average_score: row.total_students > 0 ? Math.round(row.score_sum / row.total_students) : baseScore,
+            total_deducted: row.total_deducted,
+            transaction_count: row.transaction_count,
+          }))
+          .sort((a, b) => b.total_deducted - a.total_deducted)
+          .slice(0, 12),
+        grade_breakdown: Array.from(gradeMap.values())
+          .map((row) => ({
+            name: row.name,
+            total_students: row.total_students,
+            average_score: row.total_students > 0 ? Math.round(row.score_sum / row.total_students) : baseScore,
+            total_deducted: row.total_deducted,
+            transaction_count: row.transaction_count,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'th')),
+        monthly_trend: Array.from(monthlyMap.values()).sort((a, b) => a.month.localeCompare(b.month)).slice(-12),
+        top_risk_students: studentScores
+          .sort((a, b) => a.current_score - b.current_score || b.total_deducted - a.total_deducted)
+          .slice(0, 10)
+          .map((row) => ({
+            id: row.id,
+            student_id_number: row.student_id_number,
+            full_name: row.full_name,
+            classroom_name: row.classroom_name,
+            current_score: row.current_score,
+            total_deducted: row.total_deducted,
+          })),
       },
     };
   });

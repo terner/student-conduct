@@ -235,16 +235,12 @@
 - [x] **Audit/action logs coverage ระดับ MVP** — มี helper กลาง, login action logs, viewer audit/action logs และบันทึก action สำคัญแล้ว
 - [x] **Audit/action logs hardening** — เพิ่ม coverage viewer/action logs, login/upload rate-limit events, score view audit, และ before/after สำหรับ approve/void/import ที่สำคัญ
 - [x] **Academic year backend hardening** — edit student/import/score/approval จำกัดเฉพาะปีปัจจุบันที่เปิดอยู่ และ action ขึ้นปีใหม่ block เมื่อปีเดิมยังไม่สิ้นสุด
-- [ ] **Guardian management UI** — รองรับผู้ปกครองหลายคนต่อ student profile
 - [x] **Score approval hardening** — approve ได้เฉพาะ pending, void ได้เฉพาะ pending/approved, ตรวจ evidence และปีการศึกษาปัจจุบันก่อนแก้คะแนน พร้อม audit before/after
-- [ ] **Monthly reports** — generate + snapshot + PDF
-- [ ] **School statistics page** — charts, histograms
-- [ ] **CSV export** — export students/scores/reports
-- [ ] **Notifications realtime** — approval/threshold events + unread state
-- [ ] **Bond document generation** — generate/print/sign flow
+- [x] **School statistics page** — charts/histograms ในเมนู Reports (`/reports/statistics`) สำหรับสรุปภาพรวมคะแนนพฤติกรรมของโรงเรียน
+- [x] **Notifications realtime** — notification bell refresh จาก Supabase realtime channel พร้อม fallback polling/focus refresh
 
 ### Low Priority / Nice to Have
-- [ ] **Rate limiting** — @upstash/ratelimit
+- [x] **Production rate limiting** — ใช้ Upstash Redis ผ่าน Vercel Marketplace สำหรับ login/upload/storage test และ fallback เป็น in-memory เมื่อไม่มี env
 - [ ] **ScoreTimeline chart** — recharts line chart component
 - [ ] **PDPA version management** — admin publish new version
 - [ ] **School branding in login page** — show logo + school name

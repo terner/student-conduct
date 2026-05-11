@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: apiMessage(request, 'forbidden') }, { status: 403 });
     }
 
-    if (!checkUploadRateLimit(`evidence:${profile.id}`)) {
+    if (!(await checkUploadRateLimit(`evidence:${profile.id}`))) {
       return NextResponse.json({ error: apiMessage(request, 'rateLimited') }, { status: 429 });
     }
 
