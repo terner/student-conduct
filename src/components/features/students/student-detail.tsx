@@ -17,12 +17,12 @@ interface StudentDetailProps {
 
 export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
   return (
-    <div className="grid gap-4 print:grid-cols-[1fr_210px] print:gap-2 xl:grid-cols-[1fr_320px]">
-      <div className="grid gap-4 print:grid-cols-2 print:gap-2 md:grid-cols-2">
-      <Card className="print:break-inside-avoid print:rounded-none print:shadow-none">
-        <CardHeader className="print:px-3 print:py-2">
-          <CardTitle className="flex items-center gap-2 text-lg print:text-sm">
-            <User className="h-5 w-5 text-muted-foreground" />
+    <div className="grid gap-4 print:grid-cols-[1fr_220px] print:gap-3 xl:grid-cols-[1fr_320px]">
+      <div className="grid gap-4 print:grid-cols-2 print:gap-3 md:grid-cols-2">
+      <Card className="print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
+        <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
+          <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
+            <User className="h-5 w-5 text-muted-foreground print:hidden" />
             ข้อมูลนักเรียน
           </CardTitle>
         </CardHeader>
@@ -44,7 +44,7 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
               <p className="font-mono text-xs text-muted-foreground">{student.student_id_number}</p>
             </div>
           </div>
-          <dl className="space-y-3 text-sm print:space-y-1 print:text-[11px]">
+          <dl className="space-y-3 text-sm print:space-y-1.5 print:text-[11px]">
             <InfoRow label="ชื่อ-นามสกุล" value={`${student.prefix}${student.first_name} ${student.last_name}`} strong />
             <InfoRow label="รหัสนักเรียน" value={student.student_id_number} mono />
             <div className="flex items-start justify-between gap-3">
@@ -62,15 +62,15 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
         </CardContent>
       </Card>
 
-      <Card className="print:break-inside-avoid print:rounded-none print:shadow-none">
-        <CardHeader className="print:px-3 print:py-2">
-          <CardTitle className="flex items-center gap-2 text-lg print:text-sm">
-            <School className="h-5 w-5 text-muted-foreground" />
+      <Card className="print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
+        <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
+          <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
+            <School className="h-5 w-5 text-muted-foreground print:hidden" />
             ห้องเรียน
           </CardTitle>
         </CardHeader>
         <CardContent className="print:px-3 print:py-2">
-          <dl className="space-y-3 text-sm print:space-y-1 print:text-[11px]">
+          <dl className="space-y-3 text-sm print:space-y-1.5 print:text-[11px]">
             <InfoRow label="ห้องเรียน" value={student.classroom_name || '-'} strong />
             <InfoRow label="ระดับ" value={student.education_stage_name || '-'} />
             <InfoRow label="ชั้นปี" value={String(student.grade_level_name || student.grade_level || '-')} />
@@ -78,30 +78,30 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
         </CardContent>
       </Card>
 
-      <Card className="print:break-inside-avoid print:rounded-none print:shadow-none">
-        <CardHeader className="print:px-3 print:py-2">
-          <CardTitle className="flex items-center gap-2 text-lg print:text-sm">
-            <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+      <Card className="print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
+        <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
+          <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
+            <ShieldCheck className="h-5 w-5 text-muted-foreground print:hidden" />
             ครูดูแล
           </CardTitle>
         </CardHeader>
         <CardContent className="print:px-3 print:py-2">
-          <dl className="space-y-3 text-sm print:space-y-1 print:text-[11px]">
+          <dl className="space-y-3 text-sm print:space-y-1.5 print:text-[11px]">
             <InfoRow label="ครูประจำชั้น" value={student.homeroom_teacher_name || '-'} />
             <InfoRow label="ครูที่ปรึกษา" value={student.advisor_teacher_name || '-'} />
           </dl>
         </CardContent>
       </Card>
 
-      <Card className="print:break-inside-avoid print:rounded-none print:shadow-none">
-        <CardHeader className="print:px-3 print:py-2">
-          <CardTitle className="flex items-center gap-2 text-lg print:text-sm">
-            <Users className="h-5 w-5 text-muted-foreground" />
+      <Card className="print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
+        <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
+          <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
+            <Users className="h-5 w-5 text-muted-foreground print:hidden" />
             ผู้ปกครอง
           </CardTitle>
         </CardHeader>
         <CardContent className="print:px-3 print:py-2">
-          <dl className="space-y-3 text-sm print:space-y-1 print:text-[11px]">
+          <dl className="space-y-3 text-sm print:space-y-1.5 print:text-[11px]">
             <InfoRow label="ชื่อผู้ปกครอง" value={student.guardian_full_name || '-'} />
             <InfoRow label="ความสัมพันธ์" value={formatGuardianRelation(student.guardian_relation)} />
             <InfoRow
@@ -114,22 +114,22 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
       </Card>
       </div>
 
-      <Card className="print:break-inside-avoid print:rounded-none print:shadow-none xl:sticky xl:top-20 xl:self-start">
-        <CardHeader className="print:px-3 print:py-2">
-          <CardTitle className="text-lg print:text-sm">คะแนนความประพฤติ</CardTitle>
+      <Card className="print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none xl:sticky xl:top-20 xl:self-start">
+        <CardHeader className="print:border-b print:bg-neutral-900 print:px-3 print:py-2 print:text-white">
+          <CardTitle className="text-lg print:text-[12px] print:font-semibold">คะแนนความประพฤติ</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 print:space-y-2 print:px-3 print:py-2">
-          <div className="rounded-md border bg-muted/30 px-4 py-5 text-center print:px-2 print:py-3">
-            <div className="text-4xl font-bold leading-none print:text-2xl">{scoreSummary?.current_score ?? '-'}</div>
-            <p className="mt-1 text-xs text-muted-foreground">คะแนนปัจจุบัน</p>
+          <div className="rounded-md border bg-muted/30 px-4 py-5 text-center print:border-neutral-300 print:bg-neutral-50 print:px-2 print:py-3">
+            <div className="text-4xl font-bold leading-none print:text-3xl">{scoreSummary?.current_score ?? '-'}</div>
+            <p className="mt-1 text-xs text-muted-foreground print:text-[10px]">คะแนนปัจจุบัน</p>
           </div>
-          <Separator />
+          <Separator className="print:bg-neutral-300" />
           <div className="grid grid-cols-2 gap-3 text-sm print:gap-2 print:text-[11px]">
-            <div className="rounded-md border p-3 print:p-2">
+            <div className="rounded-md border p-3 print:border-neutral-300 print:p-2">
               <p className="text-xs text-muted-foreground">ถูกหัก</p>
               <p className="mt-1 text-lg font-semibold text-destructive print:text-sm">{scoreSummary?.total_deducted ?? 0}</p>
             </div>
-            <div className="rounded-md border p-3 print:p-2">
+            <div className="rounded-md border p-3 print:border-neutral-300 print:p-2">
               <p className="text-xs text-muted-foreground">ได้เพิ่ม</p>
               <p className="mt-1 text-lg font-semibold text-green-600 print:text-sm">+{scoreSummary?.total_added ?? 0}</p>
             </div>

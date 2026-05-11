@@ -36,8 +36,6 @@ export default function PdpaConsentPage() {
           window.location.href = '/student/dashboard'
         } else if (roles.includes('teacher') && !roles.includes('admin') && !roles.includes('superadmin')) {
           window.location.href = '/score/record'
-        } else if (roles.includes('admin') && !roles.includes('superadmin')) {
-          window.location.href = '/score/approval'
         } else {
           window.location.href = '/dashboard'
         }

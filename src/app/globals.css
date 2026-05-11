@@ -135,6 +135,11 @@
     margin: 8mm;
   }
 
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
   body {
     background: white;
   }
@@ -147,6 +152,18 @@
   }
 
   .print\:break-inside-avoid {
+    break-inside: avoid;
+  }
+
+  [data-slot="card"] {
+    box-shadow: none !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
     break-inside: avoid;
   }
 }

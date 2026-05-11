@@ -51,8 +51,6 @@ async function quickLogin(body: Record<string, string>) {
     window.location.href = '/students/me';
   } else if (roles.includes('teacher') && !roles.includes('admin') && !roles.includes('superadmin')) {
     window.location.href = '/score/record';
-  } else if (roles.includes('admin') && !roles.includes('superadmin')) {
-    window.location.href = '/score/approval';
   } else {
     window.location.href = '/dashboard';
   }

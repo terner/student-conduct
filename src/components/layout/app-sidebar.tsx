@@ -13,7 +13,7 @@ import {
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
   SidebarGroupContent, SidebarGroupLabel, SidebarHeader,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator, useSidebar,
 } from '@/components/ui/sidebar'
 import { getRoles } from '@/lib/security/roles'
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action'
@@ -36,9 +36,14 @@ interface AppSidebarProps {
 export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo, role }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('nav')
+  const { isMobile, setOpenMobile } = useSidebar()
   const userRoles = getRoles(role ? { role } : { role: undefined })
   const selectedAcademicYearId = useSelectedAcademicYearId()
   const [selectedYearOpen, setSelectedYearOpen] = useState(false)
+
+  function closeMobileSidebar() {
+    if (isMobile) setOpenMobile(false)
+  }
 
   useEffect(() => {
     if (!selectedAcademicYearId) {
@@ -91,7 +96,7 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <Link href="/dashboard" className="flex flex-col items-center gap-3 group-data-[collapsible=icon]:gap-0">
+        <Link href="/dashboard" onClick={closeMobileSidebar} className="flex flex-col items-center gap-3 group-data-[collapsible=icon]:gap-0">
           <div className="flex aspect-square size-24 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-md group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:shadow-none">
             {schoolLogo ? (
               <img src={schoolLogo} alt="" className="size-20 rounded-lg object-contain group-data-[collapsible=icon]:size-6" />
@@ -116,7 +121,7 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton render={<Link href={item.href} />} isActive={isActive} tooltip={item.label}>
+                    <SidebarMenuButton render={<Link href={item.href} onClick={closeMobileSidebar} />} isActive={isActive} tooltip={item.label}>
                       <Icon className="size-4" />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
@@ -136,7 +141,7 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
                 const isActive = pathname === item.href
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton render={<Link href={item.href} />} isActive={isActive} tooltip={item.label}>
+                    <SidebarMenuButton render={<Link href={item.href} onClick={closeMobileSidebar} />} isActive={isActive} tooltip={item.label}>
                       <Icon className="size-4" />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
@@ -148,12 +153,18 @@ export function AppSidebar({ schoolName = 'โรงเรียน', schoolLogo
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-3 shadow-[0_-8px_18px_-18px_rgb(0_0_0_/_0.35)]">
+        <SidebarSeparator className="mx-0 mb-1 group-data-[collapsible=icon]:hidden" />
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip={t('logout')} render={<a href="/api/auth/logout" />}>
+            <SidebarMenuButton
+              size="lg"
+              tooltip={t('logout')}
+              render={<a href="/api/auth/logout" />}
+              className="border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground shadow-sm hover:border-sidebar-ring hover:bg-sidebar-primary hover:text-sidebar-primary-foreground focus-visible:ring-sidebar-ring active:bg-sidebar-primary active:text-sidebar-primary-foreground group-data-[collapsible=icon]:border-sidebar-border group-data-[collapsible=icon]:bg-sidebar-accent group-data-[collapsible=icon]:text-sidebar-accent-foreground"
+            >
               <LogOut className="size-4" />
-              <span>{t('logout')}</span>
+              <span className="font-semibold">{t('logout')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

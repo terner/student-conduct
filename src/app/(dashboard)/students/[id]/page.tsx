@@ -76,6 +76,14 @@ function formatDateTime(value: string) {
   });
 }
 
+function formatPrintDate(value: Date) {
+  return value.toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 async function uploadEvidenceFiles(transactionId: string, files: File[]) {
   if (files.length === 0) return;
   const formData = new FormData();
@@ -308,9 +316,27 @@ export default function StudentDetailPage() {
   }
 
   return (
-    <div className="space-y-5 p-4 pb-24 print:space-y-2 print:p-0 print:pb-0 print:text-xs print:text-black sm:p-6 sm:pb-6">
+    <div className="space-y-5 p-4 pb-24 print:space-y-3 print:bg-white print:p-0 print:pb-0 print:text-xs print:text-black sm:p-6 sm:pb-6">
+      <div className="hidden border-b border-neutral-300 pb-3 print:block">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-medium text-neutral-500">รายงานนักเรียน</p>
+            <h1 className="mt-1 text-xl font-bold leading-tight">
+              {student.prefix}{student.first_name} {student.last_name}
+            </h1>
+            <p className="mt-1 text-[11px] text-neutral-600">
+              รหัสนักเรียน {student.student_id_number}
+              {student.classroom_name ? ` | ห้อง ${student.classroom_name}` : ''}
+            </p>
+          </div>
+          <div className="text-right text-[11px] text-neutral-600">
+            <p>วันที่พิมพ์</p>
+            <p className="mt-1 font-medium text-neutral-900">{formatPrintDate(new Date())}</p>
+          </div>
+        </div>
+      </div>
       {/* Header */}
-      <div className="flex flex-col gap-4 print:gap-1 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-4 print:hidden lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <Button variant="ghost" size="icon" className="shrink-0 print:hidden" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
@@ -355,9 +381,14 @@ export default function StudentDetailPage() {
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 backdrop-blur print:hidden sm:hidden">
         <div className={`grid gap-2 ${canRecordScoreInSelectedYear ? 'grid-cols-[auto_1fr_auto]' : 'grid-cols-1'}`}>
-          <Button variant="outline" size="lg" onClick={handlePrint} aria-label="ออก PDF">
-            <Printer className="h-4 w-4" />
-            {!canRecordScoreInSelectedYear && <span className="ml-2">PDF</span>}
+          <Button
+            variant="outline"
+            size={canRecordScoreInSelectedYear ? 'icon-lg' : 'lg'}
+            onClick={handlePrint}
+            aria-label="ออก PDF"
+          >
+            <Printer className="h-4 w-4" aria-hidden="true" />
+            {!canRecordScoreInSelectedYear && <span>PDF</span>}
           </Button>
           {canRecordScoreInSelectedYear && (
             <>
@@ -414,13 +445,13 @@ export default function StudentDetailPage() {
 
       {/* Score History */}
       {reportData?.transactions && reportData.transactions.length > 0 && (
-        <Card className="print:border-0 print:shadow-none">
-          <CardHeader className="print:px-0 print:py-1">
-            <CardTitle className="text-lg print:text-sm">ประวัติคะแนนล่าสุด</CardTitle>
+        <Card className="print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
+          <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
+            <CardTitle className="text-lg print:text-[12px] print:font-semibold">ประวัติคะแนนล่าสุด</CardTitle>
           </CardHeader>
-          <CardContent className="print:px-0 print:py-0">
-            <div className="overflow-x-auto">
-            <Table className="print:text-[10px]">
+          <CardContent className="print:px-3 print:py-2">
+            <div className="overflow-x-auto print:overflow-visible">
+            <Table className="print:text-[10px] print:[&_td]:border print:[&_td]:border-neutral-300 print:[&_td]:px-2 print:[&_td]:py-1.5 print:[&_th]:border print:[&_th]:border-neutral-300 print:[&_th]:bg-neutral-100 print:[&_th]:px-2 print:[&_th]:py-1.5">
               <TableHeader>
                 <TableRow>
                   <TableHead>วันที่</TableHead>
@@ -442,7 +473,7 @@ export default function StudentDetailPage() {
                         {t.points > 0 ? `+${t.points}` : t.points}
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                    <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate print:max-w-none print:whitespace-normal print:text-neutral-700">
                       {t.note || '-'}
                     </TableCell>
                     <TableCell className="text-xs">{t.recorded_by_name}</TableCell>
@@ -461,8 +492,8 @@ export default function StudentDetailPage() {
       )}
 
       {(!reportData?.transactions || reportData.transactions.length === 0) && (
-        <Card className="print:border-0 print:shadow-none">
-          <CardContent className="py-8 text-center text-muted-foreground print:py-2">
+        <Card className="print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
+          <CardContent className="py-8 text-center text-muted-foreground print:py-4 print:text-[11px]">
             ยังไม่มีประวัติการบันทึกคะแนน
           </CardContent>
         </Card>
