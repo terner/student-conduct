@@ -428,11 +428,11 @@ export async function getStudentSummary(studentId: string) {
 
 export async function getCategories() {
   return withAuth(async () => {
-    const cached = getTtlCache<Awaited<ReturnType<typeof getScoreCategories>>>('score-categories:active');
+    const cached = await getTtlCache<Awaited<ReturnType<typeof getScoreCategories>>>('score-categories:active');
     if (cached) return { success: true, data: cached };
 
     const categories = await getScoreCategories();
-    setTtlCache('score-categories:active', categories, MASTER_DATA_TTL_MS);
+    await setTtlCache('score-categories:active', categories, MASTER_DATA_TTL_MS);
     return { success: true, data: categories };
   });
 }
@@ -458,7 +458,7 @@ export async function saveCategory(data: {
     }
 
     await upsertScoreCategory(validated);
-    clearTtlCacheByPrefix('score-categories:');
+    await clearTtlCacheByPrefix('score-categories:');
     await logAudit({
       actorId: profile.id,
       action: data.id ? 'score_category_update' : 'score_category_create',
@@ -481,7 +481,7 @@ export async function removeCategory(categoryId: string) {
     }
 
     await deactivateScoreCategory(categoryId);
-    clearTtlCacheByPrefix('score-categories:');
+    await clearTtlCacheByPrefix('score-categories:');
     await logAudit({
       actorId: profile.id,
       action: 'score_category_deactivate',

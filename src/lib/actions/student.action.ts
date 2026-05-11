@@ -446,7 +446,7 @@ export async function addStudent(data: {
       guardian_phone: validated.guardian_phone,
     });
 
-    clearTtlCacheByPrefix('students-for-select:');
+    await clearTtlCacheByPrefix('students-for-select:');
     await logAudit({
       actorId: profile.id,
       action: 'student_create',
@@ -494,7 +494,7 @@ export async function editStudent(id: string, data: {
     const before = await getStudentById(id);
     await updateStudent(id, data);
     const after = await getStudentById(id);
-    clearTtlCacheByPrefix('students-for-select:');
+    await clearTtlCacheByPrefix('students-for-select:');
     await logAudit({
       actorId: profile.id,
       action: data.current_status !== undefined ? 'student_status_update' : 'student_update',
@@ -530,7 +530,7 @@ export async function getClassroomsForSelect(academicYearId?: string) {
     }
 
     const cacheKey = `classrooms-for-select:${academicYearId || 'all'}`;
-    const cached = getTtlCache<ClassroomForSelect[]>(cacheKey);
+    const cached = await getTtlCache<ClassroomForSelect[]>(cacheKey);
     if (cached) return { success: true, data: cached };
 
     const supabase = await createAdminClient();
@@ -563,14 +563,14 @@ export async function getClassroomsForSelect(academicYearId?: string) {
       education_stage_id: row.education_stage_id as string,
       academic_year_id: row.academic_year_id as string,
     }));
-    setTtlCache(cacheKey, classrooms, SHORT_LIST_TTL_MS);
+    await setTtlCache(cacheKey, classrooms, SHORT_LIST_TTL_MS);
     return { success: true, data: classrooms };
   });
 }
 
 export async function getAcademicYears() {
   return withAuth(async () => {
-    const cached = getTtlCache<AcademicYearForSelect[]>('academic-years:all');
+    const cached = await getTtlCache<AcademicYearForSelect[]>('academic-years:all');
     if (cached) return { success: true, data: cached };
 
     const supabase = await createClient();
@@ -579,7 +579,7 @@ export async function getAcademicYears() {
       .select('id, name, is_current, base_score')
       .order('name', { ascending: false });
     const years = (data || []) as AcademicYearForSelect[];
-    setTtlCache('academic-years:all', years, MASTER_DATA_TTL_MS);
+    await setTtlCache('academic-years:all', years, MASTER_DATA_TTL_MS);
     return { success: true, data: years };
   });
 }
@@ -684,7 +684,7 @@ export async function deleteStudent(id: string) {
 
     const before = await getStudentById(id);
     await archiveStudent(id);
-    clearTtlCacheByPrefix('students-for-select:');
+    await clearTtlCacheByPrefix('students-for-select:');
     await logAudit({
       actorId: profile.id,
       action: 'student_archive',
@@ -704,7 +704,7 @@ export async function getStudentListForSelect(academicYearId?: string) {
     }
 
     const cacheKey = `students-for-select:${academicYearId || 'current'}`;
-    const cached = getTtlCache<StudentForSelect[]>(cacheKey);
+    const cached = await getTtlCache<StudentForSelect[]>(cacheKey);
     if (cached) return { success: true, data: cached };
 
     const supabase = await createAdminClient();
@@ -763,7 +763,7 @@ export async function getStudentListForSelect(academicYearId?: string) {
       grade_level: (s.classrooms as Record<string, unknown>)?.grade_level as number || 0,
       education_stage_id: (s.classrooms as Record<string, unknown>)?.education_stage_id as string || '',
     }));
-    setTtlCache(cacheKey, students, SHORT_LIST_TTL_MS);
+    await setTtlCache(cacheKey, students, SHORT_LIST_TTL_MS);
     return { success: true, data: students };
   });
 }
@@ -986,7 +986,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
       }
     }
 
-    if (imported > 0) clearTtlCacheByPrefix('students-for-select:');
+    if (imported > 0) await clearTtlCacheByPrefix('students-for-select:');
     await logAudit({
       actorId: profile.id,
       action: 'students_import_csv',

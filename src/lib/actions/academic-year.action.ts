@@ -19,7 +19,7 @@ export interface AcademicYearItem {
 export async function getAcademicYears(options: { bypassCache?: boolean } = {}) {
   return withAuth(async () => {
     const cacheKey = 'academic-years:all';
-    const cached = options.bypassCache ? undefined : getTtlCache<AcademicYearItem[]>(cacheKey);
+    const cached = options.bypassCache ? undefined : await getTtlCache<AcademicYearItem[]>(cacheKey);
     if (cached) return { success: true, data: cached };
 
     const supabase = await createClient();
@@ -39,7 +39,7 @@ export async function getAcademicYears(options: { bypassCache?: boolean } = {}) 
       base_score: (year.base_score as number | null) || 100,
     }));
 
-    setTtlCache(cacheKey, years, MASTER_DATA_TTL_MS);
+    await setTtlCache(cacheKey, years, MASTER_DATA_TTL_MS);
     return { success: true, data: years };
   });
 }
@@ -70,7 +70,7 @@ export async function addAcademicYear(input: {
     });
 
     if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
-    clearTtlCacheByPrefix('academic-years:');
+    await clearTtlCacheByPrefix('academic-years:');
     return { success: true, data: null };
   });
 }
@@ -103,7 +103,7 @@ export async function updateAcademicYear(id: string, input: {
       .eq('id', id);
 
     if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
-    clearTtlCacheByPrefix('academic-years:');
+    await clearTtlCacheByPrefix('academic-years:');
     return { success: true, data: null };
   });
 }
@@ -312,10 +312,10 @@ export async function createNextAcademicYearFromCurrent() {
       .neq('id', targetYearId);
     if (deactivateError) return { success: false, error: { code: 'DB_ERROR', message: deactivateError.message } };
 
-    clearTtlCacheByPrefix('academic-years:');
-    clearTtlCacheByPrefix('classrooms:');
-    clearTtlCacheByPrefix('classrooms-for-select:');
-    clearTtlCacheByPrefix('students-for-select:');
+    await clearTtlCacheByPrefix('academic-years:');
+    await clearTtlCacheByPrefix('classrooms:');
+    await clearTtlCacheByPrefix('classrooms-for-select:');
+    await clearTtlCacheByPrefix('students-for-select:');
 
     return {
       success: true,

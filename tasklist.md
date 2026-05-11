@@ -240,7 +240,7 @@
 - [x] **Notifications realtime** — notification bell refresh จาก Supabase realtime channel พร้อม fallback polling/focus refresh
 
 ### Low Priority / Nice to Have
-- [x] **Production rate limiting** — ใช้ Upstash Redis ผ่าน Vercel Marketplace สำหรับ login/upload/storage test และ fallback เป็น in-memory เมื่อไม่มี env
+- [x] **Production rate limiting + shared cache** — ใช้ Upstash Redis ผ่าน Vercel Marketplace สำหรับ login/upload/storage test และ cache master data/select list โดย fallback เป็น in-memory เมื่อไม่มี env
 - [ ] **ScoreTimeline chart** — recharts line chart component
 - [ ] **PDPA version management** — admin publish new version
 - [ ] **School branding in login page** — show logo + school name

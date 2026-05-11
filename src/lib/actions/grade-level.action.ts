@@ -25,7 +25,7 @@ export async function getGradeLevels(options: {
   return withAuth(async (profile) => {
     const includeInactive = Boolean(options.includeInactive && canManageSchoolData(profile));
     const cacheKey = `grade-levels:${options.education_stage_id || 'all'}:${includeInactive ? 'all' : 'active'}`;
-    const cached = getTtlCache<GradeLevelItem[]>(cacheKey);
+    const cached = await getTtlCache<GradeLevelItem[]>(cacheKey);
     if (cached) return { success: true, data: cached };
 
     const supabase = await createClient();
@@ -55,7 +55,7 @@ export async function getGradeLevels(options: {
       sort_order: row.sort_order as number,
       is_active: row.is_active as boolean,
     })) as GradeLevelItem[];
-    setTtlCache(cacheKey, levels, MASTER_DATA_TTL_MS);
+    await setTtlCache(cacheKey, levels, MASTER_DATA_TTL_MS);
     return { success: true, data: levels };
   });
 }
@@ -82,7 +82,7 @@ export async function addGradeLevel(data: {
       is_active: true,
     });
     if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
-    clearTtlCacheByPrefix('grade-levels:');
+    await clearTtlCacheByPrefix('grade-levels:');
     return { success: true, data: null };
   });
 }
@@ -109,7 +109,7 @@ export async function updateGradeLevel(id: string, data: {
     const supabase = await createClient();
     const { error } = await supabase.from('grade_levels').update(updateData).eq('id', id);
     if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
-    clearTtlCacheByPrefix('grade-levels:');
+    await clearTtlCacheByPrefix('grade-levels:');
     return { success: true, data: null };
   });
 }
@@ -132,13 +132,13 @@ export async function deleteGradeLevel(id: string) {
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
-      clearTtlCacheByPrefix('grade-levels:');
+      await clearTtlCacheByPrefix('grade-levels:');
       return { success: true, data: { deactivated: true, used_count: count } };
     }
 
     const { error } = await supabase.from('grade_levels').delete().eq('id', id);
     if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
-    clearTtlCacheByPrefix('grade-levels:');
+    await clearTtlCacheByPrefix('grade-levels:');
     return { success: true, data: { deactivated: false, used_count: 0 } };
   });
 }

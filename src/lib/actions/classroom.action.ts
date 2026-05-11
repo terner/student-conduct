@@ -162,7 +162,7 @@ export async function getClassrooms(params?: {
     }
 
     const cacheKey = `classrooms:list:${canViewAll ? 'all' : `teacher:${profile.id}`}:${JSON.stringify(params || {})}`;
-    const cached = getTtlCache<Awaited<ReturnType<typeof listClassrooms>>>(cacheKey);
+    const cached = await getTtlCache<Awaited<ReturnType<typeof listClassrooms>>>(cacheKey);
     if (cached) return { success: true, data: cached };
 
     const result = canViewAll
@@ -174,7 +174,7 @@ export async function getClassrooms(params?: {
         if (params?.grade_level && classroom.grade_level !== params.grade_level) return false;
         return true;
       });
-    setTtlCache(cacheKey, result, SHORT_LIST_TTL_MS);
+    await setTtlCache(cacheKey, result, SHORT_LIST_TTL_MS);
     return { success: true, data: result };
   });
 }
@@ -260,8 +260,8 @@ export async function addClassroom(data: {
       created.push(result);
     }
 
-    clearTtlCacheByPrefix('classrooms:');
-    clearTtlCacheByPrefix('classrooms-for-select:');
+    await clearTtlCacheByPrefix('classrooms:');
+    await clearTtlCacheByPrefix('classrooms-for-select:');
     await logAudit({
       actorId: profile.id,
       action: 'classroom_create',
@@ -306,8 +306,8 @@ export async function setClassroomTeacherAssignment(data: {
       return { success: false, error: { code: 'DB_ERROR', message: error.message } };
     }
 
-    clearTtlCacheByPrefix('classrooms:');
-    clearTtlCacheByPrefix('classrooms-for-select:');
+    await clearTtlCacheByPrefix('classrooms:');
+    await clearTtlCacheByPrefix('classrooms-for-select:');
     await logAudit({
       actorId: profile.id,
       action: 'classroom_teacher_assign',
@@ -337,8 +337,8 @@ export async function editClassroom(id: string, data: {
     const before = await getClassroomById(id);
     await updateClassroom(id, data as any);
     const after = await getClassroomById(id);
-    clearTtlCacheByPrefix('classrooms:');
-    clearTtlCacheByPrefix('classrooms-for-select:');
+    await clearTtlCacheByPrefix('classrooms:');
+    await clearTtlCacheByPrefix('classrooms-for-select:');
     await logAudit({
       actorId: profile.id,
       action: 'classroom_update',
@@ -365,8 +365,8 @@ export async function removeClassroom(id: string) {
 
       const before = await getClassroomById(id);
       await deleteClassroom(id);
-      clearTtlCacheByPrefix('classrooms:');
-      clearTtlCacheByPrefix('classrooms-for-select:');
+      await clearTtlCacheByPrefix('classrooms:');
+      await clearTtlCacheByPrefix('classrooms-for-select:');
       await logAudit({
         actorId: profile.id,
         action: 'classroom_delete',

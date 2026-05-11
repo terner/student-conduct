@@ -3084,7 +3084,8 @@ export async function POST(req: Request) { ... }
 - แสดง badge "ออฟไลน์ — กำลังซิงก์เมื่อเชื่อมต่อ"
 - ถ้า conflict → แจ้ง admin
 
-**Cached Data Strategy (SWR/React Query):**
+**Cached Data Strategy (server TTL cache + SWR/React Query):**
+- master data/select lists: ใช้ shared TTL cache ผ่าน Upstash Redis/Vercel KV-compatible REST API และ clear cache เมื่อมีการเพิ่ม/แก้ไข/ลบข้อมูล; local/dev fallback เป็น in-memory cache เมื่อไม่มี Redis env
 - student list: cache 5 นาที
 - score history: cache 1 นาที
 - dashboard stats: cache 10 นาที
@@ -3261,7 +3262,7 @@ export async function POST(req: Request) { ... }
 
 - Login success/failure, student detail views, report views, and exports create action_logs.
   - Implemented: login rate-limit event ถูกบันทึกเป็น action log พร้อม IP/user-agent
-  - Implemented: production rate limit ใช้ Upstash Redis REST (`KV_REST_API_URL`, `KV_REST_API_TOKEN`) และ fallback เป็น in-memory เฉพาะกรณี local/dev ไม่มี env
+  - Implemented: production rate limit และ server-side shared TTL cache สำหรับ master data/select list ใช้ Upstash Redis REST (`KV_REST_API_URL`, `KV_REST_API_TOKEN`) และ fallback เป็น in-memory เฉพาะกรณี local/dev ไม่มี env
 
 - PDPA consent is recorded with notice version and can be reviewed by admin.
 

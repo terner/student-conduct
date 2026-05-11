@@ -18,7 +18,7 @@ export async function getTeacherPositions(options: { includeInactive?: boolean }
   return withAuth(async (profile) => {
     const includeInactive = Boolean(options.includeInactive && canManageSchoolData(profile));
     const cacheKey = `teacher-positions:${includeInactive ? 'all' : 'active'}`;
-    const cached = getTtlCache<TeacherPositionItem[]>(cacheKey);
+    const cached = await getTtlCache<TeacherPositionItem[]>(cacheKey);
     if (cached) return { success: true, data: cached };
 
     const supabase = await createClient();
@@ -35,7 +35,7 @@ export async function getTeacherPositions(options: { includeInactive?: boolean }
     const { data, error } = await query;
     if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
     const positions = (data || []) as TeacherPositionItem[];
-    setTtlCache(cacheKey, positions, MASTER_DATA_TTL_MS);
+    await setTtlCache(cacheKey, positions, MASTER_DATA_TTL_MS);
     return { success: true, data: positions };
   });
 }
@@ -57,7 +57,7 @@ export async function addTeacherPosition(data: { name: string; sort_order: numbe
       is_active: true,
     });
     if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
-    clearTtlCacheByPrefix('teacher-positions:');
+    await clearTtlCacheByPrefix('teacher-positions:');
     return { success: true, data: null };
   });
 }
@@ -81,7 +81,7 @@ export async function updateTeacherPosition(id: string, data: {
     const supabase = await createClient();
     const { error } = await supabase.from('teacher_positions').update(updateData).eq('id', id);
     if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
-    clearTtlCacheByPrefix('teacher-positions:');
+    await clearTtlCacheByPrefix('teacher-positions:');
     return { success: true, data: null };
   });
 }
@@ -110,14 +110,14 @@ export async function deleteTeacherPosition(id: string) {
           .update({ is_active: false, updated_at: new Date().toISOString() })
           .eq('id', id);
         if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
-        clearTtlCacheByPrefix('teacher-positions:');
+        await clearTtlCacheByPrefix('teacher-positions:');
         return { success: true, data: { deactivated: true, used_count: count } };
       }
     }
 
     const { error } = await supabase.from('teacher_positions').delete().eq('id', id);
     if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
-    clearTtlCacheByPrefix('teacher-positions:');
+    await clearTtlCacheByPrefix('teacher-positions:');
     return { success: true, data: { deactivated: false, used_count: 0 } };
   });
 }
