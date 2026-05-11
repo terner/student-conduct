@@ -140,7 +140,7 @@ export default function ClassroomReportPage() {
                   <span className="truncate">{selectedClassroom?.name}</span>
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="max-h-72">
+              <SelectContent className="max-h-[min(18rem,var(--available-height))]">
                 {classrooms.map(c => (
                   <SelectItem key={c.id} value={c.id} label={c.name}>{c.name}</SelectItem>
                 ))}

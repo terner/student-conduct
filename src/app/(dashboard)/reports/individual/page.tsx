@@ -340,7 +340,7 @@ export default function IndividualReportPage() {
             <SelectTrigger className="h-10 w-full min-w-0">
               <SelectValue placeholder={reportT('allClassrooms')} />
             </SelectTrigger>
-            <SelectContent className="max-h-72">
+            <SelectContent className="max-h-[min(18rem,var(--available-height))]">
               {classroomOptions.map((classroom) => (
                 <SelectItem key={classroom.id} value={classroom.name} label={classroom.name}>
                   {classroom.name}
