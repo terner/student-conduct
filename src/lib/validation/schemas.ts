@@ -131,6 +131,7 @@ export const studentImportSchema = z.object({
 
 // ─── Score ───
 export const scoreCategorySchema = z.object({
+  id: z.string().uuid().optional(),
   name: z
     .string()
     .min(2, errorMessages.tooShort(2))

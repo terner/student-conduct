@@ -2,17 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getCategories, saveCategory } from '@/lib/actions/score.action';
+import { getCategories, removeCategory, saveCategory } from '@/lib/actions/score.action';
 import { ScoreCategoryForm } from '@/components/features/scores/score-category-form';
 import type { ScoreCategory } from '@/types';
 
 export default function ScoreCategoryPage() {
   const t = useTranslations('score');
+  const commonT = useTranslations('common');
   const [categories, setCategories] = useState<ScoreCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -32,9 +34,24 @@ export default function ScoreCategoryPage() {
   }
 
   async function handleSave(data: any) {
-    await saveCategory(data);
+    const result = await saveCategory(data);
+    if (!result.success) {
+      toast(commonT('error'), { description: result.error?.message });
+      return;
+    }
     setShowForm(false);
     setEditCategory(null);
+    loadCategories();
+  }
+
+  async function handleDelete(category: ScoreCategory) {
+    if (!confirm(t('deleteCategoryConfirm', { name: category.name }))) return;
+    const result = await removeCategory(category.id);
+    if (!result.success) {
+      toast(commonT('error'), { description: result.error?.message });
+      return;
+    }
+    toast(t('deleteCategorySuccess'));
     loadCategories();
   }
 
@@ -69,6 +86,9 @@ export default function ScoreCategoryPage() {
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditCategory(c); setShowForm(true); }}>
                     <Pencil className="h-3 w-3" />
                   </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label={t('deleteCategory')} onClick={() => handleDelete(c)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
             ))}
@@ -90,6 +110,9 @@ export default function ScoreCategoryPage() {
                   <Badge variant="outline" className="text-green-600">+{Math.abs(c.default_points)}</Badge>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditCategory(c); setShowForm(true); }}>
                     <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label={t('deleteCategory')} onClick={() => handleDelete(c)}>
+                    <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
               </div>

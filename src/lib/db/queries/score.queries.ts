@@ -223,7 +223,7 @@ export async function getRecentTransactions(limit = 10) {
   return (data || []).map((t: Record<string, unknown>) => ({
     id: t.id as string,
     student_id: t.student_id as string,
-    category_name: (t.score_categories as Record<string, unknown>)?.name as string || '',
+    category_name: (t.category_name_at_record as string) || (t.score_categories as Record<string, unknown>)?.name as string || '',
     points: t.points as number,
     note: t.note as string | undefined,
     recorded_at: t.recorded_at as string,
@@ -376,6 +376,21 @@ export async function upsertScoreCategory(data: Partial<ScoreCategory> & { name:
     if (error) throw error;
   }
 
+  return { success: true };
+}
+
+/**
+ * Deactivate a score category without breaking historical transactions.
+ */
+export async function deactivateScoreCategory(categoryId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('score_categories')
+    .update({ is_active: false })
+    .eq('id', categoryId);
+
+  if (error) throw error;
   return { success: true };
 }
 

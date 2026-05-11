@@ -11,6 +11,81 @@ import { logAudit } from '@/lib/audit/log';
 
 const SHORT_LIST_TTL_MS = 60 * 1000;
 
+function todayInBangkok() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
+}
+
+function getAcademicYearClosedReason(year: {
+  start_date?: string | null;
+  end_date?: string | null;
+}, today = todayInBangkok()) {
+  if (year.start_date && today < year.start_date) {
+    return `ยังไม่ถึงช่วงปีการศึกษา เริ่มวันที่ ${year.start_date}`;
+  }
+  if (year.end_date && today > year.end_date) {
+    return `พ้นช่วงปีการศึกษาแล้ว สิ้นสุดวันที่ ${year.end_date}`;
+  }
+  return '';
+}
+
+async function ensureCurrentAcademicYearOpen(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+) {
+  const { data: acYear, error } = await supabase
+    .from('academic_years')
+    .select('id, name, start_date, end_date')
+    .eq('is_current', true)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!acYear?.id) {
+    return { success: false as const, error: { code: 'NO_CURRENT_YEAR', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' } };
+  }
+
+  const closedReason = getAcademicYearClosedReason(acYear);
+  if (closedReason) {
+    return {
+      success: false as const,
+      error: { code: 'ACADEMIC_YEAR_CLOSED', message: `ไม่สามารถแก้ไขข้อมูลห้องเรียนได้ (${closedReason})` },
+    };
+  }
+
+  return { success: true as const, academicYear: acYear };
+}
+
+async function ensureClassroomEditableInCurrentYear(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  classroomId: string,
+) {
+  const currentYearResult = await ensureCurrentAcademicYearOpen(supabase);
+  if (!currentYearResult.success) return currentYearResult;
+
+  const { data: classroom, error } = await supabase
+    .from('classrooms')
+    .select('academic_year_id')
+    .eq('id', classroomId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!classroom) {
+    return { success: false as const, error: { code: 'NOT_FOUND', message: 'ไม่พบห้องเรียน' } };
+  }
+  if (classroom.academic_year_id !== currentYearResult.academicYear.id) {
+    return { success: false as const, error: { code: 'ACADEMIC_YEAR_NOT_CURRENT', message: 'แก้ไขได้เฉพาะห้องเรียนของปีการศึกษาปัจจุบัน' } };
+  }
+
+  return { success: true as const, academicYear: currentYearResult.academicYear };
+}
+
 async function getAssignedClassroomIds(profileId: string) {
   const supabase = await createAdminClient();
   const { data: teacher } = await supabase
@@ -128,15 +203,9 @@ export async function addClassroom(data: {
     const validated = classroomSchema.parse(data);
 
     const supabase = await createClient();
-    const { data: acYear } = await supabase
-      .from('academic_years')
-      .select('id')
-      .eq('is_current', true)
-      .maybeSingle();
-
-    if (!acYear?.id) {
-      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' } };
-    }
+    const currentYearResult = await ensureCurrentAcademicYearOpen(supabase);
+    if (!currentYearResult.success) return currentYearResult;
+    const acYear = currentYearResult.academicYear;
 
     const { data: gradeLevel } = await supabase
       .from('grade_levels')
@@ -215,6 +284,8 @@ export async function setClassroomTeacherAssignment(data: {
     }
 
     const supabase = await createClient();
+    const editableYear = await ensureClassroomEditableInCurrentYear(supabase, data.classroom_id);
+    if (!editableYear.success) return editableYear;
 
     await supabase
       .from('teacher_classrooms')
@@ -259,6 +330,10 @@ export async function editClassroom(id: string, data: {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
     }
 
+    const supabase = await createClient();
+    const editableYear = await ensureClassroomEditableInCurrentYear(supabase, id);
+    if (!editableYear.success) return editableYear;
+
     const before = await getClassroomById(id);
     await updateClassroom(id, data as any);
     const after = await getClassroomById(id);
@@ -284,6 +359,10 @@ export async function removeClassroom(id: string) {
     }
 
     try {
+      const supabase = await createClient();
+      const editableYear = await ensureClassroomEditableInCurrentYear(supabase, id);
+      if (!editableYear.success) return editableYear;
+
       const before = await getClassroomById(id);
       await deleteClassroom(id);
       clearTtlCacheByPrefix('classrooms:');

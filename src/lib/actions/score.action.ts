@@ -9,6 +9,7 @@ import {
   approveScoreTransaction,
   getScoreCategories,
   upsertScoreCategory,
+  deactivateScoreCategory,
   getRecentTransactions,
   getScoreDistribution,
 } from '@/lib/db';
@@ -464,6 +465,29 @@ export async function saveCategory(data: {
       targetType: 'score_category',
       targetId: data.id,
       afterData: validated,
+    });
+    return { success: true, data: null };
+  });
+}
+
+export async function removeCategory(categoryId: string) {
+  return withAuth(async (profile) => {
+    if (!canApproveScores(profile)) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
+    }
+
+    if (!categoryId) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'ไม่พบประเภทคะแนน' } };
+    }
+
+    await deactivateScoreCategory(categoryId);
+    clearTtlCacheByPrefix('score-categories:');
+    await logAudit({
+      actorId: profile.id,
+      action: 'score_category_deactivate',
+      targetType: 'score_category',
+      targetId: categoryId,
+      afterData: { is_active: false },
     });
     return { success: true, data: null };
   });
