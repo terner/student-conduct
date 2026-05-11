@@ -25,7 +25,34 @@
   },
   "notifications": {
     "title": "Notifications",
-    "empty": "No notifications"
+    "empty": "No notifications",
+    "types": {
+      "threshold_reached": "Threshold",
+      "score_recorded": "Score",
+      "pending_approval": "Approval",
+      "report_ready": "Report"
+    }
+  },
+  "apiErrors": {
+    "unauthorized": "Unauthorized",
+    "forbidden": "You do not have permission to perform this action",
+    "uploadForbidden": "You do not have permission to upload files",
+    "invalidJson": "Invalid JSON",
+    "missingNotificationId": "Missing notification ID",
+    "fileRequired": "Please choose an image",
+    "missingProfileOwner": "Please specify the profile owner",
+    "imageTypeInvalid": "Only PNG, JPG, GIF, and WebP files are supported",
+    "evidenceTypeInvalid": "Evidence supports PNG, JPG, and WebP files only",
+    "fileTooLarge": "File size must be 2MB or less",
+    "tooManyEvidenceFiles": "You can upload up to 5 evidence images per transaction",
+    "missingFilesOrTransaction": "Please choose files and specify the score transaction",
+    "transactionNotFound": "Score transaction not found",
+    "rateLimited": "Too many uploads. Try again later.",
+    "uploadFailed": "Unable to upload the file",
+    "googleDriveProfileNotConfigured": "Google Drive is not fully configured for profile photos",
+    "googleDriveEvidenceNotConfigured": "Google Drive is not fully configured for evidence images",
+    "storageTestFailed": "Unable to test the storage connection",
+    "internalError": "Internal server error"
   },
   "studentSelf": {
     "notFound": "Student record not found"
@@ -666,6 +693,10 @@
     "googleDriveEnabled": "Enable Google Drive Storage",
     "googleDriveEnabledDescription": "When enabled, uploads that use Google Drive will use this configuration",
     "privateKeySecretHelp": "This value is secret. Restrict settings access to administrators only.",
+    "testStorageConnection": "Test connection",
+    "storageTestSuccess": "Storage connection works",
+    "storageTestSuccessDescription": "Connected to provider {provider}",
+    "storageTestFailed": "Storage connection test failed",
     "tools": "Tools",
     "toolsDescription": "Shortcuts for managing data and system configuration",
     "manageStudents": "Manage students",

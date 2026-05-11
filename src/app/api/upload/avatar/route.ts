@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClientWithUser, createAdminClient } from '@/lib/supabase/server';
 import { getGoogleDriveConfig, isGoogleDriveReady, uploadFileToGoogleDrive } from '@/lib/storage/google-drive';
-import { logAudit } from '@/lib/audit/log';
+import { getRequestAuditInfo, logAudit } from '@/lib/audit/log';
+import { apiMessage } from '@/lib/i18n/api';
 import { getStorageProvider } from '@/lib/storage/config';
 import { uploadFileToVercelBlob } from '@/lib/storage/vercel-blob';
+import { checkUploadRateLimit, safeFileExtension, validateSingleImageUpload } from '@/lib/storage/upload-validation';
 
 export const runtime = 'nodejs';
 
@@ -13,10 +15,11 @@ function hasRole(role: string | string[] | null, target: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const requestInfo = getRequestAuditInfo(request);
   try {
     const { supabase, user } = await createClientWithUser();
     if (!user?.id) {
-      return NextResponse.json({ error: 'ไม่ได้รับอนุญาต' }, { status: 401 });
+      return NextResponse.json({ error: apiMessage(request, 'unauthorized') }, { status: 401 });
     }
 
     const { data: profile } = await supabase
@@ -26,7 +29,11 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (!profile || !hasRole(profile.role, 'superadmin')) {
-      return NextResponse.json({ error: 'ไม่มีสิทธิ์อัปโหลด' }, { status: 403 });
+      return NextResponse.json({ error: apiMessage(request, 'uploadForbidden') }, { status: 403 });
+    }
+
+    if (!checkUploadRateLimit(`avatar:${profile.id}`)) {
+      return NextResponse.json({ error: apiMessage(request, 'rateLimited') }, { status: 429 });
     }
 
     const formData = await request.formData();
@@ -34,26 +41,21 @@ export async function POST(request: Request) {
     const profileOwnerId = (formData.get('student_id') || formData.get('owner_id')) as string | null;
     const ownerType = (formData.get('owner_type') as string | null) || 'student';
 
-    if (!file || !profileOwnerId) {
-      return NextResponse.json({ error: 'กรุณาเลือกรูปภาพและระบุเจ้าของโปรไฟล์' }, { status: 400 });
+    if (!profileOwnerId) {
+      return NextResponse.json({ error: apiMessage(request, 'missingProfileOwner') }, { status: 400 });
     }
-
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'รองรับเฉพาะไฟล์ PNG, JPG, GIF, WebP' }, { status: 400 });
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      return NextResponse.json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 2MB' }, { status: 400 });
-    }
+    const validationError = validateSingleImageUpload(file, 'avatar');
+    if (validationError) return NextResponse.json({ error: apiMessage(request, validationError) }, { status: 400 });
+    const uploadFile = file;
+    if (!uploadFile) return NextResponse.json({ error: apiMessage(request, 'fileRequired') }, { status: 400 });
 
     const adminClient = await createAdminClient();
-    const fileExt = file.name.split('.').pop() || 'png';
+    const fileExt = safeFileExtension(uploadFile, 'png');
     const fileName = `${ownerType}-${profileOwnerId}.${fileExt}`;
     const storageProvider = await getStorageProvider(adminClient);
 
     if (storageProvider === 'vercel_blob') {
-      const upload = await uploadFileToVercelBlob('profile', file, fileName);
+      const upload = await uploadFileToVercelBlob('profile', uploadFile, fileName);
       const url = upload.access === 'private' ? `/api/blob/${upload.pathname}` : upload.url;
       await logAudit({
         actorId: profile.id,
@@ -61,7 +63,8 @@ export async function POST(request: Request) {
         targetType: ownerType,
         targetId: profileOwnerId,
         afterData: { url, provider: upload.provider, pathname: upload.pathname, access: upload.access },
-        metadata: { file_name: file.name, file_type: file.type, file_size: file.size },
+        metadata: { file_name: uploadFile.name, file_type: uploadFile.type, file_size: uploadFile.size },
+        ...requestInfo,
       });
       return NextResponse.json({ success: true, url, provider: upload.provider });
     }
@@ -70,17 +73,18 @@ export async function POST(request: Request) {
 
     if (storageProvider === 'google_drive') {
       if (!isGoogleDriveReady(driveConfig, 'profile')) {
-        return NextResponse.json({ error: 'ยังไม่ได้ตั้งค่า Google Drive สำหรับรูปโปรไฟล์ให้ครบถ้วน' }, { status: 500 });
+        return NextResponse.json({ error: apiMessage(request, 'googleDriveProfileNotConfigured') }, { status: 500 });
       }
 
-      const upload = await uploadFileToGoogleDrive(driveConfig, 'profile', file, fileName);
+      const upload = await uploadFileToGoogleDrive(driveConfig, 'profile', uploadFile, fileName);
       await logAudit({
         actorId: profile.id,
         action: 'avatar_upload',
         targetType: ownerType,
         targetId: profileOwnerId,
         afterData: { url: upload.publicUrl, provider: 'google_drive', file_id: upload.id },
-        metadata: { file_name: file.name, file_type: file.type, file_size: file.size },
+        metadata: { file_name: uploadFile.name, file_type: uploadFile.type, file_size: uploadFile.size },
+        ...requestInfo,
       });
       return NextResponse.json({
         success: true,
@@ -90,19 +94,19 @@ export async function POST(request: Request) {
       });
     }
 
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const fileBuffer = Buffer.from(await uploadFile.arrayBuffer());
 
     const { error: uploadError } = await adminClient
       .storage
       .from('student-photos')
       .upload(fileName, fileBuffer, {
-        contentType: file.type,
+        contentType: uploadFile.type,
         upsert: true,
       });
 
     if (uploadError) {
       console.error('[Upload Avatar] Storage error:', uploadError);
-      return NextResponse.json({ error: 'ไม่สามารถอัปโหลดรูปภาพได้' }, { status: 500 });
+      return NextResponse.json({ error: apiMessage(request, 'uploadFailed') }, { status: 500 });
     }
 
     const { data: { publicUrl } } = adminClient
@@ -116,12 +120,13 @@ export async function POST(request: Request) {
       targetType: ownerType,
       targetId: profileOwnerId,
       afterData: { url: publicUrl, provider: 'supabase' },
-      metadata: { file_name: file.name, file_type: file.type, file_size: file.size },
+      metadata: { file_name: uploadFile.name, file_type: uploadFile.type, file_size: uploadFile.size },
+      ...requestInfo,
     });
 
     return NextResponse.json({ success: true, url: publicUrl });
   } catch (err) {
     console.error('[Upload Avatar] Error:', err);
-    return NextResponse.json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }, { status: 500 });
+    return NextResponse.json({ error: apiMessage(request, 'internalError') }, { status: 500 });
   }
 }

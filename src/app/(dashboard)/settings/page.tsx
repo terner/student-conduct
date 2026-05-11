@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [thresholds, setThresholds] = useState<Array<{ deducted: number; action: string; color: string }>>([]);
   const [selectedYearOpen, setSelectedYearOpen] = useState(false);
+  const [testingStorage, setTestingStorage] = useState(false);
 
   useEffect(() => {
     loadAccessAndSettings();
@@ -83,6 +84,23 @@ export default function SettingsPage() {
 
   function removeThreshold(index: number) {
     setThresholds(thresholds.filter((_, i) => i !== index));
+  }
+
+  async function testStorageConnection() {
+    setTestingStorage(true);
+    try {
+      const res = await fetch('/api/storage/test', { method: 'POST' });
+      const result = await res.json();
+      if (!res.ok) {
+        toast(settingsT('storageTestFailed'), { description: result.error || settingsT('genericError') });
+        return;
+      }
+      toast(settingsT('storageTestSuccess'), { description: settingsT('storageTestSuccessDescription', { provider: result.provider }) });
+    } catch {
+      toast(settingsT('storageTestFailed'));
+    } finally {
+      setTestingStorage(false);
+    }
   }
 
   if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div></div>;
@@ -383,26 +401,32 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="storage_provider">{settingsT('storageProvider')}</Label>
-                <Select
-                  value={String(settings.storage_provider || 'supabase')}
-                  onValueChange={(value) => setSettings({ ...settings, storage_provider: value })}
-                  itemToStringLabel={(value) => String(value)}
-                >
-                  <SelectTrigger id="storage_provider" className="w-full md:w-[320px]">
-                    <SelectValue placeholder={settingsT('storageProvider')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="vercel_blob" label={settingsT('storageProviderVercelBlob')}>
-                      {settingsT('storageProviderVercelBlob')}
-                    </SelectItem>
-                    <SelectItem value="google_drive" label={settingsT('storageProviderGoogleDrive')}>
-                      {settingsT('storageProviderGoogleDrive')}
-                    </SelectItem>
-                    <SelectItem value="supabase" label={settingsT('storageProviderSupabase')}>
-                      {settingsT('storageProviderSupabase')}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                  <Select
+                    value={String(settings.storage_provider || 'supabase')}
+                    onValueChange={(value) => setSettings({ ...settings, storage_provider: value })}
+                    itemToStringLabel={(value) => String(value)}
+                  >
+                    <SelectTrigger id="storage_provider" className="w-full md:w-[320px]">
+                      <SelectValue placeholder={settingsT('storageProvider')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vercel_blob" label={settingsT('storageProviderVercelBlob')}>
+                        {settingsT('storageProviderVercelBlob')}
+                      </SelectItem>
+                      <SelectItem value="google_drive" label={settingsT('storageProviderGoogleDrive')}>
+                        {settingsT('storageProviderGoogleDrive')}
+                      </SelectItem>
+                      <SelectItem value="supabase" label={settingsT('storageProviderSupabase')}>
+                        {settingsT('storageProviderSupabase')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" onClick={testStorageConnection} disabled={testingStorage}>
+                    {testingStorage && <Spinner className="mr-2 size-4" />}
+                    {settingsT('testStorageConnection')}
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {String(settings.storage_provider || 'supabase') === 'vercel_blob'
                     ? settingsT('vercelBlobHelp')

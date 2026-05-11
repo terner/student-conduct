@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/server';
 import { canApproveScores, canRecordScores } from '@/lib/security/roles';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
 import { logAudit } from '@/lib/audit/log';
+import { notifyThresholdReached } from '@/lib/notifications/threshold';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -221,6 +222,14 @@ export async function recordScore(data: {
       },
     });
 
+    if (!category?.requires_approval && validated.points < 0) {
+      await notifyThresholdReached({
+        studentId: validated.student_id,
+        academicYearId,
+        transactionId: result.id,
+      });
+    }
+
     return { success: true, data: result };
   });
 }
@@ -313,7 +322,7 @@ export async function approveScore(transactionId: string) {
     const supabase = await createClient();
     const { data: transaction } = await supabase
       .from('score_transactions')
-      .select('requires_evidence_at_record')
+      .select('student_id, academic_year_id, points, requires_evidence_at_record')
       .eq('id', transactionId)
       .maybeSingle();
 
@@ -336,6 +345,13 @@ export async function approveScore(transactionId: string) {
       targetId: transactionId,
       afterData: { status: 'approved' },
     });
+    if (transaction && Number(transaction.points) < 0) {
+      await notifyThresholdReached({
+        studentId: transaction.student_id as string,
+        academicYearId: transaction.academic_year_id as string,
+        transactionId,
+      });
+    }
     return { success: true, data: { transaction_id: transactionId } };
   });
 }

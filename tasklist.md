@@ -192,6 +192,8 @@
 - [x] ปรับ `/settings/logs` ให้แสดงทั้ง Audit logs และ Action logs แยก tab
 - [x] เพิ่ม storage provider config ให้เลือกได้ระหว่าง Vercel Blob, Google Drive และ Supabase Storage; Vercel Blob ใช้ `BLOB_READ_WRITE_TOKEN`/`STORAGE_PROVIDER` และ evidence รองรับ private blob ผ่าน `/api/blob/...`
 - [x] ทดสอบ Vercel Blob ด้วย token จริงแล้ว: upload/read/delete ผ่านสำหรับ logo, profile และ evidence แบบ private store
+- [x] เพิ่ม storage test connection ใน Settings, upload validation/rate limit กลาง, API error messages ตาม locale, evidence bucket fallback เป็น `evidence`, และ audit IP/user-agent สำหรับ upload/storage test
+- [x] เพิ่ม threshold notification จาก event record/approve คะแนนปีปัจจุบัน พร้อม recipient admin/superadmin + homeroom/assistant, duplicate guard ผ่าน metadata และ mark-read ownership
 - [x] Build ผ่านด้วย `npm run build`
 
 ## 📋 ฟีเจอร์ที่ยังต้องทำต่อ
@@ -200,23 +202,24 @@
 - [ ] **i18n integration ทั้งระบบ — งานคงเหลือหลังทำ partial แล้ว**  
   ทำไปแล้ว: config + language switcher + message files TH/EN ประมาณ 722 strings ต่อภาษา และแปลงหน้าหลักหลายส่วนแล้ว  
   เหลือทำต่อ:
-  - [ ] Server/API error messages ที่แสดงถึงผู้ใช้ เช่น auth login, upload routes, server actions
-  - [ ] Notification bell/list/messages และข้อความ notification event
+  - [x] Upload/storage API error messages ที่แสดงถึงผู้ใช้ผ่าน message files แล้ว
+  - [x] Notification bell แสดง type label และ event threshold message แล้ว
+  - [ ] Auth login route, server action errors และ API routes อื่นที่ยังเหลือ
   - [ ] ตรวจ hardcoded ที่เหลือใน reports/score/settings/teacher/student profile/PDF ให้ครบแบบ strict
   - [ ] แยก domain data ที่ไม่ควร i18n เช่น CSV Thai headers, คำนำหน้า, sample import data ออกจาก UI copy ที่ต้อง i18n
 - [ ] **รายงานนักเรียนถึงเกณฑ์ + การแจ้งเตือน**
   - [ ] แปลง `/reports/threshold` เป็น i18n
   - [ ] เพิ่ม filter/search/pagination และ export filename ที่มีปีการศึกษา
-  - [ ] สร้าง notification เมื่อ student reached threshold
-  - [ ] แจ้ง admin และครูประจำห้อง/ครูที่ปรึกษาตาม `teacher_classrooms`
-  - [ ] ป้องกัน duplicate notification ต่อ threshold/ปีการศึกษา
-  - [ ] Notification bell แสดง type/status/link target และ mark read เฉพาะ notification ของตัวเอง
+  - [x] สร้าง notification เมื่อ student reached threshold จาก record/approve score event ของปีปัจจุบัน
+  - [x] แจ้ง admin/superadmin และครูประจำห้อง/ครูที่ปรึกษาตาม `teacher_classrooms`
+  - [x] ป้องกัน duplicate notification ต่อ threshold/ปีการศึกษา/recipient ผ่าน metadata
+  - [x] Notification bell แสดง type/link target และ mark read เฉพาะ notification ของตัวเอง
 - [ ] **Storage production hardening**
-  - [ ] เพิ่มปุ่ม test connection ใน Settings
-  - [ ] ตรวจ Vercel Blob token หรือ Google Drive service account/folder permission ตาม provider ที่เลือก
-  - [ ] แก้ evidence fallback จาก bucket `school-logos` เป็น bucket สำหรับ evidence หรือ policy ที่ถูกต้อง
-  - [ ] Validate evidence type/size/count ให้ชัด และห้ามไฟล์เสี่ยงตาม req
-  - [ ] เพิ่ม rate limit upload และ audit log สำหรับ upload/delete
+  - [x] เพิ่มปุ่ม test connection ใน Settings
+  - [x] ตรวจ Vercel Blob token หรือ Google Drive service account/folder permission ตาม provider ที่เลือกผ่าน `/api/storage/test`
+  - [x] แก้ evidence fallback จาก bucket `school-logos` เป็น bucket `evidence`
+  - [x] Validate evidence type/size/count ให้ชัด และห้ามไฟล์เสี่ยงตาม req
+  - [x] เพิ่ม rate limit upload และ audit log พร้อม IP/user-agent สำหรับ upload/storage test
   - [ ] Verify public/private URL rendering ใน evidence modal และ profile photo
 - [ ] **Annual rollover/import** — หลังขึ้นปีใหม่แล้วต้องมี import wizard สำหรับ enrollment นักเรียนปีใหม่, preview ก่อนบันทึก, จัดการนักเรียนย้าย/ซ้ำชั้น/จบการศึกษา
 - [x] **Role assignment UI** — จัดการ role `teacher/admin/superadmin` ผ่านฟอร์มรายชื่อครูแล้ว

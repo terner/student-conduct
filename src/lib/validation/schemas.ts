@@ -213,7 +213,7 @@ export const classroomSchema = z.object({
 export const teacherPrefixEnum = ['นาย', 'นาง', 'นางสาว'] as const;
 
 export const teacherSchema = z.object({
-  prefix: z.enum(teacherPrefixEnum),
+  prefix: z.enum(teacherPrefixEnum).default('นาย'),
   first_name: z
     .string()
     .min(2, errorMessages.tooShort(2))

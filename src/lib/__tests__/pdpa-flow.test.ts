@@ -12,6 +12,7 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => mockSupabase),
   createClientWithUser: vi.fn(() => Promise.resolve({ supabase: mockSupabase, user: mockUser })),
   createAdminClient: vi.fn(() => Promise.resolve(mockSupabase)),
+  getUserFromCookie: vi.fn(() => Promise.resolve(mockUser)),
 }));
 
 // Helper to build .from().select().eq().maybeSingle() chain
@@ -84,7 +85,7 @@ describe('PDPA Consent Flow — Integration', () => {
       const result = await getCurrentUserRole();
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.role).toBe('teacher');
+        expect(result.data.role).toEqual(['teacher']);
         expect(result.data.full_name).toBe('Test User');
       }
     });

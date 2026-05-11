@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Bell, BellDot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,8 @@ interface Notification {
   title: string;
   body?: string;
   type: string;
+  resource_type?: string;
+  resource_id?: string;
   read_at?: string;
   created_at: string;
 }
@@ -25,6 +28,7 @@ function formatDateTime(value: string, locale: string) {
 export function NotificationBell() {
   const t = useTranslations('notifications');
   const locale = useLocale();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -44,14 +48,18 @@ export function NotificationBell() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function markRead(id: string) {
+  async function markRead(notification: Notification) {
     await fetch('/api/notifications', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id: notification.id }),
     });
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n)));
-    setUnreadCount((prev) => Math.max(0, prev - 1));
+    setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, read_at: new Date().toISOString() } : n)));
+    if (!notification.read_at) setUnreadCount((prev) => Math.max(0, prev - 1));
+    if (notification.resource_type === 'student' && notification.resource_id) {
+      setOpen(false);
+      router.push(`/students/${notification.resource_id}`);
+    }
   }
 
   return (
@@ -74,9 +82,14 @@ export function NotificationBell() {
               <button
                 key={n.id}
                 className={`w-full text-left p-3 text-sm border-b hover:bg-accent transition-colors ${!n.read_at ? 'bg-accent/50' : ''}`}
-                onClick={() => markRead(n.id)}
+                onClick={() => markRead(n)}
               >
-                <div className="font-medium">{n.title}</div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="font-medium">{n.title}</div>
+                  <span className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    {t.has(`types.${n.type}`) ? t(`types.${n.type}`) : n.type}
+                  </span>
+                </div>
                 {n.body && <div className="text-xs text-muted-foreground mt-0.5">{n.body}</div>}
                 <div className="text-[10px] text-muted-foreground mt-1">
                   {formatDateTime(n.created_at, locale)}

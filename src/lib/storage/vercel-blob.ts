@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob';
+import { del, put } from '@vercel/blob';
 
 export type BlobUploadTarget = 'logo' | 'profile' | 'evidence';
 
@@ -47,4 +47,11 @@ export async function uploadFileToVercelBlob(target: BlobUploadTarget, file: Fil
     provider: 'vercel_blob',
     access,
   };
+}
+
+export async function deleteVercelBlob(pathnameOrUrl: string) {
+  if (!isVercelBlobReady()) {
+    throw new Error('ยังไม่ได้ตั้งค่า Vercel Blob token');
+  }
+  await del(pathnameOrUrl);
 }

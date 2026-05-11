@@ -121,6 +121,14 @@ async function getAccessToken(config: GoogleDriveConfig) {
   return data.access_token;
 }
 
+export async function testGoogleDriveConnection(config: GoogleDriveConfig) {
+  if (!isGoogleDriveReady(config, 'profile') || !isGoogleDriveReady(config, 'evidence')) {
+    throw new Error('ยังไม่ได้ตั้งค่า Google Drive ให้ครบถ้วน');
+  }
+  await getAccessToken(config);
+  return { success: true };
+}
+
 async function makeFilePublic(fileId: string, accessToken: string) {
   const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
     method: 'POST',

@@ -10,6 +10,8 @@ interface AuditLogInput {
   beforeData?: unknown;
   afterData?: unknown;
   metadata?: JsonRecord;
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 interface ActionLogInput {
@@ -18,6 +20,8 @@ interface ActionLogInput {
   resourceType?: string | null;
   resourceId?: string | null;
   metadata?: JsonRecord;
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 function sanitize(value: unknown): unknown {
@@ -40,6 +44,15 @@ function uuidOrNull(value?: string | null) {
     : null;
 }
 
+export function getRequestAuditInfo(request: Request) {
+  const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  const realIp = request.headers.get('x-real-ip')?.trim();
+  return {
+    ipAddress: forwardedFor || realIp || null,
+    userAgent: request.headers.get('user-agent') || null,
+  };
+}
+
 export async function logAudit(input: AuditLogInput) {
   try {
     const adminClient = await createAdminClient();
@@ -51,6 +64,8 @@ export async function logAudit(input: AuditLogInput) {
       before_data: input.beforeData === undefined ? null : sanitize(input.beforeData),
       after_data: input.afterData === undefined ? null : sanitize(input.afterData),
       metadata: input.metadata ? sanitize(input.metadata) : null,
+      ip_address: input.ipAddress || null,
+      user_agent: input.userAgent || null,
     });
   } catch (error) {
     console.error('[Audit Log] Failed to write audit log:', error);
@@ -66,6 +81,8 @@ export async function logAction(input: ActionLogInput) {
       resource_type: input.resourceType || null,
       resource_id: uuidOrNull(input.resourceId),
       metadata: input.metadata ? sanitize(input.metadata) : null,
+      ip_address: input.ipAddress || null,
+      user_agent: input.userAgent || null,
     });
   } catch (error) {
     console.error('[Action Log] Failed to write action log:', error);

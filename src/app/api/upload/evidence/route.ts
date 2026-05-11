@@ -1,18 +1,21 @@
 import { canApproveScores, canRecordScores } from '@/lib/security/roles';
-import { logAudit } from '@/lib/audit/log';
+import { getRequestAuditInfo, logAudit } from '@/lib/audit/log';
+import { apiMessage } from '@/lib/i18n/api';
 import { getStorageProvider } from '@/lib/storage/config';
 import { uploadFileToVercelBlob } from '@/lib/storage/vercel-blob';
 import { getGoogleDriveConfig, isGoogleDriveReady, uploadFileToGoogleDrive } from '@/lib/storage/google-drive';
 import { createAdminClient, createClientWithUser } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { checkUploadRateLimit, safeFileExtension, validateEvidenceFiles } from '@/lib/storage/upload-validation';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
+  const requestInfo = getRequestAuditInfo(request);
   try {
     const { supabase, user } = await createClientWithUser();
     if (!user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: apiMessage(request, 'unauthorized') }, { status: 401 });
     }
 
     const { data: profile } = await supabase
@@ -23,16 +26,20 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (!profile || !canRecordScores(profile)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: apiMessage(request, 'forbidden') }, { status: 403 });
+    }
+
+    if (!checkUploadRateLimit(`evidence:${profile.id}`)) {
+      return NextResponse.json({ error: apiMessage(request, 'rateLimited') }, { status: 429 });
     }
 
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
     const transactionId = formData.get('transaction_id') as string;
 
-    if (!files.length || !transactionId) {
-      return NextResponse.json({ error: 'Missing files or transaction_id' }, { status: 400 });
-    }
+    if (!transactionId) return NextResponse.json({ error: apiMessage(request, 'missingFilesOrTransaction') }, { status: 400 });
+    const validationError = validateEvidenceFiles(files);
+    if (validationError) return NextResponse.json({ error: apiMessage(request, validationError) }, { status: 400 });
 
     const adminClient = await createAdminClient();
     const { data: transaction, error: transactionError } = await adminClient
@@ -42,11 +49,11 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (transactionError || !transaction) {
-      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+      return NextResponse.json({ error: apiMessage(request, 'transactionNotFound') }, { status: 404 });
     }
 
     if (!canApproveScores(profile) && transaction.recorded_by !== profile.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: apiMessage(request, 'forbidden') }, { status: 403 });
     }
 
     const results = [];
@@ -55,11 +62,11 @@ export async function POST(request: Request) {
     const useGoogleDrive = driveConfig ? isGoogleDriveReady(driveConfig, 'evidence') : false;
 
     if (storageProvider === 'google_drive' && !useGoogleDrive) {
-      return NextResponse.json({ error: 'ยังไม่ได้ตั้งค่า Google Drive สำหรับหลักฐานให้ครบถ้วน' }, { status: 500 });
+      return NextResponse.json({ error: apiMessage(request, 'googleDriveEvidenceNotConfigured') }, { status: 500 });
     }
 
     for (const file of files) {
-      const ext = file.name.split('.').pop() || 'jpg';
+      const ext = safeFileExtension(file, 'jpg');
       const fileName = `evidence-${transactionId}-${crypto.randomUUID()}.${ext}`;
 
       if (storageProvider === 'vercel_blob') {
@@ -112,7 +119,7 @@ export async function POST(request: Request) {
       const storagePath = `evidence/${transactionId}/${crypto.randomUUID()}.${ext}`;
       const buffer = Buffer.from(await file.arrayBuffer());
       const { error } = await adminClient.storage
-        .from('school-logos')
+        .from('evidence')
         .upload(storagePath, buffer, { contentType: file.type, upsert: false });
 
       if (error) {
@@ -120,7 +127,7 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const { data: { publicUrl } } = adminClient.storage.from('school-logos').getPublicUrl(storagePath);
+      const { data: { publicUrl } } = adminClient.storage.from('evidence').getPublicUrl(storagePath);
 
       await adminClient.from('score_transaction_evidence').insert({
         transaction_id: transactionId,
@@ -143,12 +150,13 @@ export async function POST(request: Request) {
         targetType: 'score_transaction',
         targetId: transactionId,
         afterData: { count: results.length, urls: results },
+        ...requestInfo,
       });
     }
 
     return NextResponse.json({ success: true, urls: results });
   } catch (err) {
     console.error('[Evidence Upload Route] Error:', err);
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    return NextResponse.json({ error: apiMessage(request, 'uploadFailed') }, { status: 500 });
   }
 }
