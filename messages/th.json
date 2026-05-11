@@ -343,7 +343,14 @@
     "classroomAndGradeRank": "ห้อง #{classroom} · ชั้น #{grade}",
     "studentYearDescription": "{studentId} · {classroom} · ปีการศึกษา {year}",
     "latestHistory": "ประวัติล่าสุด",
-    "noScoreHistory": "ยังไม่มีประวัติคะแนน"
+    "noScoreHistory": "ยังไม่มีประวัติคะแนน",
+    "studentsCount": "จำนวนนักเรียน",
+    "scoreLevelCountLabel": "{level} ({range}) · คน",
+    "scoreLevelLegend": "คำอธิบายระดับคะแนน",
+    "scoreLevelLegendItem": "{level}: {range}",
+    "scoreRangeAtLeast": "{score} คะแนนขึ้นไป",
+    "scoreRangeBetween": "{min}-{max} คะแนน",
+    "scoreRangeBelow": "ต่ำกว่า {score} คะแนน"
   },
   "threshold": {
     "level1": "ครั้งที่ 1",

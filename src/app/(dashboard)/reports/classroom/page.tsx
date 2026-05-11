@@ -22,6 +22,15 @@ function getScoreLevel(score: number, labels: { excellent: string; good: string;
   return labels.poor;
 }
 
+function scoreRangeLabels(baseScore: number, t: ReturnType<typeof useTranslations>) {
+  return {
+    excellent: t('scoreRangeAtLeast', { score: baseScore }),
+    good: t('scoreRangeBetween', { min: baseScore - 20, max: baseScore - 1 }),
+    fair: t('scoreRangeBetween', { min: baseScore - 40, max: baseScore - 21 }),
+    poor: t('scoreRangeBelow', { score: baseScore - 40 }),
+  };
+}
+
 export default function ClassroomReportPage() {
   const t = useTranslations('report');
   const levelT = useTranslations('level');
@@ -191,19 +200,60 @@ export default function ClassroomReportPage() {
               <div className="grid grid-cols-4 gap-4 mb-6 print:grid-cols-4 print:gap-2">
                 <div className="p-3 rounded-lg bg-muted text-center print:border print:bg-white print:p-2">
                   <div className="text-2xl font-bold">{reportData.total_students}</div>
-                  <div className="text-xs text-muted-foreground">{t('students')}</div>
+                  <div className="text-xs text-muted-foreground">{t('studentsCount')}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted text-center print:border print:bg-white print:p-2">
                   <div className="text-2xl font-bold">{reportData.average_score}</div>
                   <div className="text-xs text-muted-foreground">{t('averageScore')}</div>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6 lg:grid-cols-4 print:grid-cols-4 print:gap-2">
                 <div className="p-3 rounded-lg bg-muted text-center print:border print:bg-white print:p-2">
                   <div className="text-2xl font-bold text-green-600">{reportData.distribution.excellent}</div>
-                  <div className="text-xs text-muted-foreground">{t('excellent')}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {t('scoreLevelCountLabel', {
+                      level: t('excellent'),
+                      range: scoreRangeLabels(reportData.base_score, t).excellent,
+                    })}
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-muted text-center print:border print:bg-white print:p-2">
+                  <div className="text-2xl font-bold text-blue-600">{reportData.distribution.good}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {t('scoreLevelCountLabel', {
+                      level: levelT('good'),
+                      range: scoreRangeLabels(reportData.base_score, t).good,
+                    })}
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-muted text-center print:border print:bg-white print:p-2">
+                  <div className="text-2xl font-bold text-amber-600">{reportData.distribution.fair}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {t('scoreLevelCountLabel', {
+                      level: levelT('fair'),
+                      range: scoreRangeLabels(reportData.base_score, t).fair,
+                    })}
+                  </div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted text-center print:border print:bg-white print:p-2">
                   <div className="text-2xl font-bold text-red-600">{reportData.distribution.poor}</div>
-                  <div className="text-xs text-muted-foreground">{t('poor')}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {t('scoreLevelCountLabel', {
+                      level: t('poor'),
+                      range: scoreRangeLabels(reportData.base_score, t).poor,
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-6 rounded-lg border bg-muted/30 p-3 print:border print:bg-white">
+                <div className="mb-2 text-sm font-medium">{t('scoreLevelLegend')}</div>
+                <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
+                  <div>{t('scoreLevelLegendItem', { level: t('excellent'), range: scoreRangeLabels(reportData.base_score, t).excellent })}</div>
+                  <div>{t('scoreLevelLegendItem', { level: levelT('good'), range: scoreRangeLabels(reportData.base_score, t).good })}</div>
+                  <div>{t('scoreLevelLegendItem', { level: levelT('fair'), range: scoreRangeLabels(reportData.base_score, t).fair })}</div>
+                  <div>{t('scoreLevelLegendItem', { level: t('poor'), range: scoreRangeLabels(reportData.base_score, t).poor })}</div>
                 </div>
               </div>
 

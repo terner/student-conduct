@@ -341,7 +341,14 @@
     "classroomAndGradeRank": "Class #{classroom} · Grade #{grade}",
     "studentYearDescription": "{studentId} · {classroom} · Academic year {year}",
     "latestHistory": "Latest history",
-    "noScoreHistory": "No score history yet"
+    "noScoreHistory": "No score history yet",
+    "studentsCount": "Student count",
+    "scoreLevelCountLabel": "{level} ({range}) · people",
+    "scoreLevelLegend": "Score level guide",
+    "scoreLevelLegendItem": "{level}: {range}",
+    "scoreRangeAtLeast": "{score} points or more",
+    "scoreRangeBetween": "{min}-{max} points",
+    "scoreRangeBelow": "Below {score} points"
   },
   "threshold": {
     "level1": "Level 1",
