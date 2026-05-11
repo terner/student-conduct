@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [recentTx, setRecentTx] = useState<any[]>([]);
   const [atRisk, setAtRisk] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const realtimeRefreshRef = useRef<number | null>(null);
 
   const loadDashboard = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
@@ -85,21 +86,31 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const supabase = createClient();
+    const scheduleRefresh = () => {
+      if (realtimeRefreshRef.current) window.clearTimeout(realtimeRefreshRef.current);
+      realtimeRefreshRef.current = window.setTimeout(() => {
+        loadDashboard();
+      }, 750);
+    };
     const channel = supabase
       .channel(`dashboard-score-transactions:${selectedAcademicYearId || 'current'}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'score_transactions' },
         (payload) => {
-          const row = (payload.new || payload.old) as { academic_year_id?: string } | null;
-          if (!selectedAcademicYearId || !row?.academic_year_id || row.academic_year_id === selectedAcademicYearId) {
-            loadDashboard();
+          const newRow = payload.new as { academic_year_id?: string; status?: string } | null;
+          const oldRow = payload.old as { academic_year_id?: string; status?: string } | null;
+          const row = newRow || oldRow;
+          const affectsApprovedScore = newRow?.status === 'approved' || oldRow?.status === 'approved';
+          if (affectsApprovedScore && (!selectedAcademicYearId || !row?.academic_year_id || row.academic_year_id === selectedAcademicYearId)) {
+            scheduleRefresh();
           }
         },
       )
       .subscribe();
 
     return () => {
+      if (realtimeRefreshRef.current) window.clearTimeout(realtimeRefreshRef.current);
       void supabase.removeChannel(channel);
     };
   }, [loadDashboard, selectedAcademicYearId]);

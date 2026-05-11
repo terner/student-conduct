@@ -29,6 +29,7 @@
     "loadMore": "ดูเพิ่มเติม",
     "types": {
       "threshold_reached": "ถึงเกณฑ์",
+      "score_approval_pending": "รออนุมัติ",
       "score_recorded": "บันทึกคะแนน",
       "pending_approval": "รออนุมัติ",
       "report_ready": "รายงาน"

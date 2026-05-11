@@ -99,6 +99,9 @@ export function NotificationBell() {
     if (notification.resource_type === 'student' && notification.resource_id) {
       setOpen(false);
       router.push(`/students/${notification.resource_id}`);
+    } else if (notification.resource_type === 'score_transaction') {
+      setOpen(false);
+      router.push('/score/approval');
     }
   }
 

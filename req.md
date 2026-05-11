@@ -1702,6 +1702,8 @@ type ErrorResponse = {
 
 - Bell notification ต้องแสดงจำนวน unread, type/status, เวลาสร้าง, และมี target link ไปหน้า student profile หรือรายงานถึงเกณฑ์
   - Implemented: bell refresh ผ่าน Supabase Realtime channel เมื่อมี notification ของ recipient ปัจจุบัน และมี fallback polling/focus refresh เพื่อให้ยังอัปเดตได้แม้ยังไม่ได้เปิด realtime replication ใน Supabase
+  - Implemented: score approval queue ใช้ Supabase Realtime บน `score_transactions` สำหรับรายการ `pending`; dashboard/threshold report refresh เฉพาะ event ที่คะแนนมีผลจริง (`approved` หรือเคย `approved` แล้วถูก void) พร้อม debounce เพื่อลดการโหลดซ้ำ
+  - Implemented: เมื่อบันทึกคะแนนที่ต้องอนุมัติ ระบบสร้าง notification ชนิด `score_approval_pending` ให้ admin/superadmin และ mark เป็นอ่านแล้วเมื่อรายการถูก approve/void
 
 - `PATCH /api/notifications` สำหรับ mark read ต้องตรวจ ownership ของ notification ก่อน update เสมอ
 

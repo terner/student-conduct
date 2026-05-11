@@ -29,6 +29,7 @@
     "loadMore": "Load more",
     "types": {
       "threshold_reached": "Threshold",
+      "score_approval_pending": "Approval",
       "score_recorded": "Score",
       "pending_approval": "Approval",
       "report_ready": "Report"

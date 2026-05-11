@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { getScores, approveScore, voidScore } from '@/lib/actions/score.action';
 import { ScoreTransactionTable } from '@/components/features/scores/score-transaction-table';
 import type { ScoreTransactionWithDetails } from '@/lib/db/queries/score.queries';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
+import { createClient } from '@/lib/supabase/client';
 
 export default function ApprovalPage() {
   const t = useTranslations('score');
@@ -20,6 +21,7 @@ export default function ApprovalPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
+  const realtimeRefreshRef = useRef<number | null>(null);
 
   const fetchData = useCallback(async (pageNum = 1) => {
     setLoading(true);
@@ -52,6 +54,44 @@ export default function ApprovalPage() {
       }
     });
   }, [selectedAcademicYearId]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const scheduleRefresh = () => {
+      if (realtimeRefreshRef.current) window.clearTimeout(realtimeRefreshRef.current);
+      realtimeRefreshRef.current = window.setTimeout(() => {
+        void fetchData(page);
+        getScores({
+          status: 'pending',
+          page_size: 1,
+          academic_year_id: selectedAcademicYearId || undefined,
+        }).then((res) => {
+          if (res.success && res.data) setPendingCount(res.data.total);
+        });
+      }, 750);
+    };
+    const channel = supabase
+      .channel(`score-approval:${selectedAcademicYearId || 'current'}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'score_transactions' },
+        (payload) => {
+          const newRow = payload.new as { academic_year_id?: string; status?: string } | null;
+          const oldRow = payload.old as { academic_year_id?: string; status?: string } | null;
+          const row = newRow || oldRow;
+          const affectsPendingQueue = newRow?.status === 'pending' || oldRow?.status === 'pending';
+          if (affectsPendingQueue && (!selectedAcademicYearId || !row?.academic_year_id || row.academic_year_id === selectedAcademicYearId)) {
+            scheduleRefresh();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      if (realtimeRefreshRef.current) window.clearTimeout(realtimeRefreshRef.current);
+      void supabase.removeChannel(channel);
+    };
+  }, [fetchData, page, selectedAcademicYearId]);
 
   const handleApprove = async (transactionId: string) => {
     try {

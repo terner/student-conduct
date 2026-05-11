@@ -20,6 +20,7 @@ import { canApproveScores, canRecordScores } from '@/lib/security/roles';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
 import { logAudit } from '@/lib/audit/log';
 import { notifyThresholdReached } from '@/lib/notifications/threshold';
+import { notifyScoreApprovalPending, resolveScoreApprovalPendingNotifications } from '@/lib/notifications/score-approval';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -252,6 +253,15 @@ export async function recordScore(data: {
         transactionId: result.id,
       });
     }
+    if (category?.requires_approval) {
+      await notifyScoreApprovalPending({
+        transactionId: result.id,
+        studentId: validated.student_id,
+        academicYearId,
+        points: validated.points,
+        categoryName: category?.name || null,
+      });
+    }
 
     return { success: true, data: result };
   });
@@ -298,6 +308,15 @@ export async function recordBulkScore(data: {
         category_type: category?.type || undefined,
       });
       results.push(result);
+      if (category?.requires_approval) {
+        await notifyScoreApprovalPending({
+          transactionId: result.id,
+          studentId,
+          academicYearId: openYearResult.academicYear.id as string,
+          points: data.points,
+          categoryName: category?.name || null,
+        });
+      }
     }
 
     await logAudit({
@@ -352,6 +371,7 @@ export async function voidScore(transactionId: string, voidReason: string) {
       beforeData: before,
       afterData: { status: 'voided', void_reason: validated.void_reason },
     });
+    await resolveScoreApprovalPendingNotifications(transactionId);
     return { success: true, data: { transaction_id: transactionId } };
   });
 }
@@ -401,6 +421,7 @@ export async function approveScore(transactionId: string) {
       beforeData: transaction,
       afterData: { status: 'approved' },
     });
+    await resolveScoreApprovalPendingNotifications(transactionId);
     if (transaction && Number(transaction.points) < 0) {
       await notifyThresholdReached({
         studentId: transaction.student_id as string,

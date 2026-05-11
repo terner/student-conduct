@@ -238,6 +238,7 @@
 - [x] **Score approval hardening** — approve ได้เฉพาะ pending, void ได้เฉพาะ pending/approved, ตรวจ evidence และปีการศึกษาปัจจุบันก่อนแก้คะแนน พร้อม audit before/after
 - [x] **School statistics page** — charts/histograms ในเมนู Reports (`/reports/statistics`) สำหรับสรุปภาพรวมคะแนนพฤติกรรมของโรงเรียน
 - [x] **Notifications realtime** — notification bell refresh จาก Supabase realtime channel พร้อม fallback polling/focus refresh
+- [x] **Score approval realtime + notifications** — หน้าอนุมัติคะแนน refresh จาก Supabase realtime สำหรับ pending queue, dashboard/threshold refresh เฉพาะคะแนนที่ approved/เคย approved, และส่ง notification ไปยัง admin/superadmin เมื่อมีคะแนนรออนุมัติ
 
 ### Low Priority / Nice to Have
 - [x] **Production rate limiting + shared cache** — ใช้ Upstash Redis ผ่าน Vercel Marketplace สำหรับ login/upload/storage test และ cache master data/select list โดย fallback เป็น in-memory เมื่อไม่มี env
