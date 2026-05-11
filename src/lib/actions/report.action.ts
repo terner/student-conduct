@@ -1063,19 +1063,29 @@ export async function getThresholdReport(academicYearId?: string) {
       .filter((threshold) => Number.isFinite(threshold.deducted))
       .sort((a, b) => a.deducted - b.deducted);
 
-    // Get all active students
-    const { data: enrollmentRows } = await supabase
-      .from('student_enrollments')
-      .select(`
-        students!inner(
-          id,
-          student_id_number,
-          profiles!inner(full_name, prefix)
-        ),
-        classrooms!inner(name, grade_level)
-      `)
-      .eq('academic_year_id', acYearId || '')
-      .in('enrollment_status', ['active', 'promoted', 'repeated', 'transferred', 'graduated']);
+    // Get all active students. Supabase REST defaults to 1,000 rows per request,
+    // so page this query explicitly to avoid missing students in large years.
+    const enrollmentRows: Record<string, unknown>[] = [];
+    const enrollmentPageSize = 1000;
+    for (let from = 0; ; from += enrollmentPageSize) {
+      const { data, error } = await supabase
+        .from('student_enrollments')
+        .select(`
+          students!inner(
+            id,
+            student_id_number,
+            profiles!inner(full_name, prefix)
+          ),
+          classrooms!inner(name, grade_level)
+        `)
+        .eq('academic_year_id', acYearId || '')
+        .in('enrollment_status', ['active', 'promoted', 'repeated', 'transferred', 'graduated'])
+        .range(from, from + enrollmentPageSize - 1);
+
+      if (error) throw error;
+      enrollmentRows.push(...((data || []) as Record<string, unknown>[]));
+      if (!data || data.length < enrollmentPageSize) break;
+    }
 
     const students = (enrollmentRows || [])
       .map((row: Record<string, unknown>) => ({
@@ -1111,19 +1121,25 @@ export async function getThresholdReport(academicYearId?: string) {
     const studentIds = students.map((s: any) => s.id);
     let allTransactions: { student_id: string; points: number; status: string }[] = [];
 
-    const chunkSize = 1000;
+    const chunkSize = 100;
     for (let i = 0; i < studentIds.length; i += chunkSize) {
       const chunk = studentIds.slice(i, i + chunkSize);
-      let txQuery = supabase
-        .from('score_transactions')
-        .select('student_id, points, status')
-        .in('student_id', chunk)
-        .eq('status', 'approved');
-      if (acYearId) {
-        txQuery = txQuery.eq('academic_year_id', acYearId);
+      const txPageSize = 1000;
+      for (let from = 0; ; from += txPageSize) {
+        let txQuery = supabase
+          .from('score_transactions')
+          .select('student_id, points, status')
+          .in('student_id', chunk)
+          .eq('status', 'approved')
+          .range(from, from + txPageSize - 1);
+        if (acYearId) {
+          txQuery = txQuery.eq('academic_year_id', acYearId);
+        }
+        const { data, error } = await txQuery;
+        if (error) throw error;
+        if (data) allTransactions.push(...data);
+        if (!data || data.length < txPageSize) break;
       }
-      const { data } = await txQuery;
-      if (data) allTransactions.push(...data);
     }
 
     // Build score lookup: student_id -> { deducted, added, deductCount, addCount }
