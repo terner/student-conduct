@@ -337,10 +337,10 @@ export default function IndividualReportPage() {
             onValueChange={(value: string | null) => setClassroomName(value || '')}
             itemToStringLabel={(value) => classroomOptions.find((classroom) => classroom.name === value)?.name || String(value)}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="h-10 w-full min-w-0">
               <SelectValue placeholder={reportT('allClassrooms')} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-72">
               {classroomOptions.map((classroom) => (
                 <SelectItem key={classroom.id} value={classroom.name} label={classroom.name}>
                   {classroom.name}

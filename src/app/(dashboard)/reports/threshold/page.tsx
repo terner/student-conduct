@@ -130,16 +130,6 @@ export default function ThresholdReportPage() {
         </Button>
       </div>
 
-      {reportData?.thresholds && (
-        <div className="flex flex-wrap gap-2">
-          {reportData.thresholds.map((threshold: any, i: number) => (
-            <Badge key={i} variant="outline" className="text-sm" style={{ borderColor: threshold.color }}>
-              {t('thresholdRule', { level: i + 1, points: threshold.deducted, action: threshold.action })}
-            </Badge>
-          ))}
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{t('filters')}</CardTitle>

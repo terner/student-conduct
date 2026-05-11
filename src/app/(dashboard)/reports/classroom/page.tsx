@@ -135,12 +135,12 @@ export default function ClassroomReportPage() {
                 return c ? c.name : String(value);
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="min-w-0">
                 <SelectValue placeholder={t('selectClassroom')}>
-                  {selectedClassroom?.name}
+                  <span className="truncate">{selectedClassroom?.name}</span>
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-72">
                 {classrooms.map(c => (
                   <SelectItem key={c.id} value={c.id} label={c.name}>{c.name}</SelectItem>
                 ))}
