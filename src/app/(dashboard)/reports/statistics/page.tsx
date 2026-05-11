@@ -137,6 +137,11 @@ export default function SchoolStatisticsPage() {
           onValueChange={(value) => {
             if (value) setAcademicYearId(value);
           }}
+          itemToStringLabel={(value) => {
+            const year = data.academic_years.find((item) => item.id === value);
+            if (!year) return String(value || '');
+            return `${year.name}${year.is_current ? ` ${reportT('currentYearBadge')}` : ''}`;
+          }}
         >
           <SelectTrigger className="w-full md:w-[220px]">
             <SelectValue placeholder={reportT('selectAcademicYear')} />
