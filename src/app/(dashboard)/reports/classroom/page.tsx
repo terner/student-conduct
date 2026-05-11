@@ -50,20 +50,22 @@ export default function ClassroomReportPage() {
   useEffect(() => {
     async function loadClassrooms() {
       setLoadingClassrooms(true);
+      setError('');
       const result = await getClassrooms({ academic_year_id: selectedAcademicYearId || undefined });
       if (result.success) {
         setClassrooms(result.data);
         setReportData(null);
         setSelectedId('');
+        setLoadingClassrooms(false);
         const defaultClassroom = result.data[0];
         if (defaultClassroom) {
           setSelectedId(defaultClassroom.id);
-          await loadReport(defaultClassroom.id);
+          void loadReport(defaultClassroom.id);
         }
       } else {
         setError(result.error.message);
+        setLoadingClassrooms(false);
       }
-      setLoadingClassrooms(false);
     }
     loadClassrooms();
   }, [selectedAcademicYearId]);
@@ -245,16 +247,6 @@ export default function ClassroomReportPage() {
                       range: scoreRangeLabels(reportData.base_score, t).poor,
                     })}
                   </div>
-                </div>
-              </div>
-
-              <div className="mb-6 rounded-lg border bg-muted/30 p-3 print:border print:bg-white">
-                <div className="mb-2 text-sm font-medium">{t('scoreLevelLegend')}</div>
-                <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
-                  <div>{t('scoreLevelLegendItem', { level: t('excellent'), range: scoreRangeLabels(reportData.base_score, t).excellent })}</div>
-                  <div>{t('scoreLevelLegendItem', { level: levelT('good'), range: scoreRangeLabels(reportData.base_score, t).good })}</div>
-                  <div>{t('scoreLevelLegendItem', { level: levelT('fair'), range: scoreRangeLabels(reportData.base_score, t).fair })}</div>
-                  <div>{t('scoreLevelLegendItem', { level: t('poor'), range: scoreRangeLabels(reportData.base_score, t).poor })}</div>
                 </div>
               </div>
 

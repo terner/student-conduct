@@ -936,31 +936,54 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
 
     // ── Bulk-fetch score_transactions for these students ──
     const studentIds = students.map((s: any) => s.id);
-    let allTransactions: { student_id: string; points: number }[] = [];
-    const chunkSize = 1000;
-    for (let i = 0; i < studentIds.length; i += chunkSize) {
-      const chunk = studentIds.slice(i, i + chunkSize);
-      let txQuery = supabase
-        .from('score_transactions')
-        .select('student_id, points, status')
-        .in('student_id', chunk)
-        .eq('status', 'approved');
-      if (acYearId) txQuery = txQuery.eq('academic_year_id', acYearId);
-      const { data } = await txQuery;
-      if (data) allTransactions.push(...data);
+    const summaryMap = new Map<string, {
+      totalDeducted: number;
+      totalAdded: number;
+      deductCount: number;
+      addCount: number;
+      currentScore: number;
+    }>();
+    for (const sid of studentIds) {
+      summaryMap.set(sid, {
+        totalDeducted: 0,
+        totalAdded: 0,
+        deductCount: 0,
+        addCount: 0,
+        currentScore: baseScore,
+      });
     }
 
-    // Build summary per student
-    const summaryMap = new Map<string, { totalDeducted: number; totalAdded: number; currentScore: number }>();
-    for (const sid of studentIds) {
-      const txns = allTransactions.filter(t => t.student_id === sid);
-      const totalDeducted = txns.filter(t => t.points < 0).reduce((s, t) => s + Math.abs(t.points), 0);
-      const totalAdded = txns.filter(t => t.points > 0).reduce((s, t) => s + t.points, 0);
-      summaryMap.set(sid, {
-        totalDeducted,
-        totalAdded,
-        currentScore: baseScore - totalDeducted + totalAdded,
-      });
+    const chunkSize = 100;
+    for (let i = 0; i < studentIds.length; i += chunkSize) {
+      const chunk = studentIds.slice(i, i + chunkSize);
+      const txPageSize = 1000;
+      for (let from = 0; ; from += txPageSize) {
+        let txQuery = supabase
+          .from('score_transactions')
+          .select('student_id, points, status')
+          .in('student_id', chunk)
+          .eq('status', 'approved')
+          .range(from, from + txPageSize - 1);
+        if (acYearId) txQuery = txQuery.eq('academic_year_id', acYearId);
+        const { data, error } = await txQuery;
+        if (error) throw error;
+        for (const tx of data || []) {
+          const summary = summaryMap.get(tx.student_id);
+          if (!summary) continue;
+          if (tx.points < 0) {
+            summary.totalDeducted += Math.abs(tx.points);
+            summary.deductCount++;
+          } else {
+            summary.totalAdded += tx.points;
+            summary.addCount++;
+          }
+        }
+        if (!data || data.length < txPageSize) break;
+      }
+    }
+
+    for (const summary of summaryMap.values()) {
+      summary.currentScore = baseScore - summary.totalDeducted + summary.totalAdded;
     }
 
     const studentStats: Omit<ClassroomReportStudent, 'rank'>[] = [];
@@ -969,7 +992,13 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
 
     for (const student of students) {
       const s = student as any;
-      const summary = summaryMap.get(s.id) || { totalDeducted: 0, totalAdded: 0, currentScore: baseScore };
+      const summary = summaryMap.get(s.id) || {
+        totalDeducted: 0,
+        totalAdded: 0,
+        deductCount: 0,
+        addCount: 0,
+        currentScore: baseScore,
+      };
       totalScoreSum += summary.currentScore;
 
       if (summary.currentScore >= baseScore) distribution.excellent++;
@@ -984,8 +1013,8 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
         total_deducted: summary.totalDeducted,
         total_added: summary.totalAdded,
         current_score: summary.currentScore,
-        deduct_count: 0,
-        add_count: 0,
+        deduct_count: summary.deductCount,
+        add_count: summary.addCount,
       });
     }
 
