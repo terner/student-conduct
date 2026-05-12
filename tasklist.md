@@ -245,6 +245,7 @@
 - [ ] **ScoreTimeline chart** — recharts line chart component
 - [ ] **PDPA version management** — admin publish new version
 - [x] **School branding in login page** — show logo + school name from Settings on login page
+- [x] **Production error monitoring** — เพิ่ม Sentry SDK สำหรับ Next.js, client/server/edge instrumentation, source map upload config และ CSP connect-src สำหรับ Sentry ingest
 
 ---
 
