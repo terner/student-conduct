@@ -432,7 +432,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
         </div>
         <div className="grid gap-3 sm:grid-cols-[120px_1fr_1fr]">
           <div className="space-y-2">
-            <Label>{t('prefix')} *</Label>
+            <Label>{t('prefix')}</Label>
             <Select
               value={guardianPrefixValue}
               onValueChange={(value) => {
@@ -458,12 +458,12 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
             {errors.guardian_prefix && <p className="text-xs text-destructive">{errors.guardian_prefix.message}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guardian_first_name">{t('firstName')} *</Label>
+            <Label htmlFor="guardian_first_name">{t('firstName')}</Label>
             <Input id="guardian_first_name" {...register('guardian_first_name')} placeholder={t('firstName')} />
             {errors.guardian_first_name && <p className="text-xs text-destructive">{errors.guardian_first_name.message}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guardian_last_name">{t('lastName')} *</Label>
+            <Label htmlFor="guardian_last_name">{t('lastName')}</Label>
             <Input id="guardian_last_name" {...register('guardian_last_name')} placeholder={t('lastName')} />
             {errors.guardian_last_name && <p className="text-xs text-destructive">{errors.guardian_last_name.message}</p>}
           </div>
@@ -489,7 +489,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guardian_phone">{t('guardianPhone')} *</Label>
+            <Label htmlFor="guardian_phone">{t('guardianPhone')}</Label>
             <Input
               id="guardian_phone"
               inputMode="numeric"

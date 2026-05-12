@@ -404,8 +404,8 @@ export async function addStudent(data: {
   guardian_phone?: string;
 }) {
   return withAuth(async (profile) => {
-    if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+    if (!canManageSchoolData(profile) && !canApproveScores(profile)) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบหรือผู้ดูแลสูงสุด' } };
     }
 
     // Validate

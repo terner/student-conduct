@@ -718,9 +718,6 @@ export async function upsertPrimaryGuardian(
   const relation = guardianData.relation || 'guardian';
 
   if (!fullName && !phone) return;
-  if (!fullName || !phone) {
-    throw new Error('กรุณากรอกชื่อผู้ปกครองและเบอร์โทรให้ครบ');
-  }
 
   const { data: existingLink } = await supabase
     .from('student_guardians')
@@ -736,8 +733,8 @@ export async function upsertPrimaryGuardian(
         prefix: prefix || null,
         first_name: firstName || null,
         last_name: lastName || null,
-        full_name: fullName,
-        phone,
+        full_name: fullName || null,
+        phone: phone || null,
       })
       .eq('id', existingLink.guardian_id);
     if (guardianError) throw guardianError;
@@ -757,8 +754,8 @@ export async function upsertPrimaryGuardian(
       prefix: prefix || null,
       first_name: firstName || null,
       last_name: lastName || null,
-      full_name: fullName,
-      phone,
+      full_name: fullName || null,
+      phone: phone || null,
     })
     .select('id')
     .single();

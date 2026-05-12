@@ -131,48 +131,6 @@ export const studentSchema = z.object({
     .regex(THAI_PHONE_REGEX, errorMessages.invalidPhone)
     .optional()
     .or(z.literal('')),
-}).superRefine((data, ctx) => {
-  const hasGuardianInput = Boolean(
-    data.guardian_prefix
-    || data.guardian_first_name
-    || data.guardian_last_name
-    || data.guardian_phone
-    || data.guardian_full_name,
-  );
-
-  if (!hasGuardianInput) return;
-
-  if (!data.guardian_prefix) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['guardian_prefix'],
-      message: errorMessages.required,
-    });
-  }
-
-  if (!data.guardian_first_name) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['guardian_first_name'],
-      message: errorMessages.required,
-    });
-  }
-
-  if (!data.guardian_last_name) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['guardian_last_name'],
-      message: errorMessages.required,
-    });
-  }
-
-  if (!data.guardian_phone) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['guardian_phone'],
-      message: errorMessages.required,
-    });
-  }
 });
 
 export const studentImportSchema = z.object({
