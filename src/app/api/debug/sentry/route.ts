@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 function isAuthorized(request: Request) {
   const expectedToken = process.env.SENTRY_TEST_TOKEN;
-  if (!expectedToken) return true;
+  if (!expectedToken) return false;
 
   const url = new URL(request.url);
   const queryToken = url.searchParams.get('token');
@@ -14,7 +14,7 @@ function isAuthorized(request: Request) {
 }
 
 export async function GET(request: Request) {
-  if (process.env.ENABLE_SENTRY_TEST_ROUTE !== 'true') {
+  if (!process.env.SENTRY_TEST_TOKEN) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
