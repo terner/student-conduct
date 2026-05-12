@@ -366,7 +366,6 @@ export default function ScoreRecordPage() {
                 <TableRow>
                   <TableHead className="w-[150px]">{studentT('id')}</TableHead>
                   <TableHead>{studentT('fullName')}</TableHead>
-                  <TableHead className="w-[160px]">{t('gradeLevel')}</TableHead>
                   <TableHead className="w-[120px]">{studentT('classroom')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -379,9 +378,6 @@ export default function ScoreRecordPage() {
                   >
                     <TableCell className="font-mono text-xs">{s.student_id_number}</TableCell>
                     <TableCell className="font-medium">{s.full_name}</TableCell>
-                    <TableCell>
-                      {s.grade_level_name || gradeOptions.find(g => g.education_stage_id === s.education_stage_id && g.grade_level === s.grade_level)?.label || s.grade_level}
-                    </TableCell>
                     <TableCell>{s.classroom_name}</TableCell>
                   </TableRow>
                 ))}

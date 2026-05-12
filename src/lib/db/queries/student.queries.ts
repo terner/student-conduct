@@ -8,6 +8,7 @@ export type StudentWithProfile = Student & {
   last_name: string;
   class_number?: number;
   classroom_name: string;
+  education_stage_id?: string;
   grade_level_id?: string;
   grade_level_name?: string;
   grade_level: number;
@@ -216,6 +217,7 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
       last_name,
       class_number: classNumberByStudentId.get(s.id as string),
       classroom_name: classroom.name as string || '',
+      education_stage_id: stageId,
       grade_level_id: classroom.grade_level_id as string || '',
       grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
       grade_level: classroom.grade_level as number || 0,
@@ -280,6 +282,7 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
     last_name,
     class_number: classNumber,
     classroom_name: classroom.name as string || '',
+    education_stage_id: stageId,
     grade_level_id: classroom.grade_level_id as string || '',
     grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
     grade_level: classroom.grade_level as number || 0,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, Upload, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { StudentTable } from '@/components/features/students/student-table';
 import { StudentSearch } from '@/components/features/students/student-search';
 import { StudentForm } from '@/components/features/students/student-form';
-import { getStudents, getStudentsForCsvExport, addStudent, editStudent, deleteStudent } from '@/lib/actions/student.action';
+import { getStudentsForClientFilters, getStudentsForCsvExport, addStudent, editStudent, deleteStudent } from '@/lib/actions/student.action';
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 import { studentPrefixEnum, type StudentInput } from '@/lib/validation/schemas';
@@ -19,9 +19,7 @@ export default function StudentsPage() {
   const t = useTranslations('student');
   const common = useTranslations('common');
   const selectedAcademicYearId = useSelectedAcademicYearId();
-  const [data, setData] = useState<StudentWithProfile[]>([]);
-  const [total, setTotal] = useState(0);
-  const [unfilteredTotal, setUnfilteredTotal] = useState(0);
+  const [allStudents, setAllStudents] = useState<StudentWithProfile[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -46,37 +44,29 @@ export default function StudentsPage() {
       : 'guardian';
   };
 
-  const fetchData = useCallback(async (params: Record<string, string> = {}, pageNum = 1) => {
+  const loadStudents = useCallback(async () => {
     if (!selectedAcademicYearId) {
-      setData([]);
-      setTotal(0);
-      setLoading(true);
+      setAllStudents([]);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
-    const result = await getStudents({
-      ...params,
-      academic_year: selectedAcademicYearId,
-      page: pageNum,
-    });
+    const result = await getStudentsForClientFilters(selectedAcademicYearId);
     if (result.success && result.data) {
-      setData(result.data.data as unknown as StudentWithProfile[]);
-      setTotal(result.data.total);
-      if (Object.keys(params).length === 0) setUnfilteredTotal(result.data.total);
+      setAllStudents(result.data as StudentWithProfile[]);
       setLoading(false);
       return;
     } else {
-      setData([]);
-      setTotal(0);
+      setAllStudents([]);
       toast(common('error'), { description: !result.success ? result.error.message : 'โหลดข้อมูลนักเรียนไม่สำเร็จ' });
     }
     setLoading(false);
   }, [common, selectedAcademicYearId]);
 
   useEffect(() => {
-    void Promise.resolve().then(() => fetchData(searchParams, page));
-  }, [page, fetchData, searchParams]);
+    void Promise.resolve().then(() => loadStudents());
+  }, [loadStudents]);
 
   useEffect(() => {
     if (!selectedAcademicYearId) {
@@ -103,12 +93,11 @@ export default function StudentsPage() {
   const handleSearch = useCallback((params: Record<string, string | undefined>) => {
     const cleaned: Record<string, string> = {};
     Object.entries(params).forEach(([k, v]) => {
-      if (v) cleaned[k] = v;
+      if (k !== 'academic_year' && v) cleaned[k] = v;
     });
     setSearchParams(cleaned);
     setPage(1);
-    fetchData(cleaned, 1);
-  }, [fetchData]);
+  }, []);
 
   const handleAddStudent = async (formData: StudentInput & { avatar_url?: string }) => {
     const result = await addStudent({
@@ -131,7 +120,7 @@ export default function StudentsPage() {
       setShowAddForm(false);
       const name = `${formData.prefix}${formData.first_name} ${formData.last_name}`;
       toast(t('addSuccess'), { description: t('addSuccessDescription', { name }) });
-      fetchData(searchParams, page);
+      loadStudents();
     } else {
       setActionError({
         title: 'เพิ่มข้อมูลนักเรียนไม่สำเร็จ',
@@ -162,7 +151,7 @@ export default function StudentsPage() {
     if (result.success) {
       setEditingStudent(null);
       toast(t('editSuccess'));
-      fetchData(searchParams, page);
+      loadStudents();
     } else {
       setEditingStudent(null);
       setActionError({
@@ -180,7 +169,7 @@ export default function StudentsPage() {
       if (result.success) {
         setDeletingStudent(null);
         toast(t('deleteSuccess'), { description: t('deleteSuccessDescription') });
-        fetchData(searchParams, page);
+        loadStudents();
       } else {
         toast(common('error'), { description: result.error?.message });
       }
@@ -194,8 +183,9 @@ export default function StudentsPage() {
   const handleExportCSV = async () => {
     if (!selectedAcademicYearId || exporting) return;
     setExporting(true);
+    const { search, ...serverFilters } = searchParams;
     const result = await getStudentsForCsvExport({
-      ...searchParams,
+      ...serverFilters,
       academic_year: selectedAcademicYearId,
     });
     setExporting(false);
@@ -204,10 +194,18 @@ export default function StudentsPage() {
       return;
     }
 
+    const searchTerm = search?.trim().toLowerCase();
+    const exportRows = searchTerm
+      ? result.data.filter((row) => {
+          const fullName = `${row.prefix}${row.first_name} ${row.last_name}`.toLowerCase();
+          return row.student_id.toLowerCase().includes(searchTerm) || fullName.includes(searchTerm);
+        })
+      : result.data;
+
     // BOM for Thai characters in Excel
     const BOM = '﻿';
     const headers = ['ปีการศึกษา', 'รหัสนักเรียน', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'ชั้นปี', 'ห้อง', 'เลขที่ในห้อง', 'ระดับ', 'สถานะ', 'ชื่อผู้ปกครอง', 'ความสัมพันธ์', 'เบอร์โทรผู้ปกครอง'];
-    const rows = result.data.map((s) => [
+    const rows = exportRows.map((s) => [
       s.academic_year,
       s.student_id,
       s.prefix,
@@ -232,15 +230,52 @@ export default function StudentsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `students_${result.data[0]?.academic_year || 'export'}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `students_${exportRows[0]?.academic_year || 'export'}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  const filteredData = useMemo(() => {
+    const search = searchParams.search?.trim().toLowerCase();
+    return allStudents.filter((student) => {
+      if (search) {
+        const fullName = `${student.prefix}${student.first_name} ${student.last_name}`.toLowerCase();
+        const fullNameSpaced = `${student.prefix} ${student.first_name} ${student.last_name}`.toLowerCase();
+        if (
+          !student.student_id_number.toLowerCase().includes(search)
+          && !fullName.includes(search)
+          && !fullNameSpaced.includes(search)
+        ) {
+          return false;
+        }
+      }
+
+      if (searchParams.classroom_id && student.classroom_id !== searchParams.classroom_id) return false;
+      if (searchParams.grade_level_id && student.grade_level_id !== searchParams.grade_level_id) return false;
+      if (searchParams.grade_level && String(student.grade_level) !== String(searchParams.grade_level)) return false;
+      if (searchParams.education_stage_id && student.education_stage_id !== searchParams.education_stage_id) return false;
+      return true;
+    });
+  }, [allStudents, searchParams]);
+
+  const data = useMemo(() => {
+    const start = (page - 1) * 20;
+    return filteredData.slice(start, start + 20);
+  }, [filteredData, page]);
+
+  const total = filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(total / 20));
+  const unfilteredTotal = allStudents.length;
   const hasActiveFilters = Object.keys(searchParams).length > 0;
   const from = total === 0 ? 0 : (page - 1) * 20 + 1;
   const to = total === 0 ? 0 : (page - 1) * 20 + data.length;
   const baseTotal = hasActiveFilters ? Math.max(unfilteredTotal, total) : total;
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(1);
+    }
+  }, [page, totalPages]);
 
   return (
     <div className="p-6 space-y-6">
@@ -250,7 +285,7 @@ export default function StudentsPage() {
           <p className="text-muted-foreground mt-1">{t('manageDescription')}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportCSV} disabled={data.length === 0 || exporting}>
+          <Button variant="outline" onClick={handleExportCSV} disabled={filteredData.length === 0 || exporting}>
             <Download className="mr-2 h-4 w-4" />
             {exporting ? 'กำลังส่งออก...' : t('exportCsv')}
           </Button>
@@ -317,12 +352,12 @@ export default function StudentsPage() {
           {editingStudent && (
             <StudentForm
               defaultValues={{
-                prefix: normalizeStudentPrefix(editingStudent.prefix),
-                first_name: editingStudent.first_name,
-                last_name: editingStudent.last_name,
-                student_id_number: editingStudent.student_id_number,
-                classroom_id: editingStudent.classroom_id,
-                class_number: 1,
+              prefix: normalizeStudentPrefix(editingStudent.prefix),
+              first_name: editingStudent.first_name,
+              last_name: editingStudent.last_name,
+              student_id_number: editingStudent.student_id_number,
+              classroom_id: editingStudent.classroom_id,
+                class_number: editingStudent.class_number ?? 1,
                 avatar_url: editingStudent.avatar_url || '',
                 current_status: editingStudent.current_status,
                 guardian_full_name: editingStudent.guardian_full_name || '',

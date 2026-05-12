@@ -10,6 +10,7 @@ import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl
 import { logAudit } from '@/lib/audit/log';
 import { buildGuardianFullName, parseGuardianFullName } from '@/lib/guardian';
 import { normalizePhoneInput } from '@/lib/phone';
+import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 const SHORT_LIST_TTL_MS = 60 * 1000;
@@ -219,6 +220,22 @@ export async function getStudents(params: {
       grade_level: validated.grade_level === '' ? undefined : validated.grade_level,
     });
     return { success: true, data: result };
+  });
+}
+
+export async function getStudentsForClientFilters(academicYearId?: string) {
+  return withAuth<StudentWithProfile[]>(async (profile) => {
+    if (!canManageSchoolData(profile) && !canApproveScores(profile)) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายชื่อนักเรียน' } };
+    }
+
+    const result = await listStudents({
+      page: 1,
+      page_size: 5000,
+      academic_year: academicYearId,
+    });
+
+    return { success: true, data: result.data };
   });
 }
 
