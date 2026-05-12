@@ -344,7 +344,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
 
       <div className="space-y-2">
         <Label htmlFor="student_id_number">{t('idTenDigits')} *</Label>
-        <Input id="student_id_number" {...register('student_id_number')} placeholder={t('idPlaceholder')} maxLength={10} />
+        <Input id="student_id_number" inputMode="numeric" {...register('student_id_number')} placeholder={t('idPlaceholder')} />
         {errors.student_id_number && <p className="text-xs text-destructive">{errors.student_id_number.message}</p>}
       </div>
 

@@ -57,9 +57,9 @@ describe('loginStudentSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects non-10-digit student ID', () => {
+  it('accepts student ID with variable digit length', () => {
     const result = loginStudentSchema.safeParse({ student_id: '12345', password: 'secret123' });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('rejects student ID with letters', () => {
@@ -184,8 +184,13 @@ describe('studentSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects invalid student_id_number (non-10-digit)', () => {
+  it('accepts student_id_number with variable digit length', () => {
     const result = studentSchema.safeParse({ ...valid, student_id_number: '123' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects non-digit student_id_number', () => {
+    const result = studentSchema.safeParse({ ...valid, student_id_number: '12A3' });
     expect(result.success).toBe(false);
   });
 

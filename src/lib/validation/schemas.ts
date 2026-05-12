@@ -3,7 +3,7 @@ import thMessages from '../../../messages/th.json';
 import { THAI_PHONE_REGEX } from '@/lib/phone';
 
 // ─── Helpers ───
-const studentIdRegex = /^\d{10}$/;
+const studentIdRegex = /^\d+$/;
 const thaiNameRegex = /^[฀-๿ a-zA-Zก-ฮ]+$/;
 
 const validationMessages = thMessages.validation;
