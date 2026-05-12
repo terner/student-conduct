@@ -40,12 +40,6 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
   const router = useRouter();
   const t = useTranslations('student');
   const common = useTranslations('common');
-  const formatGrade = (gradeLevel: number, stageName?: string, gradeLevelName?: string) => {
-    if (gradeLevelName) return gradeLevelName;
-    if (gradeLevel >= 7 && gradeLevel <= 12) return `ม.${gradeLevel - 6}`;
-    if (stageName?.includes('อนุบาล')) return `อ.${gradeLevel}`;
-    return `ป.${gradeLevel}`;
-  };
   const statusLabels: Record<string, string> = {
     active: t('statusActive'),
     inactive: t('statusInactive'),
@@ -84,7 +78,7 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
               <TableHead className="w-[100px]">{t('id')}</TableHead>
               <TableHead>{t('fullName')}</TableHead>
               <TableHead>{t('classroomFull')}</TableHead>
-              <TableHead>{t('gradeLevel')}</TableHead>
+              <TableHead>{t('classNumber')}</TableHead>
               <TableHead>{t('stage')}</TableHead>
               <TableHead>{t('score')}</TableHead>
               <TableHead>{t('status')}</TableHead>
@@ -109,7 +103,7 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
                   </Link>
                 </TableCell>
                 <TableCell>{student.classroom_name}</TableCell>
-                <TableCell>{formatGrade(student.grade_level, student.education_stage_name, student.grade_level_name)}</TableCell>
+                <TableCell>{student.class_number ?? '-'}</TableCell>
                 <TableCell>{student.education_stage_name || '-'}</TableCell>
                 <TableCell className="font-medium">{student.current_score ?? '-'}</TableCell>
                 <TableCell>

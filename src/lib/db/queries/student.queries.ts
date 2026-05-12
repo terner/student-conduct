@@ -6,6 +6,7 @@ export type StudentWithProfile = Student & {
   prefix: string;
   first_name: string;
   last_name: string;
+  class_number?: number;
   classroom_name: string;
   grade_level_id?: string;
   grade_level_name?: string;
@@ -98,6 +99,38 @@ async function getStageName(stageId: string): Promise<string> {
 // Reset cache (for testing)
 export function resetStagesCache() { stagesCache = null; }
 
+async function getClassNumbersByStudentId(studentIds: string[], academicYearId?: string) {
+  const classNumberByStudentId = new Map<string, number>();
+  if (studentIds.length === 0) return classNumberByStudentId;
+
+  const supabase = await createAdminClient();
+  let query = supabase
+    .from('student_enrollments')
+    .select('student_id, class_number, academic_year_id, enrollment_status, created_at')
+    .in('student_id', studentIds)
+    .not('class_number', 'is', null);
+
+  if (academicYearId) {
+    query = query.eq('academic_year_id', academicYearId);
+  } else {
+    query = query.eq('enrollment_status', 'active');
+  }
+
+  const { data } = await query
+    .order('created_at', { ascending: false });
+
+  for (const row of data || []) {
+    const studentId = row.student_id as string;
+    if (classNumberByStudentId.has(studentId)) continue;
+    const classNumber = row.class_number;
+    if (typeof classNumber === 'number') {
+      classNumberByStudentId.set(studentId, classNumber);
+    }
+  }
+
+  return classNumberByStudentId;
+}
+
 function buildStudentLoginEmail(studentIdNumber: string, academicYearId?: string) {
   const yearSegment = academicYearId ? academicYearId.replace(/[^0-9A-Za-z-]/g, '') : 'manual';
   return `${studentIdNumber}.${yearSegment}@student.school.com`;
@@ -160,9 +193,10 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
   if (error) throw error;
 
   const studentIds = (data || []).map((s: Record<string, unknown>) => s.id as string);
-  const [guardianByStudentId, scoreByStudentId] = await Promise.all([
+  const [guardianByStudentId, scoreByStudentId, classNumberByStudentId] = await Promise.all([
     getPrimaryGuardians(studentIds),
     getScoreByStudentId(studentIds, academic_year),
+    getClassNumbersByStudentId(studentIds, academic_year),
   ]);
 
   const mapped: StudentWithProfile[] = await Promise.all((data || []).map(async (s: Record<string, unknown>) => {
@@ -180,6 +214,7 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
       prefix,
       first_name,
       last_name,
+      class_number: classNumberByStudentId.get(s.id as string),
       classroom_name: classroom.name as string || '',
       grade_level_id: classroom.grade_level_id as string || '',
       grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
@@ -229,7 +264,10 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
   const classroom = data.classrooms as Record<string, unknown> || {};
   const stageId = classroom.education_stage_id as string || '';
   const teacherNames = await getClassroomTeacherNames(data.classroom_id);
-  const guardian = (await getPrimaryGuardians([data.id])).get(data.id);
+  const [guardian, classNumber] = await Promise.all([
+    getPrimaryGuardians([data.id]).then((guardians) => guardians.get(data.id)),
+    getClassNumbersByStudentId([data.id]).then((classNumbers) => classNumbers.get(data.id)),
+  ]);
 
   return {
     id: data.id,
@@ -240,6 +278,7 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
     prefix,
     first_name,
     last_name,
+    class_number: classNumber,
     classroom_name: classroom.name as string || '',
     grade_level_id: classroom.grade_level_id as string || '',
     grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
