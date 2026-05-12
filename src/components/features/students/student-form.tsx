@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { studentSchema, studentPrefixEnum, type StudentInput } from '@/lib/validation/schemas';
 import { getAcademicYears, getClassroomsForSelect } from '@/lib/actions/student.action';
 import { getEducationStages } from '@/lib/actions/education-stage.action';
+import { parseGuardianFullName } from '@/lib/guardian';
 
 interface StudentFormProps {
   defaultValues?: Partial<StudentInput> & { avatar_url?: string };
@@ -70,6 +71,10 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   const [avatarUrl, setAvatarUrl] = useState<string>(defaultValues?.avatar_url || '');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const didInitializeYear = useRef(false);
+  const parsedGuardian = parseGuardianFullName(defaultValues?.guardian_full_name);
+  const initialGuardianPrefix = defaultValues?.guardian_prefix ?? parsedGuardian.guardian_prefix;
+  const initialGuardianFirstName = defaultValues?.guardian_first_name ?? parsedGuardian.guardian_first_name;
+  const initialGuardianLastName = defaultValues?.guardian_last_name ?? parsedGuardian.guardian_last_name;
 
   const {
     register,
@@ -79,7 +84,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(studentSchema),
-    defaultValues: (defaultValues || {
+    defaultValues: ({
       prefix: 'เด็กชาย',
       first_name: '',
       last_name: '',
@@ -90,6 +95,10 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
       guardian_full_name: '',
       guardian_relation: 'guardian',
       guardian_phone: '',
+      ...defaultValues,
+      guardian_prefix: initialGuardianPrefix,
+      guardian_first_name: initialGuardianFirstName,
+      guardian_last_name: initialGuardianLastName,
     }) as StudentInput,
   });
 
@@ -407,12 +416,24 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
           <h3 className="text-sm font-medium">{t('guardianSection')}</h3>
           <p className="text-xs text-muted-foreground">{t('guardianDescription')}</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-[120px_1fr_1fr]">
           <div className="space-y-2">
-            <Label htmlFor="guardian_full_name">{t('guardianName')}</Label>
-            <Input id="guardian_full_name" {...register('guardian_full_name')} placeholder={t('guardianNamePlaceholder')} />
-            {errors.guardian_full_name && <p className="text-xs text-destructive">{errors.guardian_full_name.message}</p>}
+            <Label htmlFor="guardian_prefix">{t('prefix')}</Label>
+            <Input id="guardian_prefix" {...register('guardian_prefix')} placeholder={t('prefix')} />
+            {errors.guardian_prefix && <p className="text-xs text-destructive">{errors.guardian_prefix.message}</p>}
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="guardian_first_name">{t('firstName')}</Label>
+            <Input id="guardian_first_name" {...register('guardian_first_name')} placeholder={t('firstName')} />
+            {errors.guardian_first_name && <p className="text-xs text-destructive">{errors.guardian_first_name.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="guardian_last_name">{t('lastName')}</Label>
+            <Input id="guardian_last_name" {...register('guardian_last_name')} placeholder={t('lastName')} />
+            {errors.guardian_last_name && <p className="text-xs text-destructive">{errors.guardian_last_name.message}</p>}
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>{t('guardianRelation')}</Label>
             <Select
@@ -432,11 +453,11 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
               </SelectContent>
             </Select>
           </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="guardian_phone">{t('guardianPhone')}</Label>
-          <Input id="guardian_phone" {...register('guardian_phone')} placeholder={t('guardianPhonePlaceholder')} />
-          {errors.guardian_phone && <p className="text-xs text-destructive">{errors.guardian_phone.message}</p>}
+          <div className="space-y-2">
+            <Label htmlFor="guardian_phone">{t('guardianPhone')}</Label>
+            <Input id="guardian_phone" {...register('guardian_phone')} placeholder={t('guardianPhonePlaceholder')} />
+            {errors.guardian_phone && <p className="text-xs text-destructive">{errors.guardian_phone.message}</p>}
+          </div>
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import { validateXSS } from '@/lib/security/validate-input';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
 import { logAudit } from '@/lib/audit/log';
+import { buildGuardianFullName, parseGuardianFullName } from '@/lib/guardian';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 const SHORT_LIST_TTL_MS = 60 * 1000;
@@ -292,7 +293,7 @@ export async function getStudentsForCsvExport(params: {
     if (studentIds.length > 0) {
       const { data: guardians } = await adminClient
         .from('student_guardians')
-        .select('student_id, relation, is_primary, guardians(full_name, phone)')
+        .select('student_id, relation, is_primary, guardians(prefix, first_name, last_name, full_name, phone)')
         .in('student_id', studentIds)
         .order('is_primary', { ascending: false });
 
@@ -301,8 +302,15 @@ export async function getStudentsForCsvExport(params: {
         if (guardianByStudentId.has(studentId)) continue;
         const guardianValue = guardianRow.guardians as unknown;
         const guardian = (Array.isArray(guardianValue) ? guardianValue[0] : guardianValue) as Record<string, unknown> | null;
+        const parsed = parseGuardianFullName((guardian?.full_name as string) || '');
+        const fullName = buildGuardianFullName({
+          guardian_prefix: (guardian?.prefix as string) || parsed.guardian_prefix,
+          guardian_first_name: (guardian?.first_name as string) || parsed.guardian_first_name,
+          guardian_last_name: (guardian?.last_name as string) || parsed.guardian_last_name,
+          guardian_full_name: (guardian?.full_name as string) || '',
+        });
         guardianByStudentId.set(studentId, {
-          full_name: (guardian?.full_name as string) || '',
+          full_name: fullName,
           relation: (guardianRow.relation as string) || '',
           phone: (guardian?.phone as string) || '',
         });
@@ -387,6 +395,9 @@ export async function addStudent(data: {
   classroom_id: string;
   class_number?: number;
   avatar_url?: string;
+  guardian_prefix?: string;
+  guardian_first_name?: string;
+  guardian_last_name?: string;
   guardian_full_name?: string;
   guardian_relation?: string;
   guardian_phone?: string;
@@ -403,7 +414,10 @@ export async function addStudent(data: {
     const xssCheck = validateXSS({
       first_name: validated.first_name,
       last_name: validated.last_name,
-      guardian_full_name: validated.guardian_full_name || '',
+      guardian_prefix: validated.guardian_prefix || '',
+      guardian_first_name: validated.guardian_first_name || '',
+      guardian_last_name: validated.guardian_last_name || '',
+      guardian_full_name: buildGuardianFullName(validated),
       guardian_phone: validated.guardian_phone || '',
     });
     if (xssCheck) {
@@ -442,7 +456,10 @@ export async function addStudent(data: {
       class_number: validated.class_number,
       academic_year_id: currentAcademicYear.id,
       avatar_url: data.avatar_url,
-      guardian_full_name: validated.guardian_full_name,
+      guardian_prefix: validated.guardian_prefix,
+      guardian_first_name: validated.guardian_first_name,
+      guardian_last_name: validated.guardian_last_name,
+      guardian_full_name: buildGuardianFullName(validated),
       guardian_relation: validated.guardian_relation,
       guardian_phone: validated.guardian_phone,
     });
@@ -469,6 +486,9 @@ export async function editStudent(id: string, data: {
   current_status?: string;
   class_number?: number;
   avatar_url?: string;
+  guardian_prefix?: string;
+  guardian_first_name?: string;
+  guardian_last_name?: string;
   guardian_full_name?: string;
   guardian_relation?: string;
   guardian_phone?: string;
@@ -482,28 +502,35 @@ export async function editStudent(id: string, data: {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด หรือครูประจำชั้น/ครูที่ปรึกษา' } };
     }
 
-    const xssCheck = validateXSS({ ...data });
+    const validated = studentSchema.partial().parse(data);
+    const xssCheck = validateXSS({
+      ...validated,
+      guardian_full_name: buildGuardianFullName(validated),
+    });
     if (xssCheck) {
       return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
     }
 
-    const editableYear = await ensureStudentEditableInOpenAcademicYear(id, data.classroom_id);
+    const editableYear = await ensureStudentEditableInOpenAcademicYear(id, validated.classroom_id);
     if (!editableYear.success) {
       return { success: false, error: { code: 'ACADEMIC_YEAR_CLOSED', message: editableYear.message } };
     }
 
     const before = await getStudentById(id);
-    await updateStudent(id, data);
+    await updateStudent(id, {
+      ...validated,
+      guardian_full_name: buildGuardianFullName(validated),
+    });
     const after = await getStudentById(id);
     await clearTtlCacheByPrefix('students-for-select:');
     await logAudit({
       actorId: profile.id,
-      action: data.current_status !== undefined ? 'student_status_update' : 'student_update',
+      action: validated.current_status !== undefined ? 'student_status_update' : 'student_update',
       targetType: 'student',
       targetId: id,
       beforeData: before,
       afterData: after,
-      metadata: { changed_fields: Object.keys(data) },
+      metadata: { changed_fields: Object.keys(validated) },
     });
     return { success: true, data: { id } };
   });

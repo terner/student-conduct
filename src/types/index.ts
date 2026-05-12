@@ -152,6 +152,9 @@ export interface ScoreTransactionEvidence {
 // ─── Guardian ───
 export interface Guardian {
   id: string;
+  prefix?: string;
+  first_name?: string;
+  last_name?: string;
   full_name: string;
   phone: string;
   phone_alt?: string;

@@ -1,5 +1,6 @@
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import type { Student } from '@/types';
+import { buildGuardianFullName, parseGuardianFullName } from '@/lib/guardian';
 
 export type StudentWithProfile = Student & {
   prefix: string;
@@ -12,12 +13,24 @@ export type StudentWithProfile = Student & {
   education_stage_name: string;
   homeroom_teacher_name?: string;
   advisor_teacher_name?: string;
+  guardian_prefix?: string;
+  guardian_first_name?: string;
+  guardian_last_name?: string;
   guardian_full_name?: string;
   guardian_relation?: string;
   guardian_phone?: string;
   avatar_url?: string;
   current_score?: number;
 };
+
+interface PrimaryGuardianRecord {
+  prefix: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  relation: string;
+  phone: string;
+}
 
 export interface StudentListParams {
   page?: number;
@@ -172,6 +185,9 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
       grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
       grade_level: classroom.grade_level as number || 0,
       education_stage_name: stageId ? await getStageName(stageId) : '',
+      guardian_prefix: guardian?.prefix || '',
+      guardian_first_name: guardian?.first_name || '',
+      guardian_last_name: guardian?.last_name || '',
       guardian_full_name: guardian?.full_name || '',
       guardian_relation: guardian?.relation || '',
       guardian_phone: guardian?.phone || '',
@@ -231,6 +247,9 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
     education_stage_name: stageId ? await getStageName(stageId) : '',
     homeroom_teacher_name: teacherNames.homeroom || '',
     advisor_teacher_name: teacherNames.advisor || teacherNames.homeroom || '',
+    guardian_prefix: guardian?.prefix || '',
+    guardian_first_name: guardian?.first_name || '',
+    guardian_last_name: guardian?.last_name || '',
     guardian_full_name: guardian?.full_name || '',
     guardian_relation: guardian?.relation || '',
     guardian_phone: guardian?.phone || '',
@@ -240,12 +259,12 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
 
 async function getPrimaryGuardians(studentIds: string[]) {
   const supabase = await createAdminClient();
-  const guardianByStudentId = new Map<string, { full_name: string; relation: string; phone: string }>();
+  const guardianByStudentId = new Map<string, PrimaryGuardianRecord>();
   if (studentIds.length === 0) return guardianByStudentId;
 
   const { data } = await supabase
     .from('student_guardians')
-    .select('student_id, relation, is_primary, guardians(full_name, phone)')
+    .select('student_id, relation, is_primary, guardians(prefix, first_name, last_name, full_name, phone)')
     .in('student_id', studentIds)
     .order('is_primary', { ascending: false });
 
@@ -253,8 +272,20 @@ async function getPrimaryGuardians(studentIds: string[]) {
     const studentId = row.student_id as string;
     if (guardianByStudentId.has(studentId)) continue;
     const guardian = row.guardians as unknown as Record<string, unknown>;
+    const parsed = parseGuardianFullName((guardian?.full_name as string) || '');
+    const prefix = (guardian?.prefix as string) || parsed.guardian_prefix;
+    const firstName = (guardian?.first_name as string) || parsed.guardian_first_name;
+    const lastName = (guardian?.last_name as string) || parsed.guardian_last_name;
     guardianByStudentId.set(studentId, {
-      full_name: (guardian?.full_name as string) || '',
+      prefix,
+      first_name: firstName,
+      last_name: lastName,
+      full_name: buildGuardianFullName({
+        guardian_prefix: prefix,
+        guardian_first_name: firstName,
+        guardian_last_name: lastName,
+        guardian_full_name: (guardian?.full_name as string) || '',
+      }),
       relation: (row.relation as string) || '',
       phone: (guardian?.phone as string) || '',
     });
@@ -452,6 +483,9 @@ export async function createStudent(data: {
   class_number?: number;
   academic_year_id?: string;
   avatar_url?: string;
+  guardian_prefix?: string;
+  guardian_first_name?: string;
+  guardian_last_name?: string;
   guardian_full_name?: string;
   guardian_relation?: string;
   guardian_phone?: string;
@@ -529,6 +563,9 @@ export async function createStudent(data: {
   if (enrollmentError) throw enrollmentError;
 
   await upsertPrimaryGuardian(supabase, student.id, {
+    prefix: data.guardian_prefix,
+    first_name: data.guardian_first_name,
+    last_name: data.guardian_last_name,
     full_name: data.guardian_full_name,
     relation: data.guardian_relation,
     phone: data.guardian_phone,
@@ -549,6 +586,9 @@ export async function updateStudent(id: string, data: {
   current_status?: string;
   class_number?: number;
   avatar_url?: string;
+  guardian_prefix?: string;
+  guardian_first_name?: string;
+  guardian_last_name?: string;
   guardian_full_name?: string;
   guardian_relation?: string;
   guardian_phone?: string;
@@ -642,6 +682,9 @@ export async function updateStudent(id: string, data: {
   }
 
   await upsertPrimaryGuardian(supabase, id, {
+    prefix: data.guardian_prefix,
+    first_name: data.guardian_first_name,
+    last_name: data.guardian_last_name,
     full_name: data.guardian_full_name,
     relation: data.guardian_relation,
     phone: data.guardian_phone,
@@ -654,12 +697,23 @@ export async function upsertPrimaryGuardian(
   supabase: Awaited<ReturnType<typeof createClient>>,
   studentId: string,
   guardianData: {
+    prefix?: string;
+    first_name?: string;
+    last_name?: string;
     full_name?: string;
     relation?: string;
     phone?: string;
   },
 ) {
-  const fullName = guardianData.full_name?.trim();
+  const prefix = guardianData.prefix?.trim() || '';
+  const firstName = guardianData.first_name?.trim() || '';
+  const lastName = guardianData.last_name?.trim() || '';
+  const fullName = buildGuardianFullName({
+    guardian_prefix: prefix,
+    guardian_first_name: firstName,
+    guardian_last_name: lastName,
+    guardian_full_name: guardianData.full_name,
+  });
   const phone = guardianData.phone?.trim();
   const relation = guardianData.relation || 'guardian';
 
@@ -678,7 +732,13 @@ export async function upsertPrimaryGuardian(
   if (existingLink?.guardian_id) {
     const { error: guardianError } = await supabase
       .from('guardians')
-      .update({ full_name: fullName, phone })
+      .update({
+        prefix: prefix || null,
+        first_name: firstName || null,
+        last_name: lastName || null,
+        full_name: fullName,
+        phone,
+      })
       .eq('id', existingLink.guardian_id);
     if (guardianError) throw guardianError;
 
@@ -693,7 +753,13 @@ export async function upsertPrimaryGuardian(
 
   const { data: guardian, error: guardianError } = await supabase
     .from('guardians')
-    .insert({ full_name: fullName, phone })
+    .insert({
+      prefix: prefix || null,
+      first_name: firstName || null,
+      last_name: lastName || null,
+      full_name: fullName,
+      phone,
+    })
     .select('id')
     .single();
   if (guardianError) throw guardianError;

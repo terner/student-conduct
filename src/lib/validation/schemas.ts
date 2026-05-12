@@ -107,6 +107,21 @@ export const studentSchema = z.object({
     .max(100, errorMessages.tooLong(100))
     .optional()
     .or(z.literal('')),
+  guardian_prefix: z
+    .string()
+    .max(30, errorMessages.tooLong(30))
+    .optional()
+    .or(z.literal('')),
+  guardian_first_name: z
+    .string()
+    .max(50, errorMessages.tooLong(50))
+    .optional()
+    .or(z.literal('')),
+  guardian_last_name: z
+    .string()
+    .max(50, errorMessages.tooLong(50))
+    .optional()
+    .or(z.literal('')),
   guardian_relation: z
     .enum(['father', 'mother', 'guardian', 'relative', 'other'])
     .optional(),

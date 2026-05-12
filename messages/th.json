@@ -645,6 +645,7 @@
     "guardianRelationMother": "มารดา",
     "guardianRelationRelative": "ญาติ",
     "guardianRelationOther": "อื่น ๆ",
+    "guardianPhone": "เบอร์โทรผู้ปกครอง",
     "studentPhotoAlt": "รูปนักเรียน {name}",
     "guardianPhoneShort": "เบอร์โทร",
     "photoHelp": "รองรับ PNG, JPG, GIF, WebP ขนาดไฟล์ไม่เกิน 2MB แนะนำรูปสี่เหลี่ยมจัตุรัส 512x512px",

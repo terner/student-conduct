@@ -643,6 +643,7 @@
     "guardianRelationMother": "Mother",
     "guardianRelationRelative": "Relative",
     "guardianRelationOther": "Other",
+    "guardianPhone": "Guardian phone",
     "studentPhotoAlt": "Student photo of {name}",
     "guardianPhoneShort": "Phone",
     "photoHelp": "Supports PNG, JPG, GIF, and WebP up to 2MB. Square images at 512x512px are recommended.",
