@@ -244,7 +244,7 @@
 - [x] **Production rate limiting + shared cache** — ใช้ Upstash Redis ผ่าน Vercel Marketplace สำหรับ login/upload/storage test และ cache master data/select list โดย fallback เป็น in-memory เมื่อไม่มี env
 - [ ] **ScoreTimeline chart** — recharts line chart component
 - [ ] **PDPA version management** — admin publish new version
-- [ ] **School branding in login page** — show logo + school name
+- [x] **School branding in login page** — show logo + school name from Settings on login page
 
 ---
 
