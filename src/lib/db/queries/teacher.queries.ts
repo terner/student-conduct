@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Teacher } from '@/types';
 
@@ -218,7 +218,7 @@ export async function createTeacher(data: {
   system_role?: 'teacher' | 'admin' | 'superadmin';
   avatar_url?: string;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const roles = rolesForTeacher(data.system_role, data.is_admin);
   const prefix = data.prefix || 'นาย';
   const fullName = `${data.first_name} ${data.last_name}`;

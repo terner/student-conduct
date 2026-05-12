@@ -490,14 +490,6 @@ describe('guardianSchema', () => {
   it('accepts valid guardian with required fields', () => {
     const result = guardianSchema.safeParse({
       full_name: 'สมศรี ใจดี',
-      phone: '081-234-5678',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('accepts phone without dashes', () => {
-    const result = guardianSchema.safeParse({
-      full_name: 'สมศรี ใจดี',
       phone: '0812345678',
     });
     expect(result.success).toBe(true);
@@ -514,7 +506,7 @@ describe('guardianSchema', () => {
   it('accepts optional fields', () => {
     const result = guardianSchema.safeParse({
       full_name: 'สมศรี ใจดี',
-      phone: '081-234-5678',
+      phone: '0812345678',
       line_id: 'line123',
       email: 'test@example.com',
     });
@@ -764,7 +756,7 @@ describe('profileSchema', () => {
     const result = profileSchema.safeParse({
       first_name: 'สมชาย',
       last_name: 'มีสุข',
-      phone: '081-234-5678',
+      phone: '0812345678',
     });
     expect(result.success).toBe(true);
   });

@@ -162,7 +162,7 @@ export function isValidStudentId(id: string): boolean {
  * Validate phone number (Thai format)
  */
 export function isValidPhone(phone: string): boolean {
-  return /^0[0-9]{2}-?[0-9]{3}-?[0-9]{4}$/.test(phone.trim());
+  return /^0[0-9]{9}$/.test(phone.trim());
 }
 
 /**

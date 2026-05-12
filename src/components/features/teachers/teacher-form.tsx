@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { teacherPrefixEnum, teacherSchema, type TeacherInput } from '@/lib/validation/schemas';
 import { getTeacherPositions, type TeacherPositionItem } from '@/lib/actions/teacher-position.action';
+import { normalizePhoneInput } from '@/lib/phone';
 import { useTranslations } from 'next-intl';
 
 interface TeacherFormProps {
@@ -44,6 +45,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
   const prefixValue = watch('prefix') || 'นาย';
   const systemRole = watch('system_role') || (watch('is_admin') ? 'admin' : 'teacher');
   const positionValue = watch('position') || 'ครู';
+  const phoneValue = watch('phone') || '';
   const positionOptions = useMemo(() => {
     if (!positionValue || positions.some((item) => item.name === positionValue)) return positions;
     return [{ id: 'current', name: positionValue, sort_order: 0, is_active: true }, ...positions];
@@ -202,9 +204,9 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
             type="tel"
             inputMode="numeric"
             maxLength={10}
-            {...register('phone', {
-              setValueAs: (value) => typeof value === 'string' ? value.replace(/\D/g, '').slice(0, 10) : value,
-            })}
+            {...register('phone')}
+            value={phoneValue}
+            onChange={(event) => setValue('phone', normalizePhoneInput(event.target.value), { shouldValidate: true })}
             placeholder={teacherT('phonePlaceholder')}
           />
           {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}

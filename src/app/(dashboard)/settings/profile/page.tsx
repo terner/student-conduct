@@ -15,6 +15,7 @@ import { displayRole, hasAnyRole } from '@/lib/security/roles';
 import { useTranslations } from 'next-intl';
 import { getMyTeacherProfile, updateMyTeacherProfile } from '@/lib/actions/teacher.action';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
+import { normalizePhoneInput } from '@/lib/phone';
 
 export default function ProfilePage() {
   const settingsT = useTranslations('settings');
@@ -241,7 +242,13 @@ export default function ProfilePage() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>{teacherT('phone')}</Label>
-                    <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder={teacherT('phonePlaceholder')} />
+                    <Input
+                      value={phone}
+                      inputMode="numeric"
+                      maxLength={10}
+                      onChange={e => setPhone(normalizePhoneInput(e.target.value))}
+                      placeholder={teacherT('phonePlaceholder')}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>{teacherT('department')}</Label>

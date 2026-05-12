@@ -15,6 +15,7 @@ import {
 import { teacherSchema, teacherClassroomSchema } from '@/lib/validation/schemas';
 import { validateXSS } from '@/lib/security/validate-input';
 import { logAudit } from '@/lib/audit/log';
+import { normalizePhoneInput } from '@/lib/phone';
 
 export async function getTeachers(params?: { search?: string; department?: string; include_inactive?: boolean }) {
   return withAuth(async (profile) => {
@@ -64,25 +65,34 @@ export async function updateMyTeacherProfile(data: {
       return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลครูของผู้ใช้นี้' } };
     }
 
+    const validated = teacherSchema.partial().parse({
+      first_name: data.first_name,
+      last_name: data.last_name,
+      phone: data.phone !== undefined ? normalizePhoneInput(data.phone) : undefined,
+      department: data.department,
+      position: data.position,
+      avatar_url: data.avatar_url,
+    });
+
     const xssCheck = validateXSS({
-      first_name: data.first_name || '',
-      last_name: data.last_name || '',
-      phone: data.phone || '',
-      department: data.department || '',
-      position: data.position || '',
-      avatar_url: data.avatar_url || '',
+      first_name: validated.first_name || '',
+      last_name: validated.last_name || '',
+      phone: validated.phone || '',
+      department: validated.department || '',
+      position: validated.position || '',
+      avatar_url: validated.avatar_url || '',
     });
     if (xssCheck) {
       return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
     }
 
     const updateData = {
-      first_name: data.first_name,
-      last_name: data.last_name,
-      phone: data.phone,
-      department: data.department,
-      position: data.position,
-      avatar_url: data.avatar_url,
+      first_name: validated.first_name,
+      last_name: validated.last_name,
+      phone: validated.phone,
+      department: validated.department,
+      position: validated.position,
+      avatar_url: validated.avatar_url,
     };
     const before = await getTeacherById(teacher.id, adminClient);
     await updateTeacher(teacher.id, updateData, adminClient);
@@ -119,7 +129,10 @@ export async function addTeacher(data: {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
     }
 
-    const validated = teacherSchema.parse(data);
+    const validated = teacherSchema.parse({
+      ...data,
+      phone: data.phone !== undefined ? normalizePhoneInput(data.phone) : undefined,
+    });
 
     const xssCheck = validateXSS({
       first_name: validated.first_name,
@@ -165,9 +178,14 @@ export async function editTeacher(id: string, data: {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
     }
 
-    const before = await getTeacherById(id);
-    await updateTeacher(id, data);
-    const after = await getTeacherById(id);
+    const adminClient = await createAdminClient();
+    const validated = teacherSchema.partial().parse({
+      ...data,
+      phone: data.phone !== undefined ? normalizePhoneInput(data.phone) : undefined,
+    });
+    const before = await getTeacherById(id, adminClient);
+    await updateTeacher(id, validated, adminClient);
+    const after = await getTeacherById(id, adminClient);
     await logAudit({
       actorId: profile.id,
       action: 'teacher_update',
@@ -175,7 +193,7 @@ export async function editTeacher(id: string, data: {
       targetId: id,
       beforeData: before,
       afterData: after,
-      metadata: { changed_fields: Object.keys(data) },
+      metadata: { changed_fields: Object.keys(validated) },
     });
     return { success: true, data: { id } };
   });

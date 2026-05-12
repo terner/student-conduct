@@ -13,6 +13,7 @@ import { guardianPrefixEnum, studentSchema, studentPrefixEnum, type StudentInput
 import { getAcademicYears, getClassroomsForSelect } from '@/lib/actions/student.action';
 import { getEducationStages } from '@/lib/actions/education-stage.action';
 import { parseGuardianFullName } from '@/lib/guardian';
+import { normalizePhoneInput } from '@/lib/phone';
 
 interface StudentFormProps {
   defaultValues?: Partial<StudentInput> & { avatar_url?: string };
@@ -172,6 +173,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   const guardianPrefixValue = guardianPrefixEnum.includes(watch('guardian_prefix') as any)
     ? watch('guardian_prefix')
     : null;
+  const guardianPhoneValue = watch('guardian_phone') || '';
   const guardianRelationValue = (['father', 'mother', 'guardian', 'relative', 'other'] as string[]).includes(watch('guardian_relation') || '')
     ? watch('guardian_relation')
     : 'guardian';
@@ -488,7 +490,15 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
           </div>
           <div className="space-y-2">
             <Label htmlFor="guardian_phone">{t('guardianPhone')} *</Label>
-            <Input id="guardian_phone" {...register('guardian_phone')} placeholder={t('guardianPhonePlaceholder')} />
+            <Input
+              id="guardian_phone"
+              inputMode="numeric"
+              maxLength={10}
+              {...register('guardian_phone')}
+              value={guardianPhoneValue}
+              onChange={(event) => setValue('guardian_phone', normalizePhoneInput(event.target.value), { shouldValidate: true })}
+              placeholder={t('guardianPhonePlaceholder')}
+            />
             {errors.guardian_phone && <p className="text-xs text-destructive">{errors.guardian_phone.message}</p>}
           </div>
         </div>

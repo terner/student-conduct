@@ -1,9 +1,8 @@
 import { z } from 'zod';
 import thMessages from '../../../messages/th.json';
+import { THAI_PHONE_REGEX } from '@/lib/phone';
 
 // ─── Helpers ───
-const thaiPhoneRegex = /^0[0-9]{2}-?[0-9]{3}-?[0-9]{4}$/;
-const strictThaiPhoneRegex = /^0[0-9]{9}$/;
 const studentIdRegex = /^\d{10}$/;
 const thaiNameRegex = /^[฀-๿ a-zA-Zก-ฮ]+$/;
 
@@ -74,7 +73,7 @@ export const profileSchema = z.object({
     .regex(thaiNameRegex, errorMessages.invalidName),
   phone: z
     .string()
-    .regex(thaiPhoneRegex, errorMessages.invalidPhone)
+    .regex(THAI_PHONE_REGEX, errorMessages.invalidPhone)
     .optional()
     .or(z.literal('')),
 });
@@ -129,7 +128,7 @@ export const studentSchema = z.object({
     .optional(),
   guardian_phone: z
     .string()
-    .regex(thaiPhoneRegex, errorMessages.invalidPhone)
+    .regex(THAI_PHONE_REGEX, errorMessages.invalidPhone)
     .optional()
     .or(z.literal('')),
 }).superRefine((data, ctx) => {
@@ -287,7 +286,7 @@ export const teacherSchema = z.object({
     .email(errorMessages.invalidEmail),
   phone: z
     .string()
-    .regex(strictThaiPhoneRegex, errorMessages.invalidPhone)
+    .regex(THAI_PHONE_REGEX, errorMessages.invalidPhone)
     .optional()
     .or(z.literal('')),
   employee_id: z
@@ -324,10 +323,10 @@ export const guardianSchema = z.object({
     .max(100, errorMessages.tooLong(100)),
   phone: z
     .string()
-    .regex(thaiPhoneRegex, errorMessages.invalidPhone),
+    .regex(THAI_PHONE_REGEX, errorMessages.invalidPhone),
   phone_alt: z
     .string()
-    .regex(thaiPhoneRegex, errorMessages.invalidPhone)
+    .regex(THAI_PHONE_REGEX, errorMessages.invalidPhone)
     .optional()
     .or(z.literal('')),
   line_id: z
@@ -403,7 +402,7 @@ export const schoolInfoSchema = z.object({
     .or(z.literal('')),
   school_phone: z
     .string()
-    .regex(thaiPhoneRegex, errorMessages.invalidPhone)
+    .regex(THAI_PHONE_REGEX, errorMessages.invalidPhone)
     .optional()
     .or(z.literal('')),
 });

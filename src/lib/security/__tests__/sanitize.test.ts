@@ -262,12 +262,12 @@ describe('isValidStudentId', () => {
 });
 
 describe('isValidPhone', () => {
-  it('accepts phone with dashes', () => {
-    expect(isValidPhone('081-234-5678')).toBe(true);
-  });
-
   it('accepts phone without dashes', () => {
     expect(isValidPhone('0812345678')).toBe(true);
+  });
+
+  it('rejects phone with dashes', () => {
+    expect(isValidPhone('081-234-5678')).toBe(false);
   });
 
   it('rejects invalid phone', () => {

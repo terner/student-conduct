@@ -9,6 +9,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
 import { logAudit } from '@/lib/audit/log';
 import { buildGuardianFullName, parseGuardianFullName } from '@/lib/guardian';
+import { normalizePhoneInput } from '@/lib/phone';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 const SHORT_LIST_TTL_MS = 60 * 1000;
@@ -408,7 +409,10 @@ export async function addStudent(data: {
     }
 
     // Validate
-    const validated = studentSchema.parse(data);
+    const validated = studentSchema.parse({
+      ...data,
+      guardian_phone: data.guardian_phone !== undefined ? normalizePhoneInput(data.guardian_phone) : undefined,
+    });
 
     // XSS check
     const xssCheck = validateXSS({
@@ -502,7 +506,10 @@ export async function editStudent(id: string, data: {
       return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด หรือครูประจำชั้น/ครูที่ปรึกษา' } };
     }
 
-    const validated = studentSchema.partial().parse(data);
+    const validated = studentSchema.partial().parse({
+      ...data,
+      guardian_phone: data.guardian_phone !== undefined ? normalizePhoneInput(data.guardian_phone) : undefined,
+    });
     const xssCheck = validateXSS({
       ...validated,
       guardian_full_name: buildGuardianFullName(validated),
@@ -826,7 +833,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         const status = String(row['สถานะ'] || row['status'] || 'active');
         const guardianFullName = String(row['ชื่อผู้ปกครอง'] || row['guardian_full_name'] || row['guardian_name'] || '');
         const guardianRelation = String(row['ความสัมพันธ์'] || row['guardian_relation'] || 'guardian');
-        const guardianPhone = String(row['เบอร์โทรผู้ปกครอง'] || row['guardian_phone'] || '');
+        const guardianPhone = normalizePhoneInput(String(row['เบอร์โทรผู้ปกครอง'] || row['guardian_phone'] || ''));
 
         if (!studentId || !firstName || !lastName || !classroomName) {
           errors.push({ row: i + 1, message: 'ข้อมูลไม่ครบ (รหัส, ชื่อ, นามสกุล, ห้อง)' });
