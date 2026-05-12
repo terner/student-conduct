@@ -3,7 +3,7 @@
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { ChevronDown, LogOut, User, Settings, Lock } from 'lucide-react'
 import Link from 'next/link'
@@ -14,9 +14,10 @@ interface UserMenuProps {
   lastName?: string
   role?: string | string[]
   email?: string
+  avatarUrl?: string
 }
 
-export function UserMenu({ firstName, lastName, role, email }: UserMenuProps) {
+export function UserMenu({ firstName, lastName, role, email, avatarUrl }: UserMenuProps) {
   // Use name initials; fall back to email first char
   const displayName = [firstName, lastName].filter(Boolean).join(' ') || email?.split('@')[0] || ''
   const initials = `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}` || email?.charAt(0).toUpperCase() || 'U'
@@ -37,6 +38,7 @@ export function UserMenu({ firstName, lastName, role, email }: UserMenuProps) {
       >
         <div className="flex min-w-0 items-center gap-2">
           <Avatar className="size-8">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
           <div className="hidden min-w-0 text-left sm:block">

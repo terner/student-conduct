@@ -28,12 +28,8 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (!profile || !hasRole(profile.role, 'superadmin')) {
+    if (!profile) {
       return NextResponse.json({ error: apiMessage(request, 'uploadForbidden') }, { status: 403 });
-    }
-
-    if (!(await checkUploadRateLimit(`avatar:${profile.id}`))) {
-      return NextResponse.json({ error: apiMessage(request, 'rateLimited') }, { status: 429 });
     }
 
     const formData = await request.formData();
@@ -44,6 +40,15 @@ export async function POST(request: Request) {
     if (!profileOwnerId) {
       return NextResponse.json({ error: apiMessage(request, 'missingProfileOwner') }, { status: 400 });
     }
+    const isSelfUpload = ownerType === 'teacher' && profileOwnerId === profile.id;
+    if (!hasRole(profile.role, 'superadmin') && !isSelfUpload) {
+      return NextResponse.json({ error: apiMessage(request, 'uploadForbidden') }, { status: 403 });
+    }
+
+    if (!(await checkUploadRateLimit(`avatar:${profile.id}`))) {
+      return NextResponse.json({ error: apiMessage(request, 'rateLimited') }, { status: 429 });
+    }
+
     const validationError = validateSingleImageUpload(file, 'avatar');
     if (validationError) return NextResponse.json({ error: apiMessage(request, validationError) }, { status: 400 });
     const uploadFile = file;

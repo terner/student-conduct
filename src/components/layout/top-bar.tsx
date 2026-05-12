@@ -15,9 +15,10 @@ interface TopBarProps {
   lastName?: string
   role?: string | string[]
   email?: string
+  avatarUrl?: string
 }
 
-export function TopBar({ title, firstName, lastName, role, email }: TopBarProps) {
+export function TopBar({ title, firstName, lastName, role, email, avatarUrl }: TopBarProps) {
   const roles = getRoles({ role })
   const isStudentOnly = roles.includes('student') && !roles.some((r) => ['superadmin', 'admin', 'teacher'].includes(r))
 
@@ -38,7 +39,7 @@ export function TopBar({ title, firstName, lastName, role, email }: TopBarProps)
         {!isStudentOnly && <AcademicYearSwitcher />}
         <NotificationBell />
         <LanguageSwitcher />
-        <UserMenu firstName={firstName} lastName={lastName} role={role} email={email} />
+        <UserMenu firstName={firstName} lastName={lastName} role={role} email={email} avatarUrl={avatarUrl} />
       </div>
     </header>
   )

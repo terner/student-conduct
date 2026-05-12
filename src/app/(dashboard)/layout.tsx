@@ -13,6 +13,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let lastName: string | undefined
   let role: string | string[] | undefined
   let email: string | undefined
+  let avatarUrl: string | undefined
 
   try {
     const user = await getUserFromCookie()
@@ -26,7 +27,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       user?.id
         ? adminClient
             .from('profiles')
-            .select('role, full_name')
+            .select('role, full_name, avatar_url')
             .eq('user_id', user.id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -39,6 +40,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
     if (profileResult?.data) {
       role = profileResult.data.role
+      avatarUrl = profileResult.data.avatar_url || undefined
       // full_name format: "prefixFirstName LastName" or "FirstName LastName"
       const parts = (profileResult.data.full_name || '').split(' ')
       if (parts.length >= 2) {
@@ -60,7 +62,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <SidebarProvider>
       <AppSidebar schoolName={schoolName} schoolLogo={schoolLogo} role={role} />
       <SidebarInset className="flex flex-1 flex-col">
-        <TopBar firstName={firstName} lastName={lastName} role={role} email={email} />
+        <TopBar firstName={firstName} lastName={lastName} role={role} email={email} avatarUrl={avatarUrl} />
         <main className="flex-1 overflow-y-auto">
           <RouteAccessGuard role={role}>{children}</RouteAccessGuard>
         </main>

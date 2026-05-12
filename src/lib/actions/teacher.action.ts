@@ -5,6 +5,7 @@ import { canManageSchoolData } from '@/lib/security/roles';
 import {
   listTeachers,
   getTeacherById,
+  getTeacherByProfileId,
   createTeacher,
   updateTeacher,
   assignTeacherToClassroom,
@@ -36,6 +37,64 @@ export async function getTeacher(id: string) {
       return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลครู' } };
     }
     return { success: true, data: teacher };
+  });
+}
+
+export async function getMyTeacherProfile() {
+  return withAuth(async (profile) => {
+    const teacher = await getTeacherByProfileId(profile.id);
+    return { success: true, data: teacher };
+  });
+}
+
+export async function updateMyTeacherProfile(data: {
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  department?: string;
+  position?: string;
+  avatar_url?: string;
+}) {
+  return withAuth(async (profile) => {
+    const teacher = await getTeacherByProfileId(profile.id);
+    if (!teacher) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลครูของผู้ใช้นี้' } };
+    }
+
+    const xssCheck = validateXSS({
+      first_name: data.first_name || '',
+      last_name: data.last_name || '',
+      phone: data.phone || '',
+      department: data.department || '',
+      position: data.position || '',
+      avatar_url: data.avatar_url || '',
+    });
+    if (xssCheck) {
+      return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
+    }
+
+    const updateData = {
+      first_name: data.first_name,
+      last_name: data.last_name,
+      phone: data.phone,
+      department: data.department,
+      position: data.position,
+      avatar_url: data.avatar_url,
+    };
+    const before = await getTeacherById(teacher.id);
+    await updateTeacher(teacher.id, updateData);
+    const after = await getTeacherById(teacher.id);
+    await logAudit({
+      actorId: profile.id,
+      action: 'teacher_self_profile_update',
+      targetType: 'teacher',
+      targetId: teacher.id,
+      beforeData: before,
+      afterData: after,
+      metadata: { changed_fields: Object.keys(updateData).filter((key) => updateData[key as keyof typeof updateData] !== undefined) },
+    });
+
+    return { success: true, data: after };
   });
 }
 

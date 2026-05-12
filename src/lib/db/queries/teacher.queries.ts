@@ -185,6 +185,23 @@ export async function getTeacherById(id: string): Promise<TeacherWithProfile | n
 }
 
 /**
+ * Get teacher by profile ID.
+ */
+export async function getTeacherByProfileId(profileId: string): Promise<TeacherWithProfile | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('teachers')
+    .select('id')
+    .eq('profile_id', profileId)
+    .maybeSingle();
+
+  if (error || !data?.id) return null;
+
+  return getTeacherById(data.id);
+}
+
+/**
  * Create teacher with auth user and profile
  */
 export async function createTeacher(data: {
