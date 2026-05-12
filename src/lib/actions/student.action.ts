@@ -572,6 +572,7 @@ export async function addStudent(data: {
     });
 
     await clearTtlCacheByPrefix('students-for-select:');
+    await clearTtlCacheByPrefix('students-client-filters:');
     await logAudit({
       actorId: profile.id,
       action: 'student_create',
@@ -652,6 +653,7 @@ export async function editStudent(id: string, data: {
     });
     const after = await getStudentById(id);
     await clearTtlCacheByPrefix('students-for-select:');
+    await clearTtlCacheByPrefix('students-client-filters:');
     await logAudit({
       actorId: profile.id,
       action: validated.current_status !== undefined ? 'student_status_update' : 'student_update',
@@ -842,6 +844,7 @@ export async function deleteStudent(id: string) {
     const before = await getStudentById(id);
     await archiveStudent(id);
     await clearTtlCacheByPrefix('students-for-select:');
+    await clearTtlCacheByPrefix('students-client-filters:');
     await logAudit({
       actorId: profile.id,
       action: 'student_archive',
