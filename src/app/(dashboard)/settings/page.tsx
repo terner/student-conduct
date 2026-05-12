@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Plus, Trash2, Download, ListChecks, Upload, Image as ImageIcon, X, CalendarDays, UserCog, HardDrive, Layers, School, Users, BookOpen, Tags } from 'lucide-react';
+import { Save, Plus, Trash2, Download, ListChecks, Upload, Image as ImageIcon, X, CalendarDays, UserCog, HardDrive, School, Users, BookOpen, Tags } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -374,11 +374,7 @@ export default function SettingsPage() {
                 </Button>
                 <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/settings/education-stages" />}>
                   <ListChecks className="mr-2 h-4 w-4" />
-                  {settingsT('manageEducationStages')}
-                </Button>
-                <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/settings/grade-levels" />}>
-                  <Layers className="mr-2 h-4 w-4" />
-                  {settingsT('manageGradeLevels')}
+                  {settingsT('manageEducationStructure')}
                 </Button>
                 <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/classrooms" />}>
                   <School className="mr-2 h-4 w-4" />
@@ -534,11 +530,7 @@ export default function SettingsPage() {
               </Button>
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/education-stages" />}>
                 <ListChecks className="mr-2 h-4 w-4" />
-                {settingsT('manageEducationStages')}
-              </Button>
-              <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/grade-levels" />}>
-                <Layers className="mr-2 h-4 w-4" />
-                {settingsT('manageGradeLevels')}
+                {settingsT('manageEducationStructure')}
               </Button>
               <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/teacher-positions" />}>
                 <UserCog className="mr-2 h-4 w-4" />

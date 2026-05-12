@@ -33,6 +33,7 @@ interface StudentForSelect {
   id: string;
   student_id_number: string;
   full_name: string;
+  classroom_id: string;
   classroom_name: string;
   grade_level_id: string;
   grade_level_name: string;
@@ -719,7 +720,7 @@ export async function getStudentListForSelect(academicYearId?: string) {
             student_id_number,
             profiles!inner(full_name, prefix)
           ),
-          classrooms!inner(name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
+          classrooms!inner(id, name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
         `)
         .eq('academic_year_id', academicYearId)
         .in('enrollment_status', ['active', 'promoted', 'repeated', 'transferred', 'graduated']);
@@ -733,7 +734,7 @@ export async function getStudentListForSelect(academicYearId?: string) {
           id,
           student_id_number,
           profiles!inner(full_name, prefix),
-          classrooms!inner(name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
+          classrooms!inner(id, name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
         `)
         .eq('current_status', 'active')
         .order('profiles(full_name)');
@@ -757,6 +758,7 @@ export async function getStudentListForSelect(academicYearId?: string) {
       id: s.id as string,
       student_id_number: s.student_id_number as string,
       full_name: formatProfileFullName(s.profiles as Record<string, unknown>),
+      classroom_id: (s.classrooms as Record<string, unknown>)?.id as string || '',
       classroom_name: (s.classrooms as Record<string, unknown>)?.name as string || '',
       grade_level_id: (s.classrooms as Record<string, unknown>)?.grade_level_id as string || '',
       grade_level_name: (((s.classrooms as Record<string, unknown>)?.grade_levels as Record<string, unknown>)?.name as string) || '',

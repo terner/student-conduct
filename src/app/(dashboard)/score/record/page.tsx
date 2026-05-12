@@ -20,6 +20,7 @@ interface StudentItem {
   id: string;
   student_id_number: string;
   full_name: string;
+  classroom_id: string;
   classroom_name: string;
   grade_level_id?: string;
   grade_level_name?: string;
@@ -71,6 +72,11 @@ export default function ScoreRecordPage() {
 
   const [loading, setLoading] = useState(true);
   const [recordingClosedReason, setRecordingClosedReason] = useState('');
+  const getStageLabel = (stage: StageOption) => {
+    if (stage.code === 'secondary') return 'มัธยมต้น';
+    if (stage.code === 'highschool') return 'มัธยมปลาย';
+    return stage.name_th;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -182,7 +188,7 @@ export default function ScoreRecordPage() {
     }
     if (filterStageId) result = result.filter(s => s.education_stage_id === filterStageId);
     if (filterGrade) result = result.filter(s => s.grade_level_id ? s.grade_level_id === filterGrade : s.grade_level === Number(filterGrade));
-    if (filterClassroom) result = result.filter(s => s.classroom_name === filterClassroom);
+    if (filterClassroom) result = result.filter(s => s.classroom_id === filterClassroom);
     return result;
   }, [students, search, filterStageId, filterGrade, filterClassroom]);
 
@@ -223,7 +229,7 @@ export default function ScoreRecordPage() {
 
   useEffect(() => {
     if (!filterClassroom) return;
-    const isValidClassroom = classroomOptions.some(c => c.name === filterClassroom);
+    const isValidClassroom = classroomOptions.some(c => c.id === filterClassroom);
     if (!isValidClassroom) setFilterClassroom('');
   }, [filterClassroom, classroomOptions]);
 
@@ -260,10 +266,10 @@ export default function ScoreRecordPage() {
           <div>
             <Select
               value={filterStageId || null}
-              onValueChange={(v: string | null) => { setFilterStageId(v || ''); setFilterGrade(''); setFilterClassroom(''); }}
+              onValueChange={(v: string | null) => setFilterStageId(v || '')}
               itemToStringLabel={(value) => {
                 const s = stages.find(s => s.id === value);
-                return s ? s.name_th : String(value);
+                return s ? getStageLabel(s) : String(value);
               }}
             >
               <SelectTrigger className="h-10 w-full">
@@ -271,8 +277,8 @@ export default function ScoreRecordPage() {
               </SelectTrigger>
               <SelectContent>
                 {stages.map(s => (
-                  <SelectItem key={s.id} value={s.id} label={s.name_th}>
-                    {s.name_th}
+                  <SelectItem key={s.id} value={s.id} label={getStageLabel(s)}>
+                    {getStageLabel(s)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -282,7 +288,7 @@ export default function ScoreRecordPage() {
           <div>
             <Select
               value={filterGrade || null}
-              onValueChange={(v: string | null) => { setFilterGrade(v || ''); setFilterClassroom(''); }}
+              onValueChange={(v: string | null) => setFilterGrade(v || '')}
               itemToStringLabel={(value) => {
                 const g = gradeOptions.find(g => g.id === value);
                 return g ? g.label : String(value);
@@ -306,7 +312,7 @@ export default function ScoreRecordPage() {
               value={filterClassroom || null}
               onValueChange={(v: string | null) => setFilterClassroom(v || '')}
               itemToStringLabel={(value) => {
-                const c = classroomOptions.find(c => c.name === value);
+                const c = classroomOptions.find(c => c.id === value);
                 return c ? c.name : String(value);
               }}
             >
@@ -315,7 +321,7 @@ export default function ScoreRecordPage() {
               </SelectTrigger>
               <SelectContent>
                 {classroomOptions.map(c => (
-                  <SelectItem key={c.id} value={c.name} label={c.name}>
+                  <SelectItem key={c.id} value={c.id} label={c.name}>
                     {c.name}
                   </SelectItem>
                 ))}

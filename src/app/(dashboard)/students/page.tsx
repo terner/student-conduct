@@ -21,6 +21,7 @@ export default function StudentsPage() {
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [data, setData] = useState<StudentWithProfile[]>([]);
   const [total, setTotal] = useState(0);
+  const [unfilteredTotal, setUnfilteredTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -62,6 +63,7 @@ export default function StudentsPage() {
     if (result.success && result.data) {
       setData(result.data.data as unknown as StudentWithProfile[]);
       setTotal(result.data.total);
+      if (Object.keys(params).length === 0) setUnfilteredTotal(result.data.total);
       setLoading(false);
       return;
     } else {
@@ -229,6 +231,11 @@ export default function StudentsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const hasActiveFilters = Object.keys(searchParams).length > 0;
+  const from = total === 0 ? 0 : (page - 1) * 20 + 1;
+  const to = total === 0 ? 0 : (page - 1) * 20 + data.length;
+  const baseTotal = hasActiveFilters ? Math.max(unfilteredTotal, total) : total;
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -257,6 +264,13 @@ export default function StudentsPage() {
       </div>
 
       <StudentSearch onSearch={handleSearch} />
+
+      {!loading && total > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {t('resultsSummary', { total, from, to })}
+          {hasActiveFilters && baseTotal > total ? t('resultsFilteredSuffix', { total: baseTotal }) : ''}
+        </p>
+      )}
 
       <StudentTable
         data={data}
