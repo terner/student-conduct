@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { studentSchema, studentPrefixEnum, type StudentInput } from '@/lib/validation/schemas';
+import { guardianPrefixEnum, studentSchema, studentPrefixEnum, type StudentInput } from '@/lib/validation/schemas';
 import { getAcademicYears, getClassroomsForSelect } from '@/lib/actions/student.action';
 import { getEducationStages } from '@/lib/actions/education-stage.action';
 import { parseGuardianFullName } from '@/lib/guardian';
@@ -50,6 +50,15 @@ const PREFIX_LABELS: Record<string, string> = {
   'นางสาว': 'นางสาว',
   'นาง': 'นาง',
 };
+
+const GUARDIAN_PREFIX_LABELS: Record<string, string> = {
+  'นาย': 'นาย',
+  'นาง': 'นาง',
+  'นางสาว': 'นางสาว',
+  'คุณ': 'คุณ',
+};
+
+const EMPTY_GUARDIAN_PREFIX = '__none__';
 
 export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmit, onCancel, loading }: StudentFormProps) {
   const t = useTranslations('student');
@@ -159,6 +168,9 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     : null;
   const statusValue = (['active', 'inactive', 'transferred', 'graduated', 'suspended'] as string[]).includes(watch('current_status') || '')
     ? watch('current_status')
+    : null;
+  const guardianPrefixValue = guardianPrefixEnum.includes(watch('guardian_prefix') as any)
+    ? watch('guardian_prefix')
     : null;
   const guardianRelationValue = (['father', 'mother', 'guardian', 'relative', 'other'] as string[]).includes(watch('guardian_relation') || '')
     ? watch('guardian_relation')
@@ -418,17 +430,38 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
         </div>
         <div className="grid gap-3 sm:grid-cols-[120px_1fr_1fr]">
           <div className="space-y-2">
-            <Label htmlFor="guardian_prefix">{t('prefix')}</Label>
-            <Input id="guardian_prefix" {...register('guardian_prefix')} placeholder={t('prefix')} />
+            <Label>{t('prefix')} *</Label>
+            <Select
+              value={guardianPrefixValue}
+              onValueChange={(value) => {
+                const nextValue = String(value);
+                setValue('guardian_prefix', nextValue === EMPTY_GUARDIAN_PREFIX ? '' : nextValue as StudentInput['guardian_prefix'], { shouldValidate: true });
+              }}
+              itemToStringLabel={(value) => GUARDIAN_PREFIX_LABELS[value] || String(value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t('prefix')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={EMPTY_GUARDIAN_PREFIX} label={common('notSpecified')}>
+                  {common('notSpecified')}
+                </SelectItem>
+                {guardianPrefixEnum.map((prefix) => (
+                  <SelectItem key={prefix} value={prefix} label={GUARDIAN_PREFIX_LABELS[prefix]}>
+                    {GUARDIAN_PREFIX_LABELS[prefix]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.guardian_prefix && <p className="text-xs text-destructive">{errors.guardian_prefix.message}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guardian_first_name">{t('firstName')}</Label>
+            <Label htmlFor="guardian_first_name">{t('firstName')} *</Label>
             <Input id="guardian_first_name" {...register('guardian_first_name')} placeholder={t('firstName')} />
             {errors.guardian_first_name && <p className="text-xs text-destructive">{errors.guardian_first_name.message}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guardian_last_name">{t('lastName')}</Label>
+            <Label htmlFor="guardian_last_name">{t('lastName')} *</Label>
             <Input id="guardian_last_name" {...register('guardian_last_name')} placeholder={t('lastName')} />
             {errors.guardian_last_name && <p className="text-xs text-destructive">{errors.guardian_last_name.message}</p>}
           </div>
@@ -454,7 +487,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guardian_phone">{t('guardianPhone')}</Label>
+            <Label htmlFor="guardian_phone">{t('guardianPhone')} *</Label>
             <Input id="guardian_phone" {...register('guardian_phone')} placeholder={t('guardianPhonePlaceholder')} />
             {errors.guardian_phone && <p className="text-xs text-destructive">{errors.guardian_phone.message}</p>}
           </div>

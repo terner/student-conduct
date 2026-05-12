@@ -80,6 +80,7 @@ export const profileSchema = z.object({
 
 // ─── Student ───
 export const studentPrefixEnum = ['เด็กชาย', 'เด็กหญิง', 'นาย', 'นางสาว', 'นาง'] as const;
+export const guardianPrefixEnum = ['นาย', 'นาง', 'นางสาว', 'คุณ'] as const;
 
 export const studentSchema = z.object({
   prefix: z.enum(studentPrefixEnum).default('เด็กชาย'),
@@ -107,19 +108,19 @@ export const studentSchema = z.object({
     .max(100, errorMessages.tooLong(100))
     .optional()
     .or(z.literal('')),
-  guardian_prefix: z
-    .string()
-    .max(30, errorMessages.tooLong(30))
-    .optional()
-    .or(z.literal('')),
+  guardian_prefix: z.enum(guardianPrefixEnum).optional().or(z.literal('')),
   guardian_first_name: z
     .string()
+    .min(2, errorMessages.tooShort(2))
     .max(50, errorMessages.tooLong(50))
+    .regex(thaiNameRegex, errorMessages.invalidName)
     .optional()
     .or(z.literal('')),
   guardian_last_name: z
     .string()
+    .min(2, errorMessages.tooShort(2))
     .max(50, errorMessages.tooLong(50))
+    .regex(thaiNameRegex, errorMessages.invalidName)
     .optional()
     .or(z.literal('')),
   guardian_relation: z
@@ -130,6 +131,48 @@ export const studentSchema = z.object({
     .regex(thaiPhoneRegex, errorMessages.invalidPhone)
     .optional()
     .or(z.literal('')),
+}).superRefine((data, ctx) => {
+  const hasGuardianInput = Boolean(
+    data.guardian_prefix
+    || data.guardian_first_name
+    || data.guardian_last_name
+    || data.guardian_phone
+    || data.guardian_full_name,
+  );
+
+  if (!hasGuardianInput) return;
+
+  if (!data.guardian_prefix) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['guardian_prefix'],
+      message: errorMessages.required,
+    });
+  }
+
+  if (!data.guardian_first_name) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['guardian_first_name'],
+      message: errorMessages.required,
+    });
+  }
+
+  if (!data.guardian_last_name) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['guardian_last_name'],
+      message: errorMessages.required,
+    });
+  }
+
+  if (!data.guardian_phone) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['guardian_phone'],
+      message: errorMessages.required,
+    });
+  }
 });
 
 export const studentImportSchema = z.object({
