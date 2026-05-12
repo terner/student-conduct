@@ -2,24 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, AlertCircle, Building, BookOpen, Mail, BadgeCheck, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Building, BookOpen, Mail, BadgeCheck, Phone, ShieldCheck, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getTeacher } from '@/lib/actions/teacher.action';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
 import { useTranslations } from 'next-intl';
-
-function getInitials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2) || 'ค';
-}
 
 export default function TeacherDetailPage() {
   const teacherT = useTranslations('teacher');
@@ -75,10 +65,17 @@ export default function TeacherDetailPage() {
         <Button variant="ghost" size="icon" onClick={() => router.push('/teachers')}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <Avatar className="size-20">
-          {teacher.avatar_url && <AvatarImage src={teacher.avatar_url} alt={teacher.full_name || teacherT('teacher')} />}
-          <AvatarFallback className="text-xl font-semibold">{getInitials(teacher.full_name || '')}</AvatarFallback>
-        </Avatar>
+        {teacher.avatar_url ? (
+          <img
+            src={teacher.avatar_url}
+            alt={teacher.full_name || teacherT('teacher')}
+            className="size-20 rounded-full border object-cover"
+          />
+        ) : (
+          <div className="flex size-20 items-center justify-center rounded-full border border-dashed bg-muted/30 text-muted-foreground">
+            <ImageIcon className="size-8" />
+          </div>
+        )}
         <div>
           <h1 className="text-2xl font-bold">{teacher.full_name}</h1>
           <p className="text-muted-foreground text-sm">{teacher.position || teacherT('teacher')} · {teacherT('employeeId')}: {teacher.employee_id}</p>

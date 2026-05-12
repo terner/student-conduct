@@ -8,7 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
@@ -19,15 +18,6 @@ interface TeacherTableProps {
   loading?: boolean;
   onEdit?: (t: TeacherWithProfile) => void;
   onSetActive?: (teacher: TeacherWithProfile, isActive: boolean) => void;
-}
-
-function getInitials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2) || 'ค';
 }
 
 export function TeacherTable({ data, loading, onEdit, onSetActive }: TeacherTableProps) {
@@ -67,13 +57,7 @@ export function TeacherTable({ data, loading, onEdit, onSetActive }: TeacherTabl
             <TableRow key={t.id}>
               <TableCell className="font-mono text-xs">{t.employee_id}</TableCell>
               <TableCell>
-                <div className="flex items-center gap-3">
-                  <Avatar className="size-10">
-                    {t.avatar_url && <AvatarImage src={t.avatar_url} alt={t.full_name || teacherT('teacher')} />}
-                    <AvatarFallback className="text-xs font-medium">{getInitials(t.full_name || '')}</AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium">{t.full_name}</span>
-                </div>
+                <span className="font-medium">{t.full_name}</span>
               </TableCell>
               <TableCell>{t.position || teacherT('teacher')}</TableCell>
               <TableCell>{t.phone || commonT('notAvailable')}</TableCell>
