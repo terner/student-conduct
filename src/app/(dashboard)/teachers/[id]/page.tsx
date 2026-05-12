@@ -78,7 +78,10 @@ export default function TeacherDetailPage() {
         )}
         <div>
           <h1 className="text-2xl font-bold">{teacher.full_name}</h1>
-          <p className="text-muted-foreground text-sm">{teacher.position || teacherT('teacher')} · {teacherT('employeeId')}: {teacher.employee_id}</p>
+          <p className="text-muted-foreground text-sm">
+            {teacher.position || teacherT('teacher')}
+            {teacher.employee_id ? ` · ${teacherT('employeeId')}: ${teacher.employee_id}` : ''}
+          </p>
         </div>
       </div>
 
@@ -110,7 +113,7 @@ export default function TeacherDetailPage() {
             </div>
             <div className="flex items-center gap-2">
               <BadgeCheck className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-mono">{teacher.employee_id}</span>
+              <span className="text-sm font-mono">{teacher.employee_id || commonT('notAvailable')}</span>
             </div>
           </CardContent>
         </Card>

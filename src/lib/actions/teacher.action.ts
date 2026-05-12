@@ -106,7 +106,7 @@ export async function addTeacher(data: {
   first_name: string;
   last_name: string;
   email: string;
-  employee_id: string;
+  employee_id?: string;
   phone?: string;
   department?: string;
   position?: string;

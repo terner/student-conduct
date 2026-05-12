@@ -63,7 +63,7 @@ export default function TeachersPage() {
 
   const handleExport = () => {
     exportCsv(data.map((teacher) => ({
-      [teacherT('employeeId')]: teacher.employee_id,
+      [teacherT('employeeId')]: teacher.employee_id || '',
       [teacherT('prefix')]: teacher.prefix || '',
       [studentT('firstName')]: teacher.first_name || '',
       [studentT('lastName')]: teacher.last_name || '',

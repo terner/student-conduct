@@ -55,7 +55,7 @@ export function TeacherTable({ data, loading, onEdit, onSetActive }: TeacherTabl
         <TableBody>
           {data.map((t) => (
             <TableRow key={t.id}>
-              <TableCell className="font-mono text-xs">{t.employee_id}</TableCell>
+              <TableCell className="font-mono text-xs">{t.employee_id || commonT('notAvailable')}</TableCell>
               <TableCell>
                 <span className="font-medium">{t.full_name}</span>
               </TableCell>

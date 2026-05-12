@@ -197,14 +197,23 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">{teacherT('phone')}</Label>
-          <Input id="phone" type="tel" {...register('phone')} placeholder={teacherT('phonePlaceholder')} />
+          <Input
+            id="phone"
+            type="tel"
+            inputMode="numeric"
+            maxLength={10}
+            {...register('phone', {
+              setValueAs: (value) => typeof value === 'string' ? value.replace(/\D/g, '').slice(0, 10) : value,
+            })}
+            placeholder={teacherT('phonePlaceholder')}
+          />
           {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="employee_id">{teacherT('employeeIdRequired')}</Label>
+          <Label htmlFor="employee_id">{teacherT('employeeId')}</Label>
           <Input id="employee_id" {...register('employee_id')} />
           {errors.employee_id && <p className="text-xs text-destructive">{errors.employee_id.message}</p>}
         </div>

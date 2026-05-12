@@ -423,12 +423,33 @@ describe('teacherSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts teacher without employee_id', () => {
+    const result = teacherSchema.safeParse({
+      first_name: 'สมชาย',
+      last_name: 'มีสุข',
+      email: 'somchai@school.com',
+      employee_id: '',
+    });
+    expect(result.success).toBe(true);
+  });
+
   it('rejects invalid email', () => {
     const result = teacherSchema.safeParse({
       first_name: 'สมชาย',
       last_name: 'มีสุข',
       email: 'not-email',
       employee_id: 'T001',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects teacher phone with non-digit formatting', () => {
+    const result = teacherSchema.safeParse({
+      first_name: 'สมชาย',
+      last_name: 'มีสุข',
+      email: 'somchai@school.com',
+      phone: '081-234-5678',
+      employee_id: '',
     });
     expect(result.success).toBe(false);
   });

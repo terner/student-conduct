@@ -3,6 +3,7 @@ import thMessages from '../../../messages/th.json';
 
 // ─── Helpers ───
 const thaiPhoneRegex = /^0[0-9]{2}-?[0-9]{3}-?[0-9]{4}$/;
+const strictThaiPhoneRegex = /^0[0-9]{9}$/;
 const studentIdRegex = /^\d{10}$/;
 const thaiNameRegex = /^[฀-๿ a-zA-Zก-ฮ]+$/;
 
@@ -286,13 +287,14 @@ export const teacherSchema = z.object({
     .email(errorMessages.invalidEmail),
   phone: z
     .string()
-    .regex(thaiPhoneRegex, errorMessages.invalidPhone)
+    .regex(strictThaiPhoneRegex, errorMessages.invalidPhone)
     .optional()
     .or(z.literal('')),
   employee_id: z
     .string()
-    .min(3, errorMessages.tooShort(3))
-    .max(20, errorMessages.tooLong(20)),
+    .max(20, errorMessages.tooLong(20))
+    .optional()
+    .or(z.literal('')),
   department: z
     .string()
     .max(100, errorMessages.tooLong(100))

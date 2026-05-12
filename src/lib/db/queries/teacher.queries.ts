@@ -103,7 +103,7 @@ export async function listTeachers(params: { search?: string; department?: strin
     ...parseTeacherProfile(t.profiles as Record<string, unknown>),
     id: t.id as string,
     profile_id: t.profile_id as string,
-    employee_id: t.employee_id as string,
+    employee_id: (t.employee_id as string | null) || undefined,
     phone: t.phone as string | undefined,
     department: t.department as string | undefined,
     position: t.position as string | undefined || 'ครู',
@@ -164,7 +164,7 @@ export async function getTeacherById(id: string, client?: SupabaseClient): Promi
     ...parseTeacherProfile(data.profiles as Record<string, unknown>),
     id: data.id,
     profile_id: data.profile_id,
-    employee_id: data.employee_id,
+    employee_id: data.employee_id || undefined,
     phone: data.phone,
     department: data.department,
     position: data.position || 'ครู',
@@ -210,7 +210,7 @@ export async function createTeacher(data: {
   first_name: string;
   last_name: string;
   email: string;
-  employee_id: string;
+  employee_id?: string;
   phone?: string;
   department?: string;
   position?: string;
@@ -260,7 +260,7 @@ export async function createTeacher(data: {
     .from('teachers')
     .insert({
       profile_id: profile.id,
-      employee_id: data.employee_id,
+      employee_id: data.employee_id?.trim() || null,
       phone: data.phone || null,
       email: data.email,
       department: data.department || null,
@@ -338,7 +338,7 @@ export async function updateTeacher(id: string, data: {
   }
 
   const updateData: Record<string, unknown> = {};
-  if (data.employee_id) updateData.employee_id = data.employee_id;
+  if (data.employee_id !== undefined) updateData.employee_id = data.employee_id.trim() || null;
   if (data.email !== undefined) updateData.email = data.email || null;
   if (data.phone !== undefined) updateData.phone = data.phone || null;
   if (data.department !== undefined) updateData.department = data.department;

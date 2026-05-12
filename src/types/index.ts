@@ -84,7 +84,7 @@ export interface Classroom {
 export interface Teacher {
   id: string;
   profile_id: string;
-  employee_id: string;
+  employee_id?: string;
   prefix?: string;
   phone?: string;
   email?: string;
