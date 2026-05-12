@@ -497,6 +497,21 @@ export async function addStudent(data: {
       return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
     }
 
+    // Check student_id_number uniqueness
+    const adminClient = await createAdminClient();
+    const { data: existingStudent } = await adminClient
+      .from('students')
+      .select('id')
+      .eq('student_id_number', validated.student_id_number)
+      .maybeSingle();
+
+    if (existingStudent) {
+      return {
+        success: false,
+        error: { code: 'DUPLICATE_STUDENT_ID', message: 'รหัสนักเรียนนี้มีอยู่ในระบบแล้ว' },
+      };
+    }
+
     // Add students only to the current academic year.
     const supabase = await createClient();
     const { data: currentAcademicYear } = await supabase

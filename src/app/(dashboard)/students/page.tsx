@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from 'sonner';
 import { StudentTable } from '@/components/features/students/student-table';
 import { StudentSearch } from '@/components/features/students/student-search';
-import { StudentForm } from '@/components/features/students/student-form';
+import { StudentForm, type SubmitResult } from '@/components/features/students/student-form';
 import { getStudentsForClientFilters, getStudentScores, getStudentsForCsvExport, addStudent, editStudent, deleteStudent } from '@/lib/actions/student.action';
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
@@ -101,7 +101,7 @@ export default function StudentsPage() {
     setPage(1);
   }, []);
 
-  const handleAddStudent = async (formData: StudentInput & { avatar_url?: string }) => {
+  const handleAddStudent = async (formData: StudentInput & { avatar_url?: string }): Promise<SubmitResult | undefined> => {
     const result = await addStudent({
       prefix: formData.prefix,
       first_name: formData.first_name,
@@ -130,13 +130,17 @@ export default function StudentsPage() {
       return { fieldErrors: { class_number: result.error.message } };
     }
 
+    if (result.error?.code === 'DUPLICATE_STUDENT_ID') {
+      return { fieldErrors: { student_id_number: result.error.message } };
+    }
+
     setActionError({
       title: 'เพิ่มข้อมูลนักเรียนไม่สำเร็จ',
       message: result.error?.message || 'เกิดข้อผิดพลาด',
     });
   };
 
-  const handleEditStudent = async (formData: StudentInput & { avatar_url?: string }) => {
+  const handleEditStudent = async (formData: StudentInput & { avatar_url?: string }): Promise<SubmitResult | undefined> => {
     if (!editingStudent) return;
     const result = await editStudent(editingStudent.id, {
       prefix: formData.prefix,
@@ -164,6 +168,10 @@ export default function StudentsPage() {
 
     if (result.error?.code === 'DUPLICATE_CLASS_NUMBER') {
       return { fieldErrors: { class_number: result.error.message } };
+    }
+
+    if (result.error?.code === 'DUPLICATE_STUDENT_ID') {
+      return { fieldErrors: { student_id_number: result.error.message } };
     }
 
     setEditingStudent(null);

@@ -16,7 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { StudentDetail } from '@/components/features/students/student-detail';
-import { StudentForm } from '@/components/features/students/student-form';
+import { StudentForm, type SubmitResult } from '@/components/features/students/student-form';
 import { EvidenceUploader } from '@/components/features/scores/evidence-uploader';
 import { getStudent, editStudent, checkStudentViewerRole } from '@/lib/actions/student.action';
 import { getCategories, getScoreRecordingAvailability, recordScore } from '@/lib/actions/score.action';
@@ -279,7 +279,7 @@ export default function StudentDetailPage() {
     }
   };
 
-  const handleEditStudent = async (formData: StudentInput & { avatar_url?: string }) => {
+  const handleEditStudent = async (formData: StudentInput & { avatar_url?: string }): Promise<SubmitResult | undefined> => {
     if (!student) return;
     const updateData: Parameters<typeof editStudent>[1] = {
       prefix: formData.prefix,
@@ -314,6 +314,10 @@ export default function StudentDetailPage() {
 
     if (result.error?.code === 'DUPLICATE_CLASS_NUMBER') {
       return { fieldErrors: { class_number: result.error.message } };
+    }
+
+    if (result.error?.code === 'DUPLICATE_STUDENT_ID') {
+      return { fieldErrors: { student_id_number: result.error.message } };
     }
 
     throw new Error(result.error?.message || commonT('error'));

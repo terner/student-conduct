@@ -625,7 +625,10 @@ export async function createStudent(data: {
     .from('student_enrollments')
     .insert(enrollmentData);
 
-  if (enrollmentError) throw enrollmentError;
+  if (enrollmentError) {
+    await supabase.auth.admin.deleteUser(authUser.user.id);
+    throw enrollmentError;
+  }
 
   await upsertPrimaryGuardian(supabase, student.id, {
     prefix: data.guardian_prefix,

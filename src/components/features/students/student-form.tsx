@@ -15,7 +15,7 @@ import { getEducationStages } from '@/lib/actions/education-stage.action';
 import { parseGuardianFullName } from '@/lib/guardian';
 import { normalizePhoneInput } from '@/lib/phone';
 
-interface SubmitResult {
+export interface SubmitResult {
   fieldErrors?: Record<string, string>;
   generalError?: string;
 }
