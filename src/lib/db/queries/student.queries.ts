@@ -576,7 +576,7 @@ export async function createStudent(data: {
     .from('profiles')
     .insert({
       user_id: authUser.user.id,
-      role: 'student',
+      role: ['student'],
       full_name: fullName,
       prefix: prefix || null,
       avatar_url: data.avatar_url || null,

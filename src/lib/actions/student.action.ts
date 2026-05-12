@@ -1034,7 +1034,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
           .from('profiles')
           .insert({
             user_id: authUser.user.id,
-            role: 'student',
+            role: ['student'],
             full_name: fullName,
             prefix: prefix || null,
             is_active: normalizedStatus === 'active',

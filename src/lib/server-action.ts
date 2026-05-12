@@ -59,7 +59,16 @@ export async function withAuth<T>(
     return await handler(profile);
   } catch (err) {
     console.error('[withAuth] Handler error:', err);
-    const message = err instanceof Error ? err.message : String(err);
+    let message = 'เกิดข้อผิดพลาด';
+    if (err instanceof Error) {
+      message = err.message || 'เกิดข้อผิดพลาด';
+    } else if (err && typeof err === 'object') {
+      const obj = err as Record<string, unknown>;
+      message = typeof obj.message === 'string' ? obj.message
+        : typeof obj.error === 'string' ? obj.error
+        : typeof obj.code === 'string' ? obj.code
+        : String(err);
+    }
     return {
       success: false,
       error: {
