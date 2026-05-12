@@ -520,6 +520,25 @@ export async function addStudent(data: {
       return { success: false, error: { code: 'INVALID_CLASSROOM_YEAR', message: 'ห้องเรียนนี้ไม่อยู่ในปีการศึกษาปัจจุบัน' } };
     }
 
+    // Check class_number uniqueness within classroom + academic year
+    if (validated.class_number) {
+      const adminClient = await createAdminClient();
+      const { data: existingNumber } = await adminClient
+        .from('student_enrollments')
+        .select('id')
+        .eq('classroom_id', validated.classroom_id)
+        .eq('academic_year_id', currentAcademicYear.id)
+        .eq('class_number', validated.class_number)
+        .maybeSingle();
+
+      if (existingNumber) {
+        return {
+          success: false,
+          error: { code: 'DUPLICATE_CLASS_NUMBER', message: 'เลขที่นี้มีคนใช้แล้วในห้องนี้' },
+        };
+      }
+    }
+
     const result = await createStudent({
       prefix: validated.prefix,
       first_name: validated.first_name,
@@ -590,6 +609,25 @@ export async function editStudent(id: string, data: {
     const editableYear = await ensureStudentEditableInOpenAcademicYear(id, validated.classroom_id);
     if (!editableYear.success) {
       return { success: false, error: { code: 'ACADEMIC_YEAR_CLOSED', message: editableYear.message } };
+    }
+
+    // Check class_number uniqueness (exclude current student)
+    if (validated.class_number && validated.classroom_id) {
+      const adminClient = await createAdminClient();
+      const { data: existingNumber } = await adminClient
+        .from('student_enrollments')
+        .select('id')
+        .eq('classroom_id', validated.classroom_id)
+        .neq('student_id', id)
+        .eq('class_number', validated.class_number)
+        .maybeSingle();
+
+      if (existingNumber) {
+        return {
+          success: false,
+          error: { code: 'DUPLICATE_CLASS_NUMBER', message: 'เลขที่นี้มีคนใช้แล้วในห้องนี้' },
+        };
+      }
     }
 
     const before = await getStudentById(id);

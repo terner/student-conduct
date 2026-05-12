@@ -15,10 +15,15 @@ import { getEducationStages } from '@/lib/actions/education-stage.action';
 import { parseGuardianFullName } from '@/lib/guardian';
 import { normalizePhoneInput } from '@/lib/phone';
 
+interface SubmitResult {
+  fieldErrors?: Record<string, string>;
+  generalError?: string;
+}
+
 interface StudentFormProps {
   defaultValues?: Partial<StudentInput> & { avatar_url?: string };
   classrooms?: { id: string; name: string; grade_level_id?: string; grade_level_name?: string; grade_level: number; education_stage_id?: string; academic_year_id?: string }[];
-  onSubmit: (data: StudentInput & { avatar_url?: string }) => Promise<void>;
+  onSubmit: (data: StudentInput & { avatar_url?: string }) => Promise<SubmitResult | undefined>;
   onCancel?: () => void;
   loading?: boolean;
 }
@@ -90,6 +95,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     register,
     handleSubmit,
     setValue,
+    setError,
     watch,
     formState: { errors, isSubmitting },
   } = useForm({
@@ -267,7 +273,14 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   };
 
   return (
-    <form onSubmit={handleSubmit((data) => onSubmit({ ...data, avatar_url: avatarUrl || undefined }))} className="space-y-4">
+    <form onSubmit={handleSubmit(async (data) => {
+      const result = await onSubmit({ ...data, avatar_url: avatarUrl || undefined });
+      if (result?.fieldErrors) {
+        Object.entries(result.fieldErrors).forEach(([field, message]) => {
+          setError(field as keyof StudentInput, { message });
+        });
+      }
+    })} className="space-y-4">
       <div className="space-y-2">
         <Label>{t('photo')}</Label>
         <div className="flex items-center gap-4">

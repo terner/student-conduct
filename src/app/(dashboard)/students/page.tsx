@@ -123,12 +123,17 @@ export default function StudentsPage() {
       const name = `${formData.prefix}${formData.first_name} ${formData.last_name}`;
       toast(t('addSuccess'), { description: t('addSuccessDescription', { name }) });
       loadStudents();
-    } else {
-      setActionError({
-        title: 'เพิ่มข้อมูลนักเรียนไม่สำเร็จ',
-        message: result.error?.message || 'เกิดข้อผิดพลาด',
-      });
+      return;
     }
+
+    if (result.error?.code === 'DUPLICATE_CLASS_NUMBER') {
+      return { fieldErrors: { class_number: result.error.message } };
+    }
+
+    setActionError({
+      title: 'เพิ่มข้อมูลนักเรียนไม่สำเร็จ',
+      message: result.error?.message || 'เกิดข้อผิดพลาด',
+    });
   };
 
   const handleEditStudent = async (formData: StudentInput & { avatar_url?: string }) => {
@@ -154,13 +159,18 @@ export default function StudentsPage() {
       setEditingStudent(null);
       toast(t('editSuccess'));
       loadStudents();
-    } else {
-      setEditingStudent(null);
-      setActionError({
-        title: 'แก้ไขข้อมูลนักเรียนไม่ได้',
-        message: result.error?.message || 'เกิดข้อผิดพลาด',
-      });
+      return;
     }
+
+    if (result.error?.code === 'DUPLICATE_CLASS_NUMBER') {
+      return { fieldErrors: { class_number: result.error.message } };
+    }
+
+    setEditingStudent(null);
+    setActionError({
+      title: 'แก้ไขข้อมูลนักเรียนไม่ได้',
+      message: result.error?.message || 'เกิดข้อผิดพลาด',
+    });
   };
 
   const handleDeleteStudent = async () => {

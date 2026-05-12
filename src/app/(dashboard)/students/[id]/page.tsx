@@ -309,9 +309,14 @@ export default function StudentDetailPage() {
       setShowEditForm(false);
       toast(studentT('editSuccess'));
       await loadData();
-    } else {
-      throw new Error(result.error?.message || commonT('error'));
+      return;
     }
+
+    if (result.error?.code === 'DUPLICATE_CLASS_NUMBER') {
+      return { fieldErrors: { class_number: result.error.message } };
+    }
+
+    throw new Error(result.error?.message || commonT('error'));
   };
 
   const handlePrint = () => {
