@@ -58,7 +58,7 @@ export const defaultSecurityConfig: SecurityHeadersConfig = {
     styleSrc: ["'self'", "'unsafe-inline'"],
     imgSrc: ["'self'", 'data:', 'blob:', 'https://*.supabase.co', 'https://*.blob.vercel-storage.com', 'https://lh3.googleusercontent.com', 'https://drive.google.com'],
     fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-    connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co', 'https://*.vercel.app', 'https://api.github.com', 'https://*.ingest.sentry.io'],
+    connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co', 'https://*.vercel.app', 'https://api.github.com', 'https://*.ingest.sentry.io', 'https://*.ingest.us.sentry.io'],
     frameAncestors: ["'none'"],
     formAction: ["'self'"],
     baseUri: ["'self'"],
