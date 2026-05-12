@@ -115,7 +115,7 @@
     "invalidName": "Name can contain Thai or English letters only",
     "invalidPoints": "Points must be between 1 and 999",
     "invalidGradeLevel": "Grade level must be between 1 and 12",
-    "invalidClassNumber": "Class number must be between 1 and 50",
+    "invalidClassNumber": "Class number must be an integer greater than or equal to 1",
     "invalidUrl": "Invalid URL format",
     "passwordTooWeak": "Password must be at least 8 characters and include lowercase, uppercase, number, and special character",
     "passwordMin": "Password must be at least 8 characters",

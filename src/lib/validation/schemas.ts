@@ -100,7 +100,7 @@ export const studentSchema = z.object({
   classroom_id: z.string().min(1, errorMessages.required),
   class_number: z.preprocess(
     (val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
-    z.number().int().min(1, errorMessages.invalidClassNumber).max(50, errorMessages.invalidClassNumber).optional(),
+    z.number().int().min(1, errorMessages.invalidClassNumber).optional(),
   ),
   current_status: z.enum(['active', 'inactive', 'transferred', 'graduated', 'suspended']).default('active'),
   guardian_full_name: z
@@ -136,7 +136,7 @@ export const studentSchema = z.object({
 export const studentImportSchema = z.object({
   academic_year: z.string().min(4, errorMessages.invalidAcademicYear),
   student_id: z.string().regex(studentIdRegex, errorMessages.invalidStudentId),
-  class_number: z.coerce.number().int().min(1).max(50),
+  class_number: z.coerce.number().int().min(1),
   first_name: z.string().min(2).max(50),
   last_name: z.string().min(2).max(50),
   education_stage_id: z.string().uuid(),

@@ -418,7 +418,6 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
           id="class_number"
           type="number"
           min={1}
-          max={50}
           {...register('class_number', { valueAsNumber: true })}
           placeholder={t('classNumberPlaceholder')}
         />

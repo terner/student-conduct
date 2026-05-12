@@ -199,9 +199,9 @@ describe('studentSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects class_number 51', () => {
+  it('accepts class_number greater than 50', () => {
     const result = studentSchema.safeParse({ ...valid, class_number: 51 });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('defaults prefix to เด็กชาย', () => {
