@@ -58,11 +58,13 @@ export async function withAuth<T>(
     }
     return await handler(profile);
   } catch (err) {
+    console.error('[withAuth] Handler error:', err);
+    const message = err instanceof Error ? err.message : String(err);
     return {
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด',
+        message: message || 'เกิดข้อผิดพลาด',
       },
     };
   }
