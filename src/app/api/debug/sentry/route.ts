@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 function isAuthorized(request: Request) {
-  const expectedToken = process.env.SENTRY_TEST_TOKEN;
+  const expectedToken = process.env.SENTRY_TEST_TOKEN?.trim();
   if (!expectedToken) return false;
 
   const url = new URL(request.url);
@@ -14,7 +14,7 @@ function isAuthorized(request: Request) {
 }
 
 export async function GET(request: Request) {
-  if (!process.env.SENTRY_TEST_TOKEN) {
+  if (!process.env.SENTRY_TEST_TOKEN?.trim()) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 

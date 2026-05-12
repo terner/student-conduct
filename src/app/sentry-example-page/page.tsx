@@ -8,7 +8,7 @@ export default async function SentryExamplePage({
 }: {
   searchParams: Promise<{ token?: string }>;
 }) {
-  const expectedToken = process.env.SENTRY_TEST_TOKEN;
+  const expectedToken = process.env.SENTRY_TEST_TOKEN?.trim();
   const params = await searchParams;
 
   if (!expectedToken || params.token !== expectedToken) {
