@@ -946,6 +946,7 @@
     "active": "Active",
     "inactive": "Inactive",
     "notAvailable": "-",
+    "notSpecified": "Not specified",
     "none": "None",
     "requiredMark": "*"
   }
