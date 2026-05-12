@@ -11,7 +11,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
 import { getCurrentUserRole, changeProfileName } from '@/lib/actions/dashboard.action';
 import Link from 'next/link';
-import { displayRole } from '@/lib/security/roles';
+import { displayRole, hasAnyRole } from '@/lib/security/roles';
 import { useTranslations } from 'next-intl';
 import { getMyTeacherProfile, updateMyTeacherProfile } from '@/lib/actions/teacher.action';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
@@ -39,6 +39,7 @@ export default function ProfilePage() {
   const [department, setDepartment] = useState('');
   const [position, setPosition] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const canUploadAvatar = hasAnyRole(profile, ['admin', 'superadmin']);
 
   useEffect(() => {
     async function load() {
@@ -105,7 +106,7 @@ export default function ProfilePage() {
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file || !teacherProfile) return;
+    if (!file || !teacherProfile || !canUploadAvatar) return;
     if (file.size > 2 * 1024 * 1024) {
       toast(settingsT('logoFileTooLarge'));
       return;
@@ -186,17 +187,19 @@ export default function ProfilePage() {
                     <p className="text-sm font-medium">{teacherT('profilePhoto')}</p>
                     <p className="text-xs text-muted-foreground">{teacherT('photoHelp')}</p>
                   </div>
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-primary hover:text-primary/80">
-                    {uploadingAvatar ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                    <span>{uploadingAvatar ? teacherT('uploadingPhoto') : teacherT('choosePhotoShort')}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={uploadingAvatar}
-                      onChange={handleAvatarUpload}
-                    />
-                  </label>
+                  {canUploadAvatar && (
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-primary hover:text-primary/80">
+                      {uploadingAvatar ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                      <span>{uploadingAvatar ? teacherT('uploadingPhoto') : teacherT('choosePhotoShort')}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingAvatar}
+                        onChange={handleAvatarUpload}
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
             )}

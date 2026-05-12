@@ -38,6 +38,7 @@ export async function uploadFileToVercelBlob(target: BlobUploadTarget, file: Fil
   const result = await put(pathname, file, {
     access,
     addRandomSuffix: target === 'evidence',
+    allowOverwrite: target === 'profile',
     contentType: file.type || 'application/octet-stream',
   });
 

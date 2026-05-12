@@ -3,15 +3,19 @@ import { createClientWithUser, createAdminClient } from '@/lib/supabase/server';
 import { getGoogleDriveConfig, isGoogleDriveReady, uploadFileToGoogleDrive } from '@/lib/storage/google-drive';
 import { getRequestAuditInfo, logAudit } from '@/lib/audit/log';
 import { apiMessage } from '@/lib/i18n/api';
+import { hasAnyRole } from '@/lib/security/roles';
 import { getStorageProvider } from '@/lib/storage/config';
 import { uploadFileToVercelBlob } from '@/lib/storage/vercel-blob';
 import { checkUploadRateLimit, safeFileExtension, validateSingleImageUpload } from '@/lib/storage/upload-validation';
 
 export const runtime = 'nodejs';
 
-function hasRole(role: string | string[] | null, target: string): boolean {
-  if (!role) return false;
-  return Array.isArray(role) ? role.includes(target) : role === target;
+function normalizeOwnerType(value: FormDataEntryValue | null): 'student' | 'teacher' {
+  return value === 'teacher' ? 'teacher' : 'student';
+}
+
+function safeOwnerId(value: string): string {
+  return value.trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 100);
 }
 
 export async function POST(request: Request) {
@@ -35,14 +39,13 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const profileOwnerId = (formData.get('student_id') || formData.get('owner_id')) as string | null;
-    const ownerType = (formData.get('owner_type') as string | null) || 'student';
+    const profileOwnerId = String(formData.get('student_id') || formData.get('owner_id') || '').trim();
+    const ownerType = normalizeOwnerType(formData.get('owner_type'));
 
     if (!profileOwnerId) {
       return NextResponse.json({ error: apiMessage(request, 'missingProfileOwner') }, { status: 400 });
     }
-    const isSelfUpload = ownerType === 'teacher' && profileOwnerId === profile.id;
-    if (!hasRole(profile.role, 'superadmin') && !isSelfUpload) {
+    if (!hasAnyRole(profile, ['admin', 'superadmin'])) {
       return NextResponse.json({ error: apiMessage(request, 'uploadForbidden') }, { status: 403 });
     }
 
@@ -56,12 +59,13 @@ export async function POST(request: Request) {
     if (!uploadFile) return NextResponse.json({ error: apiMessage(request, 'fileRequired') }, { status: 400 });
 
     const fileExt = safeFileExtension(uploadFile, 'png');
-    const fileName = `${ownerType}-${profileOwnerId}.${fileExt}`;
+    const fileName = `${ownerType}-${safeOwnerId(profileOwnerId)}.${fileExt}`;
     const storageProvider = await getStorageProvider(adminClient);
 
     if (storageProvider === 'vercel_blob') {
       const upload = await uploadFileToVercelBlob('profile', uploadFile, fileName);
-      const url = upload.access === 'private' ? `/api/blob/${upload.pathname}` : upload.url;
+      const urlBase = upload.access === 'private' ? `/api/blob/${upload.pathname}` : upload.url;
+      const url = `${urlBase}?v=${Date.now()}`;
       await logAudit({
         actorId: profile.id,
         action: 'avatar_upload',
@@ -118,18 +122,19 @@ export async function POST(request: Request) {
       .storage
       .from('student-photos')
       .getPublicUrl(fileName);
+    const url = `${publicUrl}?v=${Date.now()}`;
 
     await logAudit({
       actorId: profile.id,
       action: 'avatar_upload',
       targetType: ownerType,
       targetId: profileOwnerId,
-      afterData: { url: publicUrl, provider: 'supabase' },
+      afterData: { url, provider: 'supabase' },
       metadata: { file_name: uploadFile.name, file_type: uploadFile.type, file_size: uploadFile.size },
       ...requestInfo,
     });
 
-    return NextResponse.json({ success: true, url: publicUrl });
+    return NextResponse.json({ success: true, url });
   } catch (err) {
     console.error('[Upload Avatar] Error:', err);
     return NextResponse.json({ error: apiMessage(request, 'internalError') }, { status: 500 });

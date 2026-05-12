@@ -303,6 +303,7 @@ export default function StudentsPage() {
                 student_id_number: editingStudent.student_id_number,
                 classroom_id: editingStudent.classroom_id,
                 class_number: 1,
+                avatar_url: editingStudent.avatar_url || '',
                 current_status: editingStudent.current_status,
                 guardian_full_name: editingStudent.guardian_full_name || '',
                 guardian_relation: normalizeGuardianRelation(editingStudent.guardian_relation),

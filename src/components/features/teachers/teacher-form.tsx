@@ -65,6 +65,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
       alert(settingsT('logoFileTooLarge'));

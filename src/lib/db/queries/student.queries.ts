@@ -175,6 +175,7 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
       guardian_full_name: guardian?.full_name || '',
       guardian_relation: guardian?.relation || '',
       guardian_phone: guardian?.phone || '',
+      avatar_url: profile.avatar_url as string | undefined,
       current_score: scoreByStudentId.get(s.id as string) ?? 100,
     };
   }));
@@ -198,7 +199,7 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
     .from('students')
     .select(`
       *,
-      profiles!inner(full_name, prefix),
+      profiles!inner(full_name, prefix, avatar_url),
       classrooms!inner(name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
     `)
     .eq('id', id)
@@ -561,8 +562,8 @@ export async function updateStudent(id: string, data: {
     .eq('id', id)
     .single();
 
-  // Update profile name if changed
-  if (data.first_name || data.last_name || data.prefix !== undefined) {
+  // Update profile name/avatar if changed
+  if (data.first_name || data.last_name || data.prefix !== undefined || data.avatar_url !== undefined) {
     if (student?.profile_id) {
       // Get current profile to merge with existing values
       const { data: currentProfile } = await supabase

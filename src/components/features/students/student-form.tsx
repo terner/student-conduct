@@ -217,8 +217,9 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   // Upload avatar handler
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-  if (file.size > 2 * 1024 * 1024) {
+    if (file.size > 2 * 1024 * 1024) {
       alert(settingsT('logoFileTooLarge'));
       return;
     }
@@ -226,7 +227,8 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('student_id', 'temp-' + Date.now());
+      formData.append('owner_id', defaultValues?.student_id_number || `temp-${Date.now()}`);
+      formData.append('owner_type', 'student');
       const res = await fetch('/api/upload/avatar', { method: 'POST', body: formData });
       const result = await res.json();
       if (res.ok && result.url) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,7 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
   const selectedYearId = useSelectedAcademicYearId();
   const [filteredClassrooms, setFilteredClassrooms] = useState<ClassroomOption[]>([]);
   const [loadingClassrooms, setLoadingClassrooms] = useState(false);
+  const lastSubmittedParams = useRef('');
 
   // Load academic years and stages on mount
   useEffect(() => {
@@ -88,17 +89,34 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
     return true;
   });
 
-  const handleSearch = useCallback(() => {
-    onSearch({
-      search: search || undefined,
+  const buildSearchParams = useCallback(() => ({
+      search: search.trim() || undefined,
       classroom_id: classroomId || undefined,
       grade_level_id: gradeLevel && gradeLevel.includes('-') ? gradeLevel : undefined,
       grade_level: gradeLevel && !gradeLevel.includes('-') ? gradeLevel : undefined,
       education_stage_id: stageFilterId || undefined,
       status: status || undefined,
       academic_year: selectedYearId || undefined,
-    });
-  }, [search, classroomId, gradeLevel, stageFilterId, status, selectedYearId, onSearch]);
+    }), [search, classroomId, gradeLevel, stageFilterId, status, selectedYearId]);
+
+  const submitSearch = useCallback((params: ReturnType<typeof buildSearchParams>) => {
+    const normalized = JSON.stringify(params);
+    if (normalized === lastSubmittedParams.current) return;
+    lastSubmittedParams.current = normalized;
+    onSearch(params);
+  }, [onSearch, buildSearchParams]);
+
+  const handleSearch = useCallback(() => {
+    submitSearch(buildSearchParams());
+  }, [buildSearchParams, submitSearch]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      submitSearch(buildSearchParams());
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [buildSearchParams, submitSearch]);
 
   const handleClear = useCallback(() => {
     setSearch('');
@@ -106,6 +124,7 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
     setGradeLevel('');
     setStageFilterId('');
     setStatus('');
+    lastSubmittedParams.current = '';
     onSearch({});
   }, [onSearch]);
 
