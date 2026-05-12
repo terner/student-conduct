@@ -743,7 +743,7 @@ export async function getAcademicYears() {
 
 export async function getStudentDashboard() {
   return withAuth(async (profile) => {
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
 
     // Get current academic year
     const { data: acYear } = await supabase
@@ -756,7 +756,7 @@ export async function getStudentDashboard() {
     // Get student record linked to this profile
     const { data: student } = await supabase
       .from('students')
-      .select('id, student_id_number, classroom_id, profiles!inner(full_name, prefix), classrooms!inner(id, name, grade_level, education_stage_id)')
+      .select('id, student_id_number, classroom_id, profiles!inner(full_name, prefix), classrooms(id, name, grade_level, education_stage_id)')
       .eq('profile_id', profile.id)
       .single();
 
