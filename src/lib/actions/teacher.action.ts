@@ -2,6 +2,7 @@
 
 import { withAuth } from '@/lib/server-action';
 import { canManageSchoolData } from '@/lib/security/roles';
+import { createAdminClient } from '@/lib/supabase/server';
 import {
   listTeachers,
   getTeacherById,
@@ -42,7 +43,8 @@ export async function getTeacher(id: string) {
 
 export async function getMyTeacherProfile() {
   return withAuth(async (profile) => {
-    const teacher = await getTeacherByProfileId(profile.id);
+    const adminClient = await createAdminClient();
+    const teacher = await getTeacherByProfileId(profile.id, adminClient);
     return { success: true, data: teacher };
   });
 }
@@ -56,7 +58,8 @@ export async function updateMyTeacherProfile(data: {
   avatar_url?: string;
 }) {
   return withAuth(async (profile) => {
-    const teacher = await getTeacherByProfileId(profile.id);
+    const adminClient = await createAdminClient();
+    const teacher = await getTeacherByProfileId(profile.id, adminClient);
     if (!teacher) {
       return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลครูของผู้ใช้นี้' } };
     }
@@ -81,9 +84,9 @@ export async function updateMyTeacherProfile(data: {
       position: data.position,
       avatar_url: data.avatar_url,
     };
-    const before = await getTeacherById(teacher.id);
-    await updateTeacher(teacher.id, updateData);
-    const after = await getTeacherById(teacher.id);
+    const before = await getTeacherById(teacher.id, adminClient);
+    await updateTeacher(teacher.id, updateData, adminClient);
+    const after = await getTeacherById(teacher.id, adminClient);
     await logAudit({
       actorId: profile.id,
       action: 'teacher_self_profile_update',

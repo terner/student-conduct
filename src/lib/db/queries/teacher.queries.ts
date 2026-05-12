@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Teacher } from '@/types';
 
 export interface TeacherWithProfile extends Teacher {
@@ -126,8 +127,8 @@ export async function listTeachers(params: { search?: string; department?: strin
 /**
  * Get teacher by ID with full details
  */
-export async function getTeacherById(id: string): Promise<TeacherWithProfile | null> {
-  const supabase = await createClient();
+export async function getTeacherById(id: string, client?: SupabaseClient): Promise<TeacherWithProfile | null> {
+  const supabase = client || await createClient();
 
   const { data, error } = await supabase
     .from('teachers')
@@ -187,8 +188,8 @@ export async function getTeacherById(id: string): Promise<TeacherWithProfile | n
 /**
  * Get teacher by profile ID.
  */
-export async function getTeacherByProfileId(profileId: string): Promise<TeacherWithProfile | null> {
-  const supabase = await createClient();
+export async function getTeacherByProfileId(profileId: string, client?: SupabaseClient): Promise<TeacherWithProfile | null> {
+  const supabase = client || await createClient();
 
   const { data, error } = await supabase
     .from('teachers')
@@ -198,7 +199,7 @@ export async function getTeacherByProfileId(profileId: string): Promise<TeacherW
 
   if (error || !data?.id) return null;
 
-  return getTeacherById(data.id);
+  return getTeacherById(data.id, supabase);
 }
 
 /**
@@ -292,8 +293,8 @@ export async function updateTeacher(id: string, data: {
   system_role?: 'teacher' | 'admin' | 'superadmin';
   is_active?: boolean;
   avatar_url?: string;
-}) {
-  const supabase = await createClient();
+}, client?: SupabaseClient) {
+  const supabase = client || await createClient();
 
   const teacher = await supabase
     .from('teachers')

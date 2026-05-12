@@ -17,12 +17,13 @@ function hasRole(role: string | string[] | null, target: string): boolean {
 export async function POST(request: Request) {
   const requestInfo = getRequestAuditInfo(request);
   try {
-    const { supabase, user } = await createClientWithUser();
+    const { user } = await createClientWithUser();
     if (!user?.id) {
       return NextResponse.json({ error: apiMessage(request, 'unauthorized') }, { status: 401 });
     }
 
-    const { data: profile } = await supabase
+    const adminClient = await createAdminClient();
+    const { data: profile } = await adminClient
       .from('profiles')
       .select('id, role')
       .eq('user_id', user.id)
@@ -54,7 +55,6 @@ export async function POST(request: Request) {
     const uploadFile = file;
     if (!uploadFile) return NextResponse.json({ error: apiMessage(request, 'fileRequired') }, { status: 400 });
 
-    const adminClient = await createAdminClient();
     const fileExt = safeFileExtension(uploadFile, 'png');
     const fileName = `${ownerType}-${profileOwnerId}.${fileExt}`;
     const storageProvider = await getStorageProvider(adminClient);
