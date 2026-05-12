@@ -44,6 +44,7 @@ export interface StudentListParams {
   education_stage_id?: string;
   status?: string;
   academic_year?: string;
+  includeScores?: boolean;
 }
 
 export interface PaginatedResult<T> {
@@ -84,21 +85,34 @@ function parseProfile(profile: Record<string, unknown>): { prefix: string; first
 
 // Cache for education stages lookup
 let stagesCache: Map<string, string> | null = null;
-async function getStageName(stageId: string): Promise<string> {
-  if (!stagesCache) {
-    const supabase = await createClient();
-    const { data } = await supabase.from('education_stages').select('id, name_th');
-    stagesCache = new Map();
-    if (data) {
-      for (const s of data) {
-        stagesCache.set(s.id, s.name_th);
+let stagesLoadPromise: Promise<Map<string, string>> | null = null;
+
+async function loadStages(): Promise<Map<string, string>> {
+  if (stagesCache) return stagesCache;
+  if (!stagesLoadPromise) {
+    stagesLoadPromise = (async () => {
+      const supabase = await createClient();
+      const { data } = await supabase.from('education_stages').select('id, name_th');
+      const map = new Map<string, string>();
+      if (data) {
+        for (const s of data) {
+          map.set(s.id, s.name_th);
+        }
       }
-    }
+      stagesCache = map;
+      stagesLoadPromise = null;
+      return map;
+    })();
   }
-  return stagesCache.get(stageId) || '';
+  return stagesLoadPromise;
+}
+
+async function getStageName(stageId: string): Promise<string> {
+  const cache = await loadStages();
+  return cache.get(stageId) || '';
 }
 // Reset cache (for testing)
-export function resetStagesCache() { stagesCache = null; }
+export function resetStagesCache() { stagesCache = null; stagesLoadPromise = null; }
 
 async function getClassNumbersByStudentId(studentIds: string[], academicYearId?: string) {
   const classNumberByStudentId = new Map<string, number>();
@@ -151,6 +165,7 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
     education_stage_id,
     status,
     academic_year,
+    includeScores = true,
   } = params;
 
   let query = supabase
@@ -194,10 +209,16 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
   if (error) throw error;
 
   const studentIds = (data || []).map((s: Record<string, unknown>) => s.id as string);
-  const [guardianByStudentId, scoreByStudentId, classNumberByStudentId] = await Promise.all([
+
+  const scoresPromise = includeScores
+    ? getScoreByStudentId(studentIds, academic_year)
+    : Promise.resolve(new Map<string, number>());
+
+  const [guardianByStudentId, scoreByStudentId, classNumberByStudentId, stages] = await Promise.all([
     getPrimaryGuardians(studentIds),
-    getScoreByStudentId(studentIds, academic_year),
+    scoresPromise,
     getClassNumbersByStudentId(studentIds, academic_year),
+    loadStages(),
   ]);
 
   const mapped: StudentWithProfile[] = await Promise.all((data || []).map(async (s: Record<string, unknown>) => {
@@ -221,7 +242,7 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
       grade_level_id: classroom.grade_level_id as string || '',
       grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
       grade_level: classroom.grade_level as number || 0,
-      education_stage_name: stageId ? await getStageName(stageId) : '',
+      education_stage_name: stageId ? stages.get(stageId) || '' : '',
       guardian_prefix: guardian?.prefix || '',
       guardian_first_name: guardian?.first_name || '',
       guardian_last_name: guardian?.last_name || '',
@@ -286,7 +307,7 @@ export async function getStudentById(id: string): Promise<StudentWithProfile | n
     grade_level_id: classroom.grade_level_id as string || '',
     grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
     grade_level: classroom.grade_level as number || 0,
-    education_stage_name: stageId ? await getStageName(stageId) : '',
+    education_stage_name: stageId ? (await loadStages()).get(stageId) || '' : '',
     homeroom_teacher_name: teacherNames.homeroom || '',
     advisor_teacher_name: teacherNames.advisor || teacherNames.homeroom || '',
     guardian_prefix: guardian?.prefix || '',
@@ -494,7 +515,9 @@ export async function getStudentsByClassroom(classroomId: string): Promise<Stude
 
   if (error) throw error;
 
-  return Promise.all((data || []).map(async (s: Record<string, unknown>) => {
+  const stages = await loadStages();
+
+  return (data || []).map((s: Record<string, unknown>) => {
     const profile = s.profiles as Record<string, unknown> || {};
     const { prefix, first_name, last_name } = parseProfile(profile);
     const classroom = s.classrooms as Record<string, unknown> || {};
@@ -512,9 +535,9 @@ export async function getStudentsByClassroom(classroomId: string): Promise<Stude
       grade_level_id: classroom.grade_level_id as string || '',
       grade_level_name: ((classroom.grade_levels as Record<string, unknown>)?.name as string) || '',
       grade_level: classroom.grade_level as number || 0,
-      education_stage_name: stageId ? await getStageName(stageId) : '',
+      education_stage_name: stageId ? (stages.get(stageId) || '') : '',
     };
-  }));
+  });
 }
 export async function createStudent(data: {
   prefix?: string;

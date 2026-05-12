@@ -229,13 +229,65 @@ export async function getStudentsForClientFilters(academicYearId?: string) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายชื่อนักเรียน' } };
     }
 
+    const cacheKey = `students-client-filters:${academicYearId || 'current'}`;
+    const cached = await getTtlCache<StudentWithProfile[]>(cacheKey);
+    if (cached) return { success: true, data: cached };
+
     const result = await listStudents({
       page: 1,
       page_size: 5000,
       academic_year: academicYearId,
+      includeScores: false,
     });
 
+    await setTtlCache(cacheKey, result.data, SHORT_LIST_TTL_MS);
     return { success: true, data: result.data };
+  });
+}
+
+export async function getStudentScores(studentIds: string[], academicYearId?: string) {
+  return withAuth<Record<string, number>>(async (profile) => {
+    if (!canManageSchoolData(profile) && !canApproveScores(profile) && !canRecordScores(profile)) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์' } };
+    }
+
+    const supabase = await createAdminClient();
+
+    let baseScore = 100;
+    if (academicYearId) {
+      const { data: academicYear } = await supabase
+        .from('academic_years')
+        .select('base_score')
+        .eq('id', academicYearId)
+        .maybeSingle();
+      baseScore = (academicYear?.base_score as number | undefined) || 100;
+    }
+
+    const scoreByStudentId: Record<string, number> = {};
+    for (const id of studentIds) scoreByStudentId[id] = baseScore;
+
+    // Batch query in chunks to avoid overly large IN clauses
+    const BATCH = 500;
+    for (let i = 0; i < studentIds.length; i += BATCH) {
+      const chunk = studentIds.slice(i, i + BATCH);
+      let query = supabase
+        .from('score_transactions')
+        .select('student_id, points')
+        .in('student_id', chunk)
+        .eq('status', 'approved');
+
+      if (academicYearId) {
+        query = query.eq('academic_year_id', academicYearId);
+      }
+
+      const { data } = await query;
+      for (const row of data || []) {
+        const sid = row.student_id as string;
+        scoreByStudentId[sid] = (scoreByStudentId[sid] ?? baseScore) + ((row.points as number) || 0);
+      }
+    }
+
+    return { success: true, data: scoreByStudentId };
   });
 }
 

@@ -35,11 +35,24 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState(10);
   const [recipientId, setRecipientId] = useState<string>('');
+  const [stopped, setStopped] = useState(false);
 
   const load = useCallback(async () => {
+    if (stopped) return;
     try {
+      // Check session validity before fetching
+      const supabase = createClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        setStopped(true);
+        return;
+      }
+
       const res = await fetch(`/api/notifications?limit=${limit}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        if (res.status === 401) setStopped(true);
+        return;
+      }
       const json = await res.json();
       const data = json.data ?? [];
       setNotifications(data);
@@ -48,7 +61,7 @@ export function NotificationBell() {
     } catch {
       // silently fail — user may not be authenticated
     }
-  }, [limit]);
+  }, [limit, stopped]);
 
   useEffect(() => { load(); }, [load]);
 

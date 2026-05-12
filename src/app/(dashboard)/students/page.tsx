@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { StudentTable } from '@/components/features/students/student-table';
 import { StudentSearch } from '@/components/features/students/student-search';
 import { StudentForm } from '@/components/features/students/student-form';
-import { getStudentsForClientFilters, getStudentsForCsvExport, addStudent, editStudent, deleteStudent } from '@/lib/actions/student.action';
+import { getStudentsForClientFilters, getStudentScores, getStudentsForCsvExport, addStudent, editStudent, deleteStudent } from '@/lib/actions/student.action';
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 import { studentPrefixEnum, type StudentInput } from '@/lib/validation/schemas';
@@ -30,6 +30,8 @@ export default function StudentsPage() {
   const [exporting, setExporting] = useState(false);
   const [searchParams, setSearchParams] = useState<Record<string, string>>({});
   const [selectedYearOpen, setSelectedYearOpen] = useState(false);
+  const [scores, setScores] = useState<Record<string, number>>({});
+  const [scoresLoading, setScoresLoading] = useState(false);
 
   const normalizeStudentPrefix = (value: string): StudentInput['prefix'] => (
     studentPrefixEnum.includes(value as StudentInput['prefix'])
@@ -263,6 +265,33 @@ export default function StudentsPage() {
     return filteredData.slice(start, start + 20);
   }, [filteredData, page]);
 
+  // Load scores for visible students only
+  useEffect(() => {
+    const visibleIds = data.map((s) => s.id);
+    if (visibleIds.length === 0 || !selectedAcademicYearId) return;
+
+    let cancelled = false;
+    setScoresLoading(true);
+    getStudentScores(visibleIds, selectedAcademicYearId).then((result) => {
+      if (cancelled) return;
+      if (result.success && result.data) {
+        setScores((prev) => ({ ...prev, ...result.data }));
+      }
+      setScoresLoading(false);
+    });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.map((s) => s.id).join(','), selectedAcademicYearId]);
+
+  // Merge scores into data
+  const displayData = useMemo(() => {
+    return data.map((s) => ({
+      ...s,
+      current_score: scores[s.id] ?? s.current_score,
+    }));
+  }, [data, scores]);
+
   const total = filteredData.length;
   const totalPages = Math.max(1, Math.ceil(total / 20));
   const unfilteredTotal = allStudents.length;
@@ -314,7 +343,7 @@ export default function StudentsPage() {
       )}
 
       <StudentTable
-        data={data}
+        data={displayData}
         loading={loading}
         total={total}
         page={page}
