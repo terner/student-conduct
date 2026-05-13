@@ -661,7 +661,7 @@ export async function updateStudent(id: string, data: {
   guardian_relation?: string;
   guardian_phone?: string;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   // Get current student and profile
   const { data: student } = await supabase
@@ -845,7 +845,7 @@ export async function upsertPrimaryGuardian(
  * Soft-delete (archive) a student — sets status to 'inactive'
  */
 export async function archiveStudent(id: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { error } = await supabase
     .from('students')
