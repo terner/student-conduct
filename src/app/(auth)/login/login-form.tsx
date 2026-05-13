@@ -122,7 +122,7 @@ export function LoginForm({ schoolName, schoolLogo }: LoginFormProps) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <Card className="w-full max-w-sm shadow-lg">
         <CardHeader className="text-center space-y-3">
           <div className="mx-auto flex size-16 items-center justify-center rounded-xl border bg-card shadow-sm">
