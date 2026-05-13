@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
-import { ScoreBadge } from '@/components/features/scores/score-badge';
+import { StudentDetail } from '@/components/features/students/student-detail';
 import { getStudentDashboard } from '@/lib/actions/student.action';
 import { checkMustChangePassword, checkPDPAConsent } from '@/lib/actions/dashboard.action';
 import { useTranslations } from 'next-intl';
@@ -19,7 +19,6 @@ function formatDateTime(value: string) {
 
 export default function StudentDashboardPage() {
   const studentT = useTranslations('student');
-  const classroomT = useTranslations('classroom');
   const scoreT = useTranslations('score');
   const commonT = useTranslations('common');
   const router = useRouter();
@@ -30,14 +29,12 @@ export default function StudentDashboardPage() {
 
   useEffect(() => {
     async function load() {
-      // Check must_change_password first
       const passwordRes = await checkMustChangePassword();
       if (passwordRes.success && passwordRes.data?.must_change_password) {
         router.replace('/change-password');
         return;
       }
 
-      // Check PDPA consent
       const consentRes = await checkPDPAConsent();
       if (consentRes.success && consentRes.data && !consentRes.data.consented) {
         router.replace('/pdpa-consent');
@@ -65,59 +62,22 @@ export default function StudentDashboardPage() {
       </div>
 
       {studentInfo && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              {studentInfo.prefix || ''}{studentInfo.first_name || studentInfo.full_name || ''} {studentInfo.last_name || ''}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {studentInfo.classroom_name || studentT('classroomNotSpecified')}
-              {studentInfo.class_number ? ` · ${studentT('classNumber')} ${studentInfo.class_number}` : ''}
-              {studentInfo.education_stage_name ? ` · ${studentInfo.education_stage_name}` : ''}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {studentT('id')}: {studentInfo.student_id_number}
-              {studentInfo.current_status ? ` · ${studentT('status')}: ${studentInfo.current_status}` : ''}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-muted-foreground">{classroomT('homeroomTeacher')}</dt>
-                <dd className="font-medium">{studentInfo.homeroom_teacher_name || commonT('notAvailable')}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">{classroomT('advisorTeacher')}</dt>
-                <dd className="font-medium">{studentInfo.advisor_teacher_name || commonT('notAvailable')}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">{studentT('guardianName')}</dt>
-                <dd className="font-medium">{studentInfo.guardian_full_name || commonT('notAvailable')}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">{studentT('guardianPhone')}</dt>
-                <dd className="font-medium">{studentInfo.guardian_phone || commonT('notAvailable')}</dd>
-              </div>
-            </dl>
-          </CardContent>
-        </Card>
-      )}
-
-      {summary && (
-        <div className="grid gap-4 grid-cols-3">
-          <div className="p-4 rounded-lg bg-muted text-center">
-            <div className="text-3xl font-bold">{summary.current_score}</div>
-            <div className="text-xs text-muted-foreground">{studentT('score')}</div>
-          </div>
-          <div className="p-4 rounded-lg bg-muted text-center">
-            <div className="text-3xl font-bold text-destructive">{summary.total_deducted}</div>
-            <div className="text-xs text-muted-foreground">{studentT('deducted')}</div>
-          </div>
-          <div className="p-4 rounded-lg bg-muted text-center">
-            <div className="text-3xl font-bold text-green-600">+{summary.total_added}</div>
-            <div className="text-xs text-muted-foreground">{studentT('added')}</div>
-          </div>
-        </div>
+        <StudentDetail
+          student={{
+            ...studentInfo,
+            first_name: studentInfo.first_name || studentInfo.full_name || '',
+            last_name: studentInfo.last_name || '',
+            classroom_name: studentInfo.classroom_name || '',
+            education_stage_name: studentInfo.education_stage_name || '',
+            homeroom_teacher_name: studentInfo.homeroom_teacher_name || '',
+            advisor_teacher_name: studentInfo.advisor_teacher_name || '',
+            guardian_full_name: studentInfo.guardian_full_name || '',
+            guardian_relation: studentInfo.guardian_relation || '',
+            guardian_phone: studentInfo.guardian_phone || '',
+            current_status: studentInfo.current_status || 'active',
+          }}
+          scoreSummary={summary}
+        />
       )}
 
       <Card>
@@ -142,14 +102,14 @@ export default function StudentDashboardPage() {
                 {transactions.map((t: any, i: number) => (
                   <TableRow key={i}>
                     <TableCell className="text-xs">{formatDateTime(t.recorded_at)}</TableCell>
-                    <TableCell>{t.score_categories?.name || commonT('notAvailable')}</TableCell>
+                    <TableCell>{t.category_name || commonT('notAvailable')}</TableCell>
                     <TableCell>
                       <span className={t.points > 0 ? 'text-green-600 font-medium' : 'text-destructive font-medium'}>
                         {t.points > 0 ? `+${t.points}` : t.points}
                       </span>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{t.note || commonT('notAvailable')}</TableCell>
-                    <TableCell className="text-xs">{t.profiles?.full_name || commonT('notAvailable')}</TableCell>
+                    <TableCell className="text-xs">{t.recorded_by_name || commonT('notAvailable')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
