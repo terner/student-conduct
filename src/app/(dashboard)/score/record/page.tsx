@@ -95,7 +95,21 @@ export default function ScoreRecordPage() {
         return;
       }
 
-      const cacheKey = `score-record-options:v${SCORE_RECORD_CACHE_VERSION}:${selectedAcademicYearId || 'current'}`;
+      const cachePrefix = `score-record-options:v`;
+      const cacheKey = `${cachePrefix}${SCORE_RECORD_CACHE_VERSION}:${selectedAcademicYearId || 'current'}`;
+
+      // Clean up stale cache entries from old versions or other years
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key?.startsWith(cachePrefix) && key !== cacheKey) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach((k) => sessionStorage.removeItem(k));
+      } catch { /* ignore cleanup errors */ }
+
       try {
         const raw = sessionStorage.getItem(cacheKey);
         if (raw) {
