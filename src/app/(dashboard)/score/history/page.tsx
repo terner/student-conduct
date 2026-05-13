@@ -281,14 +281,6 @@ export default function ScoreHistoryPage() {
         </div>
       </div>
 
-      {/* Search button */}
-      <div className="flex gap-2">
-        <Button variant="secondary" onClick={handleSearch} className="h-9">
-          <Search className="mr-2 h-4 w-4" />
-          {commonT('search')}
-        </Button>
-      </div>
-
       {/* Results */}
       <Card>
         <CardContent className="pt-6">

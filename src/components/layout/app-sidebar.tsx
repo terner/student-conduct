@@ -75,7 +75,7 @@ export function AppSidebar({ schoolName, schoolLogo, role }: AppSidebarProps) {
   const allNavigation: (NavItem & { group: 'main' | 'alert' })[] = [
     { label: t('dashboard'), icon: LayoutDashboard, href: '/dashboard', roles: ['superadmin', 'admin'], group: 'main' },
     { label: t('students'), icon: Users, href: '/students', roles: ['superadmin'], group: 'main' },
-    { label: t('classrooms'), icon: GraduationCap, href: '/classrooms', roles: ['superadmin'], group: 'main' },
+    { label: t('classrooms'), icon: GraduationCap, href: '/classrooms', roles: ['superadmin', 'admin'], group: 'main' },
     { label: t('recordScore'), icon: ClipboardPlus, href: '/score/record', roles: ['superadmin', 'admin', 'teacher'], group: 'main' },
     { label: t('scoreHistory'), icon: History, href: '/score/history', roles: ['superadmin', 'admin'], group: 'main' },
     { label: t('scoreCategories'), icon: Tags, href: '/score/categories', roles: ['superadmin', 'admin'], group: 'main' },

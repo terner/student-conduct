@@ -99,37 +99,45 @@ function getAcademicYearClosedReason(year: {
 }
 
 async function canEditStudentProfile(profile: { id: string; role?: string | string[] | null }, studentId: string) {
-  if (canManageSchoolData(profile) || canApproveScores(profile)) return true;
+  try {
+    if (canManageSchoolData(profile) || canApproveScores(profile)) return true;
 
-  const role = Array.isArray(profile.role) ? profile.role : [profile.role];
-  if (!role.includes('teacher')) return false;
+    const role = Array.isArray(profile.role) ? profile.role : [profile.role];
+    if (!role.includes('teacher')) return false;
 
-  const adminClient = await createAdminClient();
-  const { data: student } = await adminClient
-    .from('students')
-    .select('classroom_id')
-    .eq('id', studentId)
-    .maybeSingle();
+    const adminClient = await createAdminClient();
+    const { data: student, error: studentErr } = await adminClient
+      .from('students')
+      .select('classroom_id')
+      .eq('id', studentId)
+      .maybeSingle();
 
-  if (!student?.classroom_id) return false;
+    if (studentErr) { console.error('[canEditStudentProfile] student query error:', studentErr); return false; }
+    if (!student?.classroom_id) return false;
 
-  const { data: teacher } = await adminClient
-    .from('teachers')
-    .select('id')
-    .eq('profile_id', profile.id)
-    .maybeSingle();
+    const { data: teacher, error: teacherErr } = await adminClient
+      .from('teachers')
+      .select('id')
+      .eq('profile_id', profile.id)
+      .maybeSingle();
 
-  if (!teacher?.id) return false;
+    if (teacherErr) { console.error('[canEditStudentProfile] teacher query error:', teacherErr); return false; }
+    if (!teacher?.id) return false;
 
-  const { data: assignment } = await adminClient
-    .from('teacher_classrooms')
-    .select('teacher_id')
-    .eq('teacher_id', teacher.id)
-    .eq('classroom_id', student.classroom_id)
-    .in('assignment_role', ['homeroom', 'assistant'])
-    .maybeSingle();
+    const { data: assignments, error: assignErr } = await adminClient
+      .from('teacher_classrooms')
+      .select('teacher_id')
+      .eq('teacher_id', teacher.id)
+      .eq('classroom_id', student.classroom_id)
+      .in('assignment_role', ['homeroom', 'assistant'])
+      .limit(1);
 
-  return !!assignment;
+    if (assignErr) { console.error('[canEditStudentProfile] assignment query error:', assignErr); return false; }
+    return (assignments?.length ?? 0) > 0;
+  } catch (err) {
+    console.error('[canEditStudentProfile] unexpected error:', err);
+    return false;
+  }
 }
 
 async function canViewStudentProfile(profile: { id: string; role?: string | string[] | null }, studentId: string) {
@@ -1205,13 +1213,14 @@ export async function checkStudentViewerRole(studentId: string) {
     const isTeacher = role.includes('teacher');
 
     if (isAdmin || isTeacher) {
-      const canEditProfile = await canEditStudentProfile(profile, studentId);
+      const canEdit = await canEditStudentProfile(profile, studentId);
       return {
         success: true,
         data: {
           isOwner: false,
           canManage: true,
-          canEditProfile,
+          canEditProfile: isAdmin, // only admin/superadmin can edit
+          canResetPassword: canEdit, // homeroom/assistant teacher or admin
           canChangeStatus: isAdmin,
         },
       };
@@ -1229,7 +1238,80 @@ export async function checkStudentViewerRole(studentId: string) {
 
     return {
       success: true,
-      data: { isOwner: !!student, canManage: false, canEditProfile: false, canChangeStatus: false },
+      data: { isOwner: !!student, canManage: false, canEditProfile: false, canResetPassword: false, canChangeStatus: false },
     };
+  });
+}
+
+/**
+ * Reset a student's password. Only admin, superadmin, homeroom teacher, or advisor teacher can do this.
+ */
+export async function resetStudentPassword(studentId: string) {
+  return withAuth(async (authProfile) => {
+    const canEdit = await canEditStudentProfile(authProfile, studentId);
+    if (!canEdit) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะครูประจำชั้น ครูที่ปรึกษา หรือผู้ดูแลระบบ' } };
+    }
+
+    const adminClient = await createAdminClient();
+    const { data: student } = await adminClient
+      .from('students')
+      .select('profile_id')
+      .eq('id', studentId)
+      .single();
+
+    if (!student?.profile_id) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลนักเรียน' } };
+    }
+
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('user_id')
+      .eq('id', student.profile_id)
+      .single();
+
+    if (!profile?.user_id) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบ profile นักเรียน' } };
+    }
+
+    // Generate random password
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lowers = 'abcdefghjkmnpqrstuvwxyz';
+    const digits = '23456789';
+    const specials = '!@#$%&*';
+    const pick = (s: string, n: number) => Array.from({ length: n }, () => s[Math.floor(Math.random() * s.length)]).join('');
+    const tmpPassword = pick(chars, 2) + pick(lowers, 2) + pick(digits, 2) + pick(specials, 2);
+
+    const authRes = await fetch(
+      `${process.env.SUPABASE_URL}/auth/v1/admin/users/${profile.user_id}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        },
+        body: JSON.stringify({ password: tmpPassword }),
+      },
+    );
+
+    if (!authRes.ok) {
+      return { success: false, error: { code: 'AUTH_ERROR', message: 'ไม่สามารถเปลี่ยนรหัสผ่านได้' } };
+    }
+
+    await adminClient
+      .from('profiles')
+      .update({ must_change_password: true })
+      .eq('id', student.profile_id);
+
+    await logAudit({
+      actorId: profile.id,
+      action: 'student_password_reset',
+      targetType: 'student',
+      targetId: studentId,
+      metadata: { profile_id: student.profile_id },
+    });
+
+    return { success: true, data: { temporary_password: tmpPassword } };
   });
 }

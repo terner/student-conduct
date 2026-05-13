@@ -6,6 +6,7 @@ import { LanguageSwitcher } from './language-switcher'
 import { UserMenu } from './user-menu'
 import { NotificationBell } from './notification-bell'
 import { AcademicYearSwitcher } from './academic-year-switcher'
+import { Toaster } from '@/components/ui/sonner'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/components/ui/breadcrumb'
 import { getRoles } from '@/lib/security/roles'
 
@@ -41,6 +42,7 @@ export function TopBar({ title, firstName, lastName, role, email, avatarUrl }: T
         <LanguageSwitcher />
         <UserMenu firstName={firstName} lastName={lastName} role={role} email={email} avatarUrl={avatarUrl} />
       </div>
+      <Toaster />
     </header>
   )
 }

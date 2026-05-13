@@ -577,6 +577,7 @@
     "edit": "Edit Student",
     "editDescription": "Edit the student's personal information",
     "editSuccess": "Student updated",
+    "passwordResetSuccess": "Password reset successfully",
     "deleteSuccess": "Student deleted",
     "deleteSuccessDescription": "The student was moved to inactive status",
     "deleteErrorDescription": "Unable to delete this student",

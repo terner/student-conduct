@@ -108,8 +108,9 @@
 ### Auth System — ✅ เสร็จสมบูรณ์ (พื้นฐาน)
 | Feature | สถานะ |
 |---------|--------|
-| Login (email/password) | ✅ |
-| Login (student_id/password) | ✅ newly added |
+| Login (email/password) | ✅ Staff login — admin, teacher, superadmin |
+| Login (student_id/password) | ✅ Student login — ใช้รหัสนักเรียน (ไม่ใช้อีเมล) |
+| Login (email for student) | ❌ นักเรียน login ด้วย email ไม่ได้ — ใช้รหัสนักเรียนเท่านั้น |
 | Role-based redirect | ✅ admin/teacher → /dashboard, student → /student/dashboard |
 | must_change_password check | ✅ redirect to /change-password |
 | PDPA consent check | ✅ redirect to /pdpa-consent |
@@ -254,6 +255,7 @@
 - [x] **Role assignment UI** — จัดการ role `teacher/admin/superadmin` ผ่านฟอร์มรายชื่อครูแล้ว
 
 ### Medium Priority
+- [ ] **Password Reset Email** — ส่งอีเมล reset password สำหรับครู/admin ผ่าน Supabase Auth (มี `resetPasswordForEmail` ในตัว) — ตอนนี้ Supabase ส่ง email reset link ให้เองอัตโนมัติที่ `/login` กด "ลืมรหัสผ่าน?" แต่ต้องเช็ค configuration ให้ถูกต้อง
 - [ ] **Student status management** — change status (active/inactive/transferred/graduated) พร้อม enrollment history
 - [x] **Audit/action logs coverage ระดับ MVP** — มี helper กลาง, login action logs, viewer audit/action logs และบันทึก action สำคัญแล้ว
 - [x] **Audit/action logs hardening** — เพิ่ม coverage viewer/action logs, login/upload rate-limit events, score view audit, และ before/after สำหรับ approve/void/import ที่สำคัญ

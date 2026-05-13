@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, FileText, UserCheck, Ban, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, FileText, UserCheck, Ban, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -64,6 +64,7 @@ export function ScoreTransactionTable({
   const [voidDialog, setVoidDialog] = useState<{ open: boolean; transactionId: string }>({ open: false, transactionId: '' });
   const [voidReason, setVoidReason] = useState('');
   const [voidLoading, setVoidLoading] = useState(false);
+  const [approveLoading, setApproveLoading] = useState<string | null>(null);
   const [detailTx, setDetailTx] = useState<ScoreTransactionWithDetails | null>(null);
 
   if (loading) {
@@ -165,10 +166,19 @@ export function ScoreTransactionTable({
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-green-600"
-                            onClick={() => onApprove(t.id)}
+                            disabled={approveLoading === t.id}
+                            onClick={async () => {
+                              setApproveLoading(t.id);
+                              await onApprove(t.id);
+                              setApproveLoading(null);
+                            }}
                             title={scoreT('approve')}
                           >
-                            <CheckCircle className="h-4 w-4" />
+                            {approveLoading === t.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="h-4 w-4" />
+                            )}
                           </Button>
                         )}
                         {t.status === 'pending' && onVoid && (
@@ -205,22 +215,28 @@ export function ScoreTransactionTable({
       )}
 
       <Dialog open={voidDialog.open} onOpenChange={(open) => setVoidDialog({ ...voidDialog, open })}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{scoreT('voidTitle')}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-destructive" />
+              {scoreT('voidTitle')}
+            </DialogTitle>
             <DialogDescription>{scoreT('voidDescription')}</DialogDescription>
           </DialogHeader>
-          <Textarea
-            value={voidReason}
-            onChange={(e) => setVoidReason(e.target.value)}
-            placeholder={scoreT('voidReasonPlaceholder')}
-            rows={3}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setVoidDialog({ open: false, transactionId: '' })}>
+          <div className="space-y-3 py-2">
+            <Textarea
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              placeholder={scoreT('voidReasonPlaceholder')}
+              rows={3}
+              className="resize-none"
+            />
+          </div>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setVoidDialog({ open: false, transactionId: '' })} className="sm:w-auto">
               {commonT('cancel')}
             </Button>
-            <Button variant="destructive" onClick={handleVoid} disabled={!voidReason.trim() || voidLoading}>
+            <Button variant="destructive" onClick={handleVoid} disabled={!voidReason.trim() || voidLoading} className="sm:w-auto">
               {voidLoading ? scoreT('voiding') : scoreT('confirmVoid')}
             </Button>
           </DialogFooter>

@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, AlertCircle, Edit3, ClipboardPlus, Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Edit3, ClipboardPlus, Loader2, Printer, KeyRound, Copy, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,7 @@ import {
 import { StudentDetail } from '@/components/features/students/student-detail';
 import { StudentForm, type SubmitResult } from '@/components/features/students/student-form';
 import { EvidenceUploader, createEvidenceFiles, type EvidenceFile } from '@/components/features/scores/evidence-uploader';
-import { getStudent, editStudent, checkStudentViewerRole } from '@/lib/actions/student.action';
+import { getStudent, editStudent, checkStudentViewerRole, resetStudentPassword } from '@/lib/actions/student.action';
 import { getCategories, getScoreRecordingAvailability, recordScore } from '@/lib/actions/score.action';
 import { getIndividualReport } from '@/lib/actions/report.action';
 import { toast } from 'sonner';
@@ -128,9 +128,12 @@ export default function StudentDetailPage() {
   const [error, setError] = useState('');
   const [showEditForm, setShowEditForm] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [resetPasswordResult, setResetPasswordResult] = useState<string | null>(null);
   const [categories, setCategories] = useState<ScoreCategory[]>([]);
   const [canManage, setCanManage] = useState(false);
   const [canEditProfile, setCanEditProfile] = useState(false);
+  const [canResetPassword, setCanResetPassword] = useState(false);
   const [canChangeStatus, setCanChangeStatus] = useState(false);
   const [scoreRecordingAvailability, setScoreRecordingAvailability] = useState<{
     can_record: boolean;
@@ -184,6 +187,7 @@ export default function StudentDetailPage() {
     if (roleRes.success && roleRes.data) {
       setCanManage(roleRes.data.canManage);
       setCanEditProfile(Boolean(roleRes.data.canEditProfile));
+      setCanResetPassword(Boolean(roleRes.data.canResetPassword));
       setCanChangeStatus(Boolean(roleRes.data.canChangeStatus));
     }
 
@@ -278,6 +282,23 @@ export default function StudentDetailPage() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!student) return;
+    setResettingPassword(true);
+    try {
+      const res = await resetStudentPassword(student.id);
+      if (res.success) {
+        setResetPasswordResult(res.data.temporary_password);
+      } else {
+        toast(commonT('error'), { description: res.error?.message });
+      }
+    } catch {
+      toast(commonT('error'));
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   const handleStatusChange = async (newStatus: string | null) => {
     if (!newStatus) return;
     if (!student || changingStatus) return;
@@ -346,7 +367,7 @@ export default function StudentDetailPage() {
   };
 
   const canRecordScoreInSelectedYear = canManage && scoreRecordingAvailability?.can_record === true;
-  const canEditStudentInSelectedYear = canEditProfile && scoreRecordingAvailability?.can_record === true;
+  const canEditStudentInSelectedYear = canChangeStatus && scoreRecordingAvailability?.can_record === true;
   const scoreActionUnavailableReason = scoreRecordingAvailability?.reason || studentT('currentYearOnly');
 
   if (loading) {
@@ -428,7 +449,6 @@ export default function StudentDetailPage() {
           </Button>
           {canManage && (
             <Button
-              size="lg"
               disabled={!canRecordScoreInSelectedYear}
               title={canRecordScoreInSelectedYear ? undefined : scoreActionUnavailableReason}
               onClick={() => { setRecordType('deduct'); setRecordCategory(''); setRecordPoints(5); setExtraPoints(0); setExtraReason(''); setRecordNote(''); setEvidenceFiles([]); setShowRecordDialog(true); }}
@@ -437,7 +457,7 @@ export default function StudentDetailPage() {
               {scoreT('recordTitle')}
             </Button>
           )}
-          {canEditProfile && (
+          {canChangeStatus && (
             <Button
               variant="outline"
               disabled={!canEditStudentInSelectedYear}
@@ -448,6 +468,16 @@ export default function StudentDetailPage() {
               {studentT('edit')}
             </Button>
           )}
+          {canResetPassword && (
+            <Button
+              variant="outline"
+              disabled={resettingPassword}
+              onClick={handleResetPassword}
+            >
+              <KeyRound className="mr-2 h-4 w-4" />
+              {resettingPassword ? commonT('processing') : 'รีเซ็ตรหัสผ่าน'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -455,16 +485,14 @@ export default function StudentDetailPage() {
         <div className={`grid gap-2 ${canManage || canEditProfile ? 'grid-cols-[auto_1fr_auto]' : 'grid-cols-1'}`}>
           <Button
             variant="outline"
-            size={canManage || canEditProfile ? 'icon-lg' : 'lg'}
+            size="icon"
             onClick={handlePrint}
             aria-label={studentT('exportPdf')}
           >
             <Printer className="h-4 w-4" aria-hidden="true" />
-            {!(canManage || canEditProfile) && <span>PDF</span>}
           </Button>
           {canManage && (
             <Button
-              size="lg"
               disabled={!canRecordScoreInSelectedYear}
               title={canRecordScoreInSelectedYear ? undefined : scoreActionUnavailableReason}
               onClick={() => { setRecordType('deduct'); setRecordCategory(''); setRecordPoints(5); setExtraPoints(0); setExtraReason(''); setRecordNote(''); setEvidenceFiles([]); setShowRecordDialog(true); }}
@@ -473,16 +501,25 @@ export default function StudentDetailPage() {
               {scoreT('recordTitle')}
             </Button>
           )}
-          {canEditProfile && (
+          {canChangeStatus && (
             <Button
               variant="outline"
-              size="lg"
               disabled={!canEditStudentInSelectedYear}
               title={canEditStudentInSelectedYear ? undefined : scoreActionUnavailableReason}
               onClick={() => setShowEditForm(true)}
               aria-label={studentT('edit')}
             >
               <Edit3 className="h-4 w-4" />
+            </Button>
+          )}
+          {canResetPassword && (
+            <Button
+              variant="outline"
+              disabled={resettingPassword}
+              onClick={handleResetPassword}
+              aria-label="รีเซ็ตรหัสผ่าน"
+            >
+              <KeyRound className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -803,6 +840,40 @@ export default function StudentDetailPage() {
         </DialogContent>
       </Dialog>
       )}
+
+      {/* Reset Password Result Modal */}
+      <Dialog open={!!resetPasswordResult} onOpenChange={() => setResetPasswordResult(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              รีเซ็ตรหัสผ่านสำเร็จ
+            </DialogTitle>
+            <DialogDescription>
+              รหัสผ่านชั่วคราวสำหรับ {student?.prefix}{student?.first_name} {student?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
+              <code className="flex-1 text-lg font-bold tracking-wider text-center select-all">{resetPasswordResult}</code>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 shrink-0"
+                onClick={() => {
+                  if (resetPasswordResult) navigator.clipboard.writeText(resetPasswordResult);
+                  toast('คัดลอกรหัสผ่านแล้ว');
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setResetPasswordResult(null)} className="w-full">ปิด</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
