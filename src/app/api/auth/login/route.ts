@@ -80,11 +80,14 @@ export async function POST(request: Request) {
       }
 
       // Student numbers are reused across years, so login resolves only within the current academic year.
+      // Only active enrollments for active students are allowed to log in.
       const { data: enrollmentData, error: enrollmentError } = await supabaseAdmin
         .from('student_enrollments')
-        .select('students!inner(profile_id, student_id_number)')
+        .select('students!inner(profile_id, student_id_number, current_status)')
         .eq('academic_year_id', currentYear.id)
         .eq('students.student_id_number', student_id)
+        .eq('enrollment_status', 'active')
+        .eq('students.current_status', 'active')
         .limit(2);
 
       if (enrollmentError || !enrollmentData || enrollmentData.length === 0) {
