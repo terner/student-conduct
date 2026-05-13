@@ -104,6 +104,26 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
         </CardContent>
       </Card>
 
+      <Card className="print:order-5 print:col-span-1 print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
+        <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
+          <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
+            <Users className="h-5 w-5 text-muted-foreground print:hidden" />
+            {studentT('guardian')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="print:px-3 print:py-2">
+          <dl className="space-y-3 text-sm print:space-y-1.5 print:text-[11px]">
+            <InfoRow label={studentT('guardianName')} value={student.guardian_full_name || commonT('notAvailable')} />
+            <InfoRow label={studentT('guardianRelation')} value={formatGuardianRelation(student.guardian_relation)} />
+            <InfoRow
+              label={studentT('guardianPhoneShort')}
+              value={student.guardian_phone || commonT('notAvailable')}
+              icon={student.guardian_phone ? <Phone className="h-3.5 w-3.5" /> : undefined}
+            />
+          </dl>
+        </CardContent>
+      </Card>
+
       <Card className="print:order-3 print:col-span-1 print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
         <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
           <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
@@ -130,26 +150,6 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
           <dl className="space-y-3 text-sm print:space-y-1.5 print:text-[11px]">
             <InfoRow label={classroomT('homeroomTeacher')} value={student.homeroom_teacher_name || commonT('notAvailable')} />
             <InfoRow label={classroomT('advisorTeacher')} value={student.advisor_teacher_name || commonT('notAvailable')} />
-          </dl>
-        </CardContent>
-      </Card>
-
-      <Card className="print:order-5 print:col-span-1 print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
-        <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
-          <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
-            <Users className="h-5 w-5 text-muted-foreground print:hidden" />
-            {studentT('guardian')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="print:px-3 print:py-2">
-          <dl className="space-y-3 text-sm print:space-y-1.5 print:text-[11px]">
-            <InfoRow label={studentT('guardianName')} value={student.guardian_full_name || commonT('notAvailable')} />
-            <InfoRow label={studentT('guardianRelation')} value={formatGuardianRelation(student.guardian_relation)} />
-            <InfoRow
-              label={studentT('guardianPhoneShort')}
-              value={student.guardian_phone || commonT('notAvailable')}
-              icon={student.guardian_phone ? <Phone className="h-3.5 w-3.5" /> : undefined}
-            />
           </dl>
         </CardContent>
       </Card>
