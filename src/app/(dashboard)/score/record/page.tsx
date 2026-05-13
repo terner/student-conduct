@@ -43,8 +43,8 @@ interface StageOption {
   code: string;
 }
 
-const SCORE_RECORD_CACHE_TTL_MS = 60 * 1000;
-const SCORE_RECORD_CACHE_VERSION = 1;
+const SCORE_RECORD_CACHE_TTL_MS = 15 * 1000;
+const SCORE_RECORD_CACHE_VERSION = 2;
 
 interface ScoreRecordPageCache {
   version: number;
