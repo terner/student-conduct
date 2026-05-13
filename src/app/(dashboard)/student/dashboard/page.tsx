@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { History, AlertCircle, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { StudentDetail } from '@/components/features/students/student-detail';
 import { getStudentDashboard } from '@/lib/actions/student.action';
@@ -12,8 +15,15 @@ import { useTranslations } from 'next-intl';
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString('th-TH', {
-    dateStyle: 'short',
+    dateStyle: 'medium',
     timeStyle: 'short',
+  });
+}
+
+function formatDateShort(value: string) {
+  return new Date(value).toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'short',
   });
 }
 
@@ -52,15 +62,29 @@ export default function StudentDashboardPage() {
     load();
   }, [router]);
 
-  if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div></div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner className="size-10" />
+          <p className="text-sm text-muted-foreground">{commonT('loading')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const hasScores = transactions.length > 0;
+  const recentPoints = transactions.slice(0, 3).map((t: any) => t.points);
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{studentT('myScoreTitle')}</h1>
-        <p className="text-muted-foreground mt-1">{studentT('myScoreDescription')}</p>
+    <div className="space-y-6 p-6">
+      {/* Page header */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight">{studentT('myScoreTitle')}</h1>
+        <p className="text-sm text-muted-foreground">{studentT('myScoreDescription')}</p>
       </div>
 
+      {/* Student profile + score cards (reused from detail page) */}
       {studentInfo && (
         <StudentDetail
           student={{
@@ -80,40 +104,86 @@ export default function StudentDashboardPage() {
         />
       )}
 
+      {/* Score history */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">{studentT('scoreHistory')}</CardTitle>
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <History className="h-5 w-5 text-muted-foreground" />
+            {studentT('scoreHistory')}
+            {hasScores && (
+              <Badge variant="secondary" className="ml-2 font-normal tabular-nums">
+                {transactions.length}
+              </Badge>
+            )}
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          {transactions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">{studentT('noScoreHistory')}</p>
+        <Separator />
+        <CardContent className="pt-4">
+          {!hasScores ? (
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <div className="flex size-14 items-center justify-center rounded-full bg-muted">
+                <AlertCircle className="size-6 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-medium">{studentT('noScoreHistory')}</p>
+              </div>
+            </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{scoreT('date')}</TableHead>
-                  <TableHead>{scoreT('type')}</TableHead>
-                  <TableHead>{scoreT('points')}</TableHead>
-                  <TableHead>{studentT('note')}</TableHead>
-                  <TableHead>{scoreT('recordedBy')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((t: any, i: number) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-xs">{formatDateTime(t.recorded_at)}</TableCell>
-                    <TableCell>{t.category_name || commonT('notAvailable')}</TableCell>
-                    <TableCell>
-                      <span className={t.points > 0 ? 'text-green-600 font-medium' : 'text-destructive font-medium'}>
-                        {t.points > 0 ? `+${t.points}` : t.points}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{t.note || commonT('notAvailable')}</TableCell>
-                    <TableCell className="text-xs">{t.recorded_by_name || commonT('notAvailable')}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[140px]">{scoreT('date')}</TableHead>
+                    <TableHead>{scoreT('type')}</TableHead>
+                    <TableHead className="w-[100px] text-right">{scoreT('points')}</TableHead>
+                    <TableHead className="hidden sm:table-cell">{studentT('note')}</TableHead>
+                    <TableHead className="hidden md:table-cell w-[140px]">{scoreT('recordedBy')}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {transactions.map((t: any, i: number) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-medium">{formatDateShort(t.recorded_at)}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(t.recorded_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{t.category_name || commonT('notAvailable')}</span>
+                          {t.category_type && (
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${t.category_type === 'positive' ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'}`}>
+                              {t.category_type === 'positive' ? studentT('added') : studentT('deducted')}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span
+                          className={`inline-flex items-center gap-1 text-sm font-semibold tabular-nums ${
+                            t.points > 0 ? 'text-green-600' : t.points < 0 ? 'text-destructive' : 'text-muted-foreground'
+                          }`}
+                        >
+                          {t.points > 0 ? <TrendingUp className="size-3.5" /> : t.points < 0 ? <TrendingDown className="size-3.5" /> : <Minus className="size-3.5" />}
+                          {t.points > 0 ? `+${t.points}` : t.points}
+                        </span>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <span className="text-sm text-muted-foreground line-clamp-1 max-w-[200px]">
+                          {t.note || '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <span className="text-xs text-muted-foreground">{t.recorded_by_name || '—'}</span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
