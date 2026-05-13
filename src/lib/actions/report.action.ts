@@ -47,6 +47,7 @@ export interface StudentRankingRow {
     note?: string;
     recorded_at: string;
     recorded_by_name: string;
+    evidence?: Array<{ id: string; file_url: string; file_name: string }>;
   }>;
 }
 
@@ -814,7 +815,8 @@ export async function getIndividualReport(studentId: string, academicYearId?: st
       .select(`
         *,
         score_categories(name, type),
-        profiles!score_transactions_recorded_by_fkey(full_name)
+        profiles!score_transactions_recorded_by_fkey(full_name),
+        score_transaction_evidence(id, file_url, file_name)
       `)
       .eq('student_id', studentId)
       .eq('academic_year_id', acYear?.id)
@@ -837,15 +839,23 @@ export async function getIndividualReport(studentId: string, academicYearId?: st
         academic_year: acYear?.name || '',
         base_score: acYear?.base_score || 100,
         summary,
-        transactions: (transactions || []).map((t: Record<string, unknown>) => ({
-          id: t.id as string,
-          category_name: (t.category_name_at_record as string) || (t.score_categories as Record<string, unknown>)?.name as string || '',
-          category_type: (t.category_type_at_record as string) || (t.score_categories as Record<string, unknown>)?.type as string || '',
-          points: t.points as number,
-          note: t.note as string | undefined,
-          recorded_at: t.recorded_at as string,
-          recorded_by_name: (t.profiles as Record<string, unknown>)?.full_name as string || '',
-        })),
+        transactions: (transactions || []).map((t: Record<string, unknown>) => {
+          const evidence = (t.score_transaction_evidence as Array<Record<string, unknown>>) || [];
+          return {
+            id: t.id as string,
+            category_name: (t.category_name_at_record as string) || (t.score_categories as Record<string, unknown>)?.name as string || '',
+            category_type: (t.category_type_at_record as string) || (t.score_categories as Record<string, unknown>)?.type as string || '',
+            points: t.points as number,
+            note: t.note as string | undefined,
+            recorded_at: t.recorded_at as string,
+            recorded_by_name: (t.profiles as Record<string, unknown>)?.full_name as string || '',
+            evidence: evidence.map((e) => ({
+              id: e.id as string,
+              file_url: (e.file_url as string) || '',
+              file_name: (e.file_name as string) || '',
+            })),
+          };
+        }),
       },
     };
   });
