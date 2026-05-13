@@ -79,7 +79,7 @@ export default function StudentDashboardPage() {
   return (
     <div className="space-y-6 p-6">
       {/* Page header */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 rounded-xl bg-gradient-to-r from-primary/5 via-primary/3 to-transparent p-5">
         <h1 className="text-2xl font-bold tracking-tight">{studentT('myScoreTitle')}</h1>
         <p className="text-sm text-muted-foreground">{studentT('myScoreDescription')}</p>
       </div>
@@ -142,7 +142,7 @@ export default function StudentDashboardPage() {
                 </TableHeader>
                 <TableBody>
                   {transactions.map((t: any, i: number) => (
-                    <TableRow key={i}>
+                    <TableRow key={i} className="transition-colors hover:bg-muted/40">
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="text-xs font-medium">{formatDateShort(t.recorded_at)}</span>
