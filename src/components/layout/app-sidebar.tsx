@@ -24,7 +24,7 @@ interface NavItem {
   icon: any
   href: string
   group: 'main' | 'alert'
-  roles?: ('superadmin' | 'admin' | 'teacher')[]
+  roles?: ('superadmin' | 'admin' | 'teacher' | 'student')[]
 }
 
 interface AppSidebarProps {
@@ -85,6 +85,8 @@ export function AppSidebar({ schoolName, schoolLogo, role }: AppSidebarProps) {
     { label: t('classroomReport'), icon: FileText, href: '/reports/classroom', roles: ['teacher'], group: 'main' },
     { label: t('teachers'), icon: BookOpen, href: '/teachers', roles: ['superadmin'], group: 'main' },
     { label: t('settings'), icon: Settings, href: '/settings', roles: ['superadmin', 'admin'], group: 'main' },
+    // Student
+    { label: t('myScore'), icon: ClipboardPlus, href: '/student/dashboard', roles: ['student'], group: 'main' },
     // Alert group
     { label: t('threshold'), icon: AlertTriangle, href: '/reports/threshold', roles: ['superadmin', 'admin'], group: 'alert' },
   ]
