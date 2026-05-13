@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 import { useTranslations } from 'next-intl';
+import { formatPhoneDisplay } from '@/lib/phone';
 
 interface StudentDetailProps {
   student: StudentWithProfile;
@@ -117,7 +118,7 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
             <InfoRow label={studentT('guardianRelation')} value={formatGuardianRelation(student.guardian_relation)} />
             <InfoRow
               label={studentT('guardianPhoneShort')}
-              value={student.guardian_phone || commonT('notAvailable')}
+              value={formatPhoneDisplay(student.guardian_phone) || commonT('notAvailable')}
               icon={student.guardian_phone ? <Phone className="h-3.5 w-3.5" /> : undefined}
             />
           </dl>

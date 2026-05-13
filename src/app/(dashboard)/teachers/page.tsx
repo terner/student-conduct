@@ -1,8 +1,10 @@
 'use client';
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Download, Plus } from 'lucide-react';
+import { Download, Plus, Search, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TeacherTable } from '@/components/features/teachers/teacher-table';
 import { TeacherForm } from '@/components/features/teachers/teacher-form';
@@ -19,13 +21,19 @@ const PAGE_SIZE = 25;
 export default function TeachersPage() {
   const teacherT = useTranslations('teacher');
   const studentT = useTranslations('student');
+  const commonT = useTranslations('common');
   const [data, setData] = useState<TeacherWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<TeacherWithProfile | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [page, setPage] = useState(1);
-  const pagedData = useMemo(() => data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [data, page]);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [filterRole, setFilterRole] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterDepartment, setFilterDepartment] = useState<string>('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -46,6 +54,46 @@ export default function TeachersPage() {
     void Promise.resolve().then(fetchData);
   }, [fetchData]);
 
+  // Derived: unique departments for filter
+  const departments = useMemo(() => {
+    const depts = new Set<string>();
+    data.forEach(t => { if (t.department) depts.add(t.department); });
+    return Array.from(depts).sort();
+  }, [data]);
+
+  // Filter + paginate
+  const filteredData = useMemo(() => {
+    let result = data;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(t =>
+        t.full_name?.toLowerCase().includes(q) ||
+        t.first_name?.toLowerCase().includes(q) ||
+        t.last_name?.toLowerCase().includes(q) ||
+        t.employee_id?.toLowerCase().includes(q)
+      );
+    }
+    if (filterRole) {
+      result = result.filter(t => {
+        if (filterRole === 'superadmin') return t.roles?.includes('superadmin');
+        if (filterRole === 'admin') return t.roles?.includes('admin') && !t.roles?.includes('superadmin');
+        return !t.roles?.includes('admin') && !t.roles?.includes('superadmin');
+      });
+    }
+    if (filterStatus) {
+      result = result.filter(t => t.is_active === (filterStatus === 'active'));
+    }
+    if (filterDepartment) {
+      result = result.filter(t => t.department === filterDepartment);
+    }
+    return result;
+  }, [data, search, filterRole, filterStatus, filterDepartment]);
+
+  const pagedData = useMemo(() => filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredData, page]);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [search, filterRole, filterStatus, filterDepartment]);
+
   const handleSubmit = async (formData: TeacherInput) => {
     const result = editItem
       ? await editTeacher(editItem.id, formData)
@@ -62,7 +110,7 @@ export default function TeachersPage() {
   };
 
   const handleExport = () => {
-    exportCsv(data.map((teacher) => ({
+    exportCsv(filteredData.map((teacher) => ({
       [teacherT('employeeId')]: teacher.employee_id || '',
       [teacherT('prefix')]: teacher.prefix || '',
       [studentT('firstName')]: teacher.first_name || '',
@@ -94,6 +142,15 @@ export default function TeachersPage() {
     }
   };
 
+  const hasFilters = search || filterRole || filterStatus || filterDepartment;
+
+  const clearFilters = () => {
+    setSearch('');
+    setFilterRole('');
+    setFilterStatus('');
+    setFilterDepartment('');
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -102,11 +159,73 @@ export default function TeachersPage() {
           <p className="text-muted-foreground mt-1">{teacherT('description')}</p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={handleExport} disabled={data.length === 0}>
+          <Button variant="outline" onClick={handleExport} disabled={filteredData.length === 0}>
             <Download className="mr-2 h-4 w-4" />{teacherT('exportCsv')}
           </Button>
           <Button onClick={() => { setEditItem(null); setShowForm(true); }}>
             <Plus className="mr-2 h-4 w-4" />{teacherT('add')}
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="rounded-md border bg-background p-4">
+        <div className="grid gap-3 md:grid-cols-[minmax(200px,2fr)_minmax(130px,1fr)_minmax(130px,1fr)_minmax(130px,1fr)_auto]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={teacherT('searchPlaceholder')}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="h-10 pl-9"
+              autoFocus
+            />
+          </div>
+
+          <Select
+            value={filterRole || null}
+            onValueChange={(v: string | null) => setFilterRole(v || '')}
+          >
+            <SelectTrigger className="h-10 w-full">
+              <SelectValue placeholder={teacherT('allRoles')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="superadmin">{teacherT('superadminRole')}</SelectItem>
+              <SelectItem value="admin">{teacherT('adminRole')}</SelectItem>
+              <SelectItem value="teacher">{teacherT('teacherRole')}</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filterStatus || null}
+            onValueChange={(v: string | null) => setFilterStatus(v || '')}
+          >
+            <SelectTrigger className="h-10 w-full">
+              <SelectValue placeholder={teacherT('allStatuses')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">{teacherT('active')}</SelectItem>
+              <SelectItem value="inactive">{teacherT('inactive')}</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filterDepartment || null}
+            onValueChange={(v: string | null) => setFilterDepartment(v || '')}
+          >
+            <SelectTrigger className="h-10 w-full">
+              <SelectValue placeholder={teacherT('allDepartments')} />
+            </SelectTrigger>
+            <SelectContent>
+              {departments.map(d => (
+                <SelectItem key={d} value={d}>{d}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button type="button" variant="outline" onClick={clearFilters} disabled={!hasFilters} className="h-10">
+            <RotateCcw className="mr-2 h-4 w-4" />
+            {commonT('clear')}
           </Button>
         </div>
       </div>
@@ -117,10 +236,10 @@ export default function TeachersPage() {
         onEdit={(t) => { setEditItem(t); setShowForm(true); }}
         onSetActive={handleSetActive}
       />
-      <SimplePagination page={page} pageSize={PAGE_SIZE} total={data.length} onPageChange={setPage} />
+      <SimplePagination page={page} pageSize={PAGE_SIZE} total={filteredData.length} onPageChange={setPage} />
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editItem ? teacherT('edit') : teacherT('addNew')}</DialogTitle>
           </DialogHeader>

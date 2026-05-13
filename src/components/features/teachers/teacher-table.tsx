@@ -1,9 +1,11 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Edit, Eye, MoreHorizontal, Power, PowerOff, Building, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { formatPhoneDisplay } from '@/lib/phone';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -21,6 +23,7 @@ interface TeacherTableProps {
 }
 
 export function TeacherTable({ data, loading, onEdit, onSetActive }: TeacherTableProps) {
+  const router = useRouter();
   const teacherT = useTranslations('teacher');
   const commonT = useTranslations('common');
   const studentT = useTranslations('student');
@@ -54,13 +57,13 @@ export function TeacherTable({ data, loading, onEdit, onSetActive }: TeacherTabl
         </TableHeader>
         <TableBody>
           {data.map((t) => (
-            <TableRow key={t.id}>
+            <TableRow key={t.id} className="cursor-pointer" onClick={() => router.push(`/teachers/${t.id}`)}>
               <TableCell className="font-mono text-xs">{t.employee_id || commonT('notAvailable')}</TableCell>
               <TableCell>
                 <span className="font-medium">{t.full_name}</span>
               </TableCell>
               <TableCell>{t.position || teacherT('teacher')}</TableCell>
-              <TableCell>{t.phone || commonT('notAvailable')}</TableCell>
+              <TableCell>{formatPhoneDisplay(t.phone) || commonT('notAvailable')}</TableCell>
               <TableCell>{t.email || commonT('notAvailable')}</TableCell>
               <TableCell>
                 {t.department ? (
@@ -90,18 +93,18 @@ export function TeacherTable({ data, loading, onEdit, onSetActive }: TeacherTabl
               </TableCell>
               <TableCell>
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()} />}>
                     <MoreHorizontal className="h-4 w-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem render={<Link href={`/teachers/${t.id}`} />}><Eye className="mr-2 h-4 w-4" />{teacherT('viewDetail')}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onEdit?.(t)}><Edit className="mr-2 h-4 w-4" />{commonT('edit')}</DropdownMenuItem>
+                    <DropdownMenuItem render={<Link href={`/teachers/${t.id}`} onClick={(e) => e.stopPropagation()} />}><Eye className="mr-2 h-4 w-4" />{teacherT('viewDetail')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}><Edit className="mr-2 h-4 w-4" />{commonT('edit')}</DropdownMenuItem>
                     {t.is_active === false ? (
-                      <DropdownMenuItem onClick={() => onSetActive?.(t, true)}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onSetActive?.(t, true); }}>
                         <Power className="mr-2 h-4 w-4" />{commonT('active')}
                       </DropdownMenuItem>
                     ) : (
-                      <DropdownMenuItem className="text-destructive" onClick={() => onSetActive?.(t, false)}>
+                      <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); onSetActive?.(t, false); }}>
                         <PowerOff className="mr-2 h-4 w-4" />{commonT('inactive')}
                       </DropdownMenuItem>
                     )}

@@ -936,6 +936,7 @@ export async function getStudentListForSelect(academicYearId?: string) {
       grade_level: (s.classrooms as Record<string, unknown>)?.grade_level as number || 0,
       education_stage_id: (s.classrooms as Record<string, unknown>)?.education_stage_id as string || '',
     }));
+    const found = students.find(s => s.student_id_number === '2569000001');
     await setTtlCache(cacheKey, students, SHORT_LIST_TTL_MS);
     return { success: true, data: students };
   });

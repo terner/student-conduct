@@ -240,6 +240,7 @@
     "allStages": "All stages",
     "allGrades": "All grades",
     "allClassrooms": "All classrooms",
+    "allCategories": "All categories",
     "noStudentsFiltered": "No matching students",
     "noStudents": "No students yet",
     "recordResultsSummary": "{total} students total. Showing {from}–{to} of {filtered}",
@@ -531,7 +532,16 @@
     "noDepartment": "No department",
     "advisorClassrooms": "Advisor classrooms",
     "gradePrefix": "Grade {grade}",
-    "noAdvisorClassrooms": "No advisor classrooms yet"
+    "noAdvisorClassrooms": "No advisor classrooms yet",
+    "searchPlaceholder": "Search name or employee ID",
+    "allRoles": "All roles",
+    "allStatuses": "All statuses",
+    "allDepartments": "All departments",
+    "superadminRole": "Superadmin",
+    "adminRole": "Admin",
+    "teacherRole": "Teacher",
+    "active": "Active",
+    "inactive": "Inactive"
   },
   "student": {
     "list": "Student List",

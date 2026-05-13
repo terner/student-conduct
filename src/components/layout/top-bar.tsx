@@ -23,7 +23,7 @@ export function TopBar({ title, firstName, lastName, role, email, avatarUrl }: T
   const isStudentOnly = roles.includes('student') && !roles.some((r) => ['superadmin', 'admin', 'teacher'].includes(r))
 
   return (
-    <header data-slot="topbar" className="flex h-16 items-center gap-3 border-b border-border px-4">
+    <header data-slot="topbar" className="sticky top-0 z-10 flex h-16 items-center gap-3 border-b border-border bg-background px-4">
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-5" />
       {title && (

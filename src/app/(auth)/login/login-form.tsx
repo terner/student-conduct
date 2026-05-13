@@ -116,6 +116,7 @@ export function LoginForm({ schoolName, schoolLogo }: LoginFormProps) {
       }
     } catch (err: any) {
       setError(err.message || commonT('error'));
+    } finally {
       setLoading(false);
     }
   }

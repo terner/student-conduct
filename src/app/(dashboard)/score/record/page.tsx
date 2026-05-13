@@ -114,9 +114,10 @@ export default function ScoreRecordPage() {
         const raw = sessionStorage.getItem(cacheKey);
         if (raw) {
           const cached = JSON.parse(raw) as ScoreRecordPageCache;
+          const age = Date.now() - cached.savedAt;
           if (
             cached.version === SCORE_RECORD_CACHE_VERSION &&
-            Date.now() - cached.savedAt < SCORE_RECORD_CACHE_TTL_MS
+            age < SCORE_RECORD_CACHE_TTL_MS
           ) {
             setStudents(cached.students);
             setClassrooms(cached.classrooms);
@@ -126,7 +127,7 @@ export default function ScoreRecordPage() {
           }
           sessionStorage.removeItem(cacheKey);
         }
-      } catch {
+      } catch (e) {
         sessionStorage.removeItem(cacheKey);
       }
 
@@ -139,6 +140,7 @@ export default function ScoreRecordPage() {
         const nextStudents = studentRes.success && studentRes.data ? studentRes.data : [];
         const nextClassrooms = classRes.success && classRes.data ? classRes.data : [];
         const nextStages = stageRes.success && stageRes.data ? stageRes.data : [];
+
 
         if (studentRes.success && studentRes.data) setStudents(nextStudents);
         if (classRes.success && classRes.data) setClassrooms(nextClassrooms);
@@ -154,7 +156,7 @@ export default function ScoreRecordPage() {
           } satisfies ScoreRecordPageCache));
         }
         setLoading(false);
-      }).catch(() => {
+      }).catch((err) => {
         if (!cancelled) setLoading(false);
       });
     }

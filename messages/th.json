@@ -241,6 +241,7 @@
     "allStages": "ทุกระดับ",
     "allGrades": "ทุกชั้นปี",
     "allClassrooms": "ทุกห้อง",
+    "allCategories": "ทุกประเภท",
     "noStudentsFiltered": "ไม่พบนักเรียนที่ค้นหา",
     "noStudents": "ยังไม่มีข้อมูลนักเรียน",
     "recordResultsSummary": "พบทั้งหมด {total} คน แสดง {from}–{to} จาก {filtered} คน",
@@ -533,7 +534,16 @@
     "noDepartment": "ไม่มีแผนก",
     "advisorClassrooms": "ห้องเรียนที่ปรึกษา",
     "gradePrefix": "ชั้น {grade}",
-    "noAdvisorClassrooms": "ยังไม่มีห้องเรียนที่ปรึกษา"
+    "noAdvisorClassrooms": "ยังไม่มีห้องเรียนที่ปรึกษา",
+    "searchPlaceholder": "ค้นหาชื่อ หรือรหัสเจ้าหน้าที่",
+    "allRoles": "ทุกสิทธิ์",
+    "allStatuses": "ทุกสถานะ",
+    "allDepartments": "ทุกแผนก",
+    "superadminRole": "ผู้ดูแลสูงสุด",
+    "adminRole": "ผู้ดูแลระบบ",
+    "teacherRole": "ครู",
+    "active": "ใช้งาน",
+    "inactive": "ปิดใช้งาน"
   },
   "student": {
     "list": "รายชื่อนักเรียน",
