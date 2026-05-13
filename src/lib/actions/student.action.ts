@@ -769,7 +769,7 @@ export async function getStudentDashboard() {
     // Get score transactions
     const { data: scores } = await supabase
       .from('score_transactions')
-      .select('id, points, status, recorded_at, note, category_name_at_record, category_type_at_record, score_categories(name, type), profiles!score_transactions_recorded_by_fkey(full_name)')
+      .select('id, points, status, recorded_at, note, category_name_at_record, category_type_at_record, score_categories(name, type), profiles!score_transactions_recorded_by_fkey(full_name), score_transaction_evidence(id, file_url, file_name)')
       .eq('student_id', student.id)
       .eq('academic_year_id', acYear?.id)
       .eq('status', 'approved')
@@ -784,6 +784,7 @@ export async function getStudentDashboard() {
       category_type_at_record: string | null;
       score_categories?: { name?: string; type?: string } | null;
       profiles?: { full_name?: string } | null;
+      score_transaction_evidence?: Array<{ id: string; file_url?: string; file_name?: string }>;
     }>;
     const totalDeducted = scoreRows.filter((t) => t.points < 0).reduce((s, t) => s + Math.abs(t.points), 0);
     const totalAdded = scoreRows.filter((t) => t.points > 0).reduce((s, t) => s + t.points, 0);
@@ -831,6 +832,11 @@ export async function getStudentDashboard() {
           category_name: t.category_name_at_record || t.score_categories?.name || '',
           category_type: t.category_type_at_record || t.score_categories?.type || '',
           recorded_by_name: t.profiles?.full_name || '',
+          evidence: (t.score_transaction_evidence || []).map((e) => ({
+            id: e.id,
+            file_url: e.file_url || '',
+            file_name: e.file_name || '',
+          })),
         })),
       },
     };

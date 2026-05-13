@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { History, AlertCircle, TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { History, AlertCircle, TrendingDown, TrendingUp, Minus, ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -172,9 +172,20 @@ export default function StudentDashboardPage() {
                         </span>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <span className="text-sm text-muted-foreground line-clamp-1 max-w-[200px]">
-                          {t.note || '—'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground line-clamp-1 max-w-[200px]">
+                            {t.note || '—'}
+                          </span>
+                          {t.evidence?.length > 0 && (
+                            <div className="flex gap-1 shrink-0">
+                              {t.evidence.map((e: any) => (
+                                <a key={e.id} href={e.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                  <img src={e.file_url} alt={e.file_name || 'หลักฐาน'} className="size-8 rounded border object-cover hover:ring-2 hover:ring-primary transition-all" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <span className="text-xs text-muted-foreground">{t.recorded_by_name || '—'}</span>
