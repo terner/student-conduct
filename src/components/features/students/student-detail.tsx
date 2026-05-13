@@ -78,7 +78,6 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
             )}
             <div className="min-w-0 print:hidden">
               <p className="truncate font-medium">{student.prefix}{student.first_name} {student.last_name}</p>
-              <p className="font-mono text-xs text-muted-foreground">{student.student_id_number}</p>
             </div>
           </div>
           <dl className="space-y-3 text-sm print:grid print:grid-cols-2 print:gap-x-5 print:gap-y-1.5 print:space-y-0 print:text-[11px]">
