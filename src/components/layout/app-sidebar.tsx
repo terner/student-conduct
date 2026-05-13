@@ -142,6 +142,7 @@ export function AppSidebar({ schoolName, schoolLogo, role }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {alertNavItems.length > 0 && (
         <SidebarGroup>
           <SidebarGroupLabel>{t('alerts')}</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -161,6 +162,7 @@ export function AppSidebar({ schoolName, schoolLogo, role }: AppSidebarProps) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-3 shadow-[0_-8px_18px_-18px_rgb(0_0_0_/_0.35)]">
