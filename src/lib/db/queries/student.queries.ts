@@ -267,14 +267,14 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
  * Get single student by ID with full details
  */
 export async function getStudentById(id: string): Promise<StudentWithProfile | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('students')
     .select(`
       *,
       profiles!inner(full_name, prefix, avatar_url),
-      classrooms!inner(name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
+      classrooms(name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
     `)
     .eq('id', id)
     .single();
@@ -432,7 +432,7 @@ export async function getClassroomTeacherNames(classroomId: string) {
  * Get student score summary (total deducted, total added, current score)
  */
 export async function getStudentScoreSummary(studentId: string, academicYearId?: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   let baseScore = 100;
   if (academicYearId) {
@@ -480,7 +480,7 @@ export async function getStudentScoreSummary(studentId: string, academicYearId?:
  * Get student enrollments
  */
 export async function getStudentEnrollments(studentId: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await supabase
     .from('student_enrollments')
