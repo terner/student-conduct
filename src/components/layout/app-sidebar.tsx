@@ -67,7 +67,7 @@ export function AppSidebar({ schoolName, schoolLogo, role }: AppSidebarProps) {
   }, [selectedAcademicYearId])
 
   /** Check if the current user has access based on item role requirements */
-  function hasAccess(itemRoles?: ('superadmin' | 'admin' | 'teacher')[]): boolean {
+  function hasAccess(itemRoles?: ('superadmin' | 'admin' | 'teacher' | 'student')[]): boolean {
     if (!itemRoles || itemRoles.length === 0) return false
     return itemRoles.some(r => userRoles.includes(r))
   }
