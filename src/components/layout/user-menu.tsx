@@ -25,6 +25,7 @@ export function UserMenu({ firstName, lastName, role, email, avatarUrl }: UserMe
   // Handle both string and string[] role
   const roles = Array.isArray(role) ? role : role ? [role] : []
   const isSuperAdmin = roles.includes('superadmin')
+  const isStudentOnly = roles.includes('student') && !roles.some((r) => ['superadmin', 'admin', 'teacher'].includes(r))
 
   return (
     <DropdownMenu>
@@ -57,18 +58,22 @@ export function UserMenu({ firstName, lastName, role, email, avatarUrl }: UserMe
             <DropdownMenuSeparator />
           </>
         )}
-        <DropdownMenuItem render={<Link href="/settings/profile" />}>
-          <User className="mr-2 size-4" />โปรไฟล์
-        </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href="/change-password" />}>
-          <Lock className="mr-2 size-4" />เปลี่ยนรหัสผ่าน
-        </DropdownMenuItem>
+        {!isStudentOnly && (
+          <>
+            <DropdownMenuItem render={<Link href="/settings/profile" />}>
+              <User className="mr-2 size-4" />โปรไฟล์
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link href="/change-password" />}>
+              <Lock className="mr-2 size-4" />เปลี่ยนรหัสผ่าน
+            </DropdownMenuItem>
+          </>
+        )}
         {isSuperAdmin && (
           <DropdownMenuItem render={<Link href="/settings" />}>
             <Settings className="mr-2 size-4" />ตั้งค่าระบบ
           </DropdownMenuItem>
         )}
-        <DropdownMenuSeparator />
+        {!isStudentOnly && <DropdownMenuSeparator />}
         <DropdownMenuItem render={<a href="/api/auth/logout" />}>
           <LogOut className="mr-2 size-4" />ออกจากระบบ
         </DropdownMenuItem>
