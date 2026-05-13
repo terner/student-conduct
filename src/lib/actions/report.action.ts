@@ -256,7 +256,8 @@ export async function getStudentRankingReport(params: StudentRankingReportParams
             category_name_at_record,
             category_type_at_record,
             score_categories(name, type),
-            profiles!score_transactions_recorded_by_fkey(full_name)
+            profiles!score_transactions_recorded_by_fkey(full_name),
+            score_transaction_evidence(id, file_url, file_name)
           `)
           .in('student_id', chunk)
           .eq('status', 'approved')
@@ -300,6 +301,7 @@ export async function getStudentRankingReport(params: StudentRankingReportParams
 
           const recent = transactionsByStudent.get(studentId) || [];
           if (recent.length < 8) {
+            const evidence = (tx.score_transaction_evidence as Array<Record<string, unknown>>) || [];
             recent.push({
               id: tx.id as string,
               category_name: (tx.category_name_at_record as string) || ((tx.score_categories as Record<string, unknown>)?.name as string) || '',
@@ -308,6 +310,11 @@ export async function getStudentRankingReport(params: StudentRankingReportParams
               note: tx.note as string | undefined,
               recorded_at: tx.recorded_at as string,
               recorded_by_name: ((tx.profiles as Record<string, unknown>)?.full_name as string) || '',
+              evidence: evidence.map((e) => ({
+                id: e.id as string,
+                file_url: (e.file_url as string) || '',
+                file_name: (e.file_name as string) || '',
+              })),
             });
             transactionsByStudent.set(studentId, recent);
           }
