@@ -68,10 +68,16 @@ export default function StudentDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">
-              {studentInfo.prefix || ''}{studentInfo.full_name || ''}
+              {studentInfo.prefix || ''}{studentInfo.first_name || studentInfo.full_name || ''} {studentInfo.last_name || ''}
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              {studentInfo.classroom_name || studentInfo.classrooms?.name || studentT('classroomNotSpecified')} · {studentT('id')}: {studentInfo.student_id_number}
+              {studentInfo.classroom_name || studentT('classroomNotSpecified')}
+              {studentInfo.class_number ? ` · ${studentT('classNumber')} ${studentInfo.class_number}` : ''}
+              {studentInfo.education_stage_name ? ` · ${studentInfo.education_stage_name}` : ''}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {studentT('id')}: {studentInfo.student_id_number}
+              {studentInfo.current_status ? ` · ${studentT('status')}: ${studentInfo.current_status}` : ''}
             </p>
           </CardHeader>
           <CardContent>
