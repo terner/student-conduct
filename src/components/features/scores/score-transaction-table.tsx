@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, FileText, UserCheck, Ban, AlertTriangle, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, FileText, UserCheck, Ban, AlertTriangle, Loader2, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -245,7 +245,7 @@ export function ScoreTransactionTable({
 
       {/* Detail Dialog */}
       <Dialog open={!!detailTx} onOpenChange={(open) => { if (!open) setDetailTx(null); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
@@ -253,225 +253,178 @@ export function ScoreTransactionTable({
             </DialogTitle>
           </DialogHeader>
           {detailTx && (
-            <div className="space-y-4">
-              {/* Status badge */}
-              <div className="flex justify-between items-center">
-                <Badge variant="outline" className={statusConfig[detailTx.status]?.color || ''}>
-                  {statusConfig[detailTx.status]?.icon && (() => { const Icon = statusConfig[detailTx.status].icon; return <Icon className="mr-1 h-3 w-3 inline" />; })()}
-                  {statusConfig[detailTx.status]?.labelKey ? scoreT(statusConfig[detailTx.status].labelKey) : detailTx.status}
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  ID: {detailTx.id.slice(0, 8)}...
-                </span>
+            <div className="space-y-3">
+              {/* Info Card */}
+              <div className="rounded-lg border p-4 space-y-2.5 text-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{studentT('detail')}</p>
+                  {showStudentProfileLink && (
+                    <Button variant="ghost" size="sm" className="h-auto p-0 text-primary hover:text-primary/80" nativeButton={false} render={<Link href={`/students/${detailTx.student_id}`} />}>
+                      <span className="text-xs">ดูโปรไฟล์</span>
+                      <ArrowUpRight className="h-3.5 w-3.5 ml-0.5" />
+                    </Button>
+                  )}
+                </div>
+                <Separator />
+                <InfoLine icon={<User className="h-3.5 w-3.5" />} label={studentT('fullName')} value={detailTx.student_name} />
+                <InfoLine icon={<Hash className="h-3.5 w-3.5" />} label={scoreT('studentId')} value={detailTx.student_id_number} mono />
+                {detailTx.classroom_name && (
+                  <InfoLine icon={<BookOpen className="h-3.5 w-3.5" />} label={scoreT('classroom')} value={detailTx.classroom_name} />
+                )}
               </div>
 
-              <Separator />
-
-              {/* Student info */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <User className="h-3.5 w-3.5" />
-                    <span>{studentT('fullName')}</span>
-                  </div>
-                  <p className="text-sm font-medium">{detailTx.student_name || '-'}</p>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Hash className="h-3.5 w-3.5" />
-                    <span>{scoreT('studentId')}</span>
-                  </div>
-                  <p className="text-sm font-mono">{detailTx.student_id_number || '-'}</p>
-                </div>
-              </div>
-              {showStudentProfileLink && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  nativeButton={false}
-                  render={<Link href={`/students/${detailTx.student_id}`} />}
-                >
-                  <User className="mr-2 h-4 w-4" />
-                  {scoreT('openStudentProfile')}
-                </Button>
-              )}
-
-              {/* Classroom */}
-              {(detailTx.classroom_name || detailTx.classroom_grade) && (
-                <div className="flex items-center gap-1.5 text-sm">
-                  <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-muted-foreground">{scoreT('classroom')}</span>
-                  <span className="font-medium">
-                    {detailTx.classroom_name || ''} {detailTx.classroom_grade ? `(${scoreT('classroomGrade', { grade: detailTx.classroom_grade })})` : ''}
-                  </span>
-                </div>
-              )}
-
-              <Separator />
-
-              {/* Score details */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <FileText className="h-3.5 w-3.5" />
-                    <span>{scoreT('category')}</span>
-                  </div>
-                  <p className="text-sm font-medium">{detailTx.category_name}</p>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    <span>{scoreT('type')}</span>
-                  </div>
-                  <Badge variant="outline" className={detailTx.category_type === 'deduct' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}>
-                    {detailTx.category_type === 'deduct' ? scoreT('deductType') : scoreT('addType')}
+              {/* Score + Status Card */}
+              <div className="rounded-lg border p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-muted-foreground">{scoreT('points')}</p>
+                  <Badge variant="outline" className={statusConfig[detailTx.status]?.color || ''}>
+                    {statusConfig[detailTx.status]?.labelKey ? scoreT(statusConfig[detailTx.status].labelKey) : detailTx.status}
                   </Badge>
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <span>{scoreT('points')}</span>
-                </div>
-                <p className={`text-xl font-bold ${(detailTx.points || 0) > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                <p className={`text-2xl font-bold tabular-nums ${(detailTx.points || 0) > 0 ? 'text-green-600' : 'text-destructive'}`}>
                   {(detailTx.points || 0) > 0 ? `+${detailTx.points}` : detailTx.points}
-                  {' '}{scoreT('points')}
                 </p>
+                <p className="text-sm text-muted-foreground mt-0.5">{detailTx.category_name}</p>
+                {(() => {
+                  if (!detailTx.note) return null;
+                  const parts = detailTx.note.split('\n').filter(Boolean);
+                  const specialPart = parts.find(p => p.startsWith('คะแนนพิเศษ') || p.startsWith('Special'));
+                  if (!specialPart) return null;
+                  const match = specialPart.match(/(\d+):/);
+                  const specialPoints = match ? parseInt(match[1], 10) : 0;
+                  if (!specialPoints) return null;
+                  const basePoints = Math.abs(detailTx.points || 0) - specialPoints;
+                  const isDeduct = (detailTx.points || 0) < 0;
+                  return (
+                    <div className="mt-2 pt-2 border-t text-xs space-y-0.5">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>{detailTx.category_name}</span>
+                        <span className="tabular-nums">{isDeduct ? `-${basePoints}` : `+${basePoints}`}</span>
+                      </div>
+                      <div className="flex justify-between text-amber-600">
+                        <span>⚡ {specialPart.includes('เพิ่ม') && !specialPart.includes('หักเพิ่ม') ? 'เพิ่ม' : 'หักเพิ่ม'}</span>
+                        <span className="tabular-nums">{isDeduct ? `-${specialPoints}` : `+${specialPoints}`}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
-              {detailTx.note && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <FileText className="h-3.5 w-3.5" />
-                    <span>{scoreT('note')}</span>
-                  </div>
-                  <p className="text-sm bg-muted/50 rounded-md p-2">{detailTx.note}</p>
-                </div>
-              )}
-
-              {detailTx.evidence && detailTx.evidence.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <FileText className="h-3.5 w-3.5" />
-                    <span>{scoreT('evidence')}</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {detailTx.evidence.map((item) => {
-                      const url = resolveEvidenceUrl(item);
-                      return (
-                        <a
-                          key={item.id}
-                          href={url || undefined}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block overflow-hidden rounded-md border bg-muted"
-                          title={item.file_name}
-                        >
-                          {url && item.file_type?.startsWith('image/') ? (
-                            <img src={url} alt={item.file_name} className="aspect-square w-full object-cover" />
-                          ) : (
-                            <div className="flex aspect-square items-center justify-center p-2 text-center text-xs text-muted-foreground">
-                              {item.file_name}
-                            </div>
-                          )}
-                        </a>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <Separator />
-
-              {/* Timestamps */}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>{scoreT('recordedAt')}</span>
-                  </div>
-                  <p>{formatDateTime(detailTx.recorded_at)}</p>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <User className="h-3.5 w-3.5" />
-                    <span>{scoreT('recordedBy')}</span>
-                  </div>
-                  <p>{detailTx.recorded_by_name || '-'}</p>
-                </div>
-              </div>
-
-              {detailTx.status === 'approved' && detailTx.approved_at && (
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <Calendar className="h-3.5 w-3.5" />
-                      <span>{scoreT('approvedAt')}</span>
-                    </div>
-                    <p>{formatDateTime(detailTx.approved_at)}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <UserCheck className="h-3.5 w-3.5" />
-                      <span>{scoreT('approvedBy')}</span>
-                    </div>
-                    <p>{detailTx.approved_by_name || '-'}</p>
-                  </div>
-                </div>
-              )}
-
-              {detailTx.status === 'voided' && (
-                <div className="space-y-2 rounded-md bg-destructive/5 p-3">
-                  <div className="flex items-center gap-1.5 text-sm text-destructive">
-                    <Ban className="h-3.5 w-3.5" />
-                    <span className="font-medium">{scoreT('voidedNotice')}</span>
-                  </div>
-                  {detailTx.void_reason && (
-                    <p className="text-sm text-muted-foreground ml-5">{scoreT('reason', { reason: detailTx.void_reason })}</p>
-                  )}
-                  {detailTx.voided_at && (
-                    <p className="text-xs text-muted-foreground ml-5">
-                      {scoreT('voidedAtBy', {
-                        date: formatDateTime(detailTx.voided_at),
-                        by: detailTx.voided_by_name ? scoreT('byName', { name: detailTx.voided_by_name }) : '',
-                      })}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <DialogFooter className="gap-2">
-                {detailTx.status === 'pending' && (
+              {/* Note */}
+              {(() => {
+                if (!detailTx.note) return null;
+                const parts = detailTx.note.split('\n').filter(Boolean);
+                const specialPart = parts.find(p => p.startsWith('คะแนนพิเศษ') || p.startsWith('Special'));
+                const mainNote = parts.filter(p => p !== specialPart).join('\n');
+                return (
                   <>
-                    {onApprove && (
-                      <Button
-                        variant="default"
-                        onClick={() => { onApprove(detailTx.id); setDetailTx(null); }}
-                      >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        {scoreT('approve')}
-                      </Button>
+                    {mainNote && (
+                      <div className="rounded-lg border p-4">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{scoreT('note')}</p>
+                        <p className="text-sm">{mainNote}</p>
+                      </div>
                     )}
-                    {onVoid && (
-                      <Button
-                        variant="destructive"
-                        onClick={() => { setVoidDialog({ open: true, transactionId: detailTx.id }); setDetailTx(null); }}
-                      >
-                        <XCircle className="mr-2 h-4 w-4" />
-                        {scoreT('reject')}
-                      </Button>
-                    )}
+                    {specialPart && (() => {
+                      const colonIdx = specialPart.lastIndexOf(':');
+                      const specialReason = colonIdx > 0 ? specialPart.slice(colonIdx + 1).trim() : '';
+                      return (
+                        <div className="rounded-lg border p-4 border-amber-200 bg-amber-50/30 dark:border-amber-800 dark:bg-amber-950/20">
+                          <p className="text-xs font-medium text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2">⚡ หมายเหตุคะแนนพิเศษ</p>
+                          <p className="text-sm">{specialReason || specialPart}</p>
+                        </div>
+                      );
+                    })()}
                   </>
-                )}
-                <Button variant="outline" onClick={() => setDetailTx(null)}>
-                  {scoreT('close')}
-                </Button>
-              </DialogFooter>
+                );
+              })()}
+
+              {/* Evidence */}
+              {detailTx.evidence && detailTx.evidence.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{scoreT('evidence')}</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                  {detailTx.evidence.map((item) => {
+                    const url = resolveEvidenceUrl(item);
+                    return (
+                      <a key={item.id} href={url || undefined} target="_blank" rel="noreferrer" className="shrink-0 overflow-hidden rounded-lg border">
+                        {url && item.file_type?.startsWith('image/') ? (
+                          <img src={url} alt={item.file_name} className="h-20 w-20 object-cover" />
+                        ) : (
+                          <div className="flex h-20 w-20 items-center justify-center text-xs text-muted-foreground p-1">{item.file_name}</div>
+                        )}
+                      </a>
+                    );
+                  })}
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline Card */}
+              <div className="rounded-lg border p-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{scoreT('historyTitle')}</p>
+                <div className="space-y-1.5 text-xs text-muted-foreground border-l-2 border-muted pl-3">
+                  <TimelineEntry icon={<Calendar className="h-3 w-3" />} label={scoreT('recordedBy')} who={detailTx.recorded_by_name} when={detailTx.recorded_at} />
+                  {detailTx.approved_by_name && (
+                    <TimelineEntry icon={<UserCheck className="h-3 w-3 text-green-600" />} label={scoreT('approvedBy')} who={detailTx.approved_by_name} when={detailTx.approved_at} />
+                  )}
+                  {detailTx.voided_by_name && (
+                    <TimelineEntry icon={<Ban className="h-3 w-3 text-destructive" />} label={scoreT('voided')} who={detailTx.voided_by_name} when={detailTx.voided_at} />
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              {detailTx.status === 'pending' && (
+                <div className="flex flex-col gap-2">
+                  {onApprove && (
+                    <Button className="w-full bg-green-100 hover:bg-green-200 text-green-700 border-green-200" disabled={approveLoading === detailTx.id} onClick={async () => {
+                      setApproveLoading(detailTx.id);
+                      await onApprove(detailTx.id);
+                      setApproveLoading(null);
+                      setDetailTx(null);
+                    }}>
+                      {approveLoading === detailTx.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                      {scoreT('approve')}
+                    </Button>
+                  )}
+                  {onVoid && (
+                    <Button variant="outline" className="w-full border-red-200 bg-red-50 text-red-700 hover:bg-red-100" onClick={() => {
+                      setVoidDialog({ open: true, transactionId: detailTx.id });
+                    }}>
+                      <XCircle className="mr-2 h-4 w-4" />
+                      {scoreT('void')}
+                    </Button>
+                  )}
+                </div>
+              )}
+              <Button variant="outline" className="w-full" onClick={() => setDetailTx(null)}>
+                {scoreT('close')}
+              </Button>
             </div>
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function InfoLine({ icon, label, value, mono }: { icon: React.ReactNode; label: string; value?: string | null; mono?: boolean }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="shrink-0 text-muted-foreground">{icon}</span>
+      <span className="text-muted-foreground shrink-0">{label}:</span>
+      <span className={`truncate ${mono ? 'font-mono' : ''}`}>{value || '—'}</span>
+    </div>
+  );
+}
+
+function TimelineEntry({ icon, label, who, when }: { icon: React.ReactNode; label: string; who?: string | null; when?: string | null }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {icon}
+      <span className="shrink-0">{label}:</span>
+      <span className="font-medium">{who || '—'}</span>
+      {when && <span className="opacity-60 text-[11px]">{new Date(when).toLocaleString()}</span>}
     </div>
   );
 }
