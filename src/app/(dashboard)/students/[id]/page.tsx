@@ -541,7 +541,7 @@ export default function StudentDetailPage() {
                     <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate print:max-w-none print:whitespace-normal print:text-neutral-700">
                       <div className="flex items-center gap-2">
                         <span>{t.note || '-'}</span>
-                        {t.evidence?.length > 0 && (
+                        {t.evidence && t.evidence.length > 0 && (
                           <div className="flex gap-1 shrink-0">
                             {t.evidence.map((e) => (
                               <a key={e.id} href={e.file_url} target="_blank" rel="noopener noreferrer">
