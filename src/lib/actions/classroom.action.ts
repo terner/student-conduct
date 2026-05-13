@@ -219,11 +219,13 @@ export async function addClassroom(data: {
       return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบชั้นปีของระดับนี้' } };
     }
 
-    const roomCount = validated.room_count || 1;
-    const classroomNames = Array.from(
-      { length: roomCount },
-      (_, index) => `${gradeLevel.name}/${index + 1}`,
-    );
+    const roomCount = validated.name ? 1 : (validated.room_count || 1);
+    const classroomNames = validated.name
+      ? [validated.name]
+      : Array.from(
+          { length: roomCount },
+          (_, index) => `${gradeLevel.name}/${index + 1}`,
+        );
 
     const { data: existingClassrooms } = await supabase
       .from('classrooms')

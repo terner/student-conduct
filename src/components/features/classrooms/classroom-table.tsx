@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Edit, Eye, MoreHorizontal, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ interface ClassroomTableProps {
 }
 
 export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTableProps) {
+  const router = useRouter();
   const classroomT = useTranslations('classroom');
   const commonT = useTranslations('common');
   const studentT = useTranslations('student');
@@ -51,7 +53,7 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
         </TableHeader>
         <TableBody>
           {data.map((c) => (
-            <TableRow key={c.id}>
+            <TableRow key={c.id} className="cursor-pointer" onClick={() => router.push(`/classrooms/${c.id}`)}>
               <TableCell>
                 <Link href={`/classrooms/${c.id}`} className="font-medium hover:text-primary hover:underline">
                   {c.name}
@@ -75,15 +77,15 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
               </TableCell>
               <TableCell>
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()} />}>
                     <MoreHorizontal className="h-4 w-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem render={<Link href={`/classrooms/${c.id}`} />}>
+                    <DropdownMenuItem render={<Link href={`/classrooms/${c.id}`} onClick={(e) => e.stopPropagation()} />}>
                       <Eye className="mr-2 h-4 w-4" />{classroomT('viewDetail')}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onEdit?.(c)}><Edit className="mr-2 h-4 w-4" />{commonT('edit')}</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(c)}><Trash2 className="mr-2 h-4 w-4" />{commonT('delete')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit?.(c); }}><Edit className="mr-2 h-4 w-4" />{commonT('edit')}</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); onDelete?.(c); }}><Trash2 className="mr-2 h-4 w-4" />{commonT('delete')}</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

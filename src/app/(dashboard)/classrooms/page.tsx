@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Plus, Search, RotateCcw } from 'lucide-react';
+import { Search, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -138,9 +138,6 @@ export default function ClassroomsPage() {
           <h1 className="text-2xl font-bold">{classroomT('title')}</h1>
           <p className="text-muted-foreground mt-1">{classroomT('description')}</p>
         </div>
-        <Button onClick={() => { setEditItem(null); setShowForm(true); }}>
-          <Plus className="mr-2 h-4 w-4" />{classroomT('add')}
-        </Button>
       </div>
 
       {/* Filters */}

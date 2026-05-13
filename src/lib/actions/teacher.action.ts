@@ -1,7 +1,7 @@
 'use server';
 
 import { withAuth } from '@/lib/server-action';
-import { canManageSchoolData } from '@/lib/security/roles';
+import { canManageSchoolData, canImportData } from '@/lib/security/roles';
 import { createAdminClient } from '@/lib/supabase/server';
 import {
   listTeachers,
@@ -261,5 +261,64 @@ export async function unassignClassroom(teacherId: string, classroomId: string) 
       metadata: { teacher_id: teacherId },
     });
     return { success: true, data: null };
+  });
+}
+
+/**
+ * Import teachers from CSV data
+ */
+export async function importTeachersCsv(rows: Record<string, unknown>[]) {
+  return withAuth(async (profile) => {
+    if (!canImportData(profile)) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์นำเข้าข้อมูล' } };
+    }
+
+    const errors: { row: number; message: string }[] = [];
+    let imported = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      try {
+        const row = rows[i];
+        const prefix = String(row['คำนำหน้า'] || row['prefix'] || '').trim();
+        const firstName = String(row['ชื่อ'] || row['first_name'] || '').trim();
+        const lastName = String(row['นามสกุล'] || row['last_name'] || '').trim();
+        const email = String(row['อีเมล'] || row['email'] || '').trim();
+        const employeeId = String(row['รหัสเจ้าหน้าที่'] || row['employee_id'] || row['employeeId'] || '').trim();
+        const phone = String(row['เบอร์โทร'] || row['phone'] || '').trim();
+        const department = String(row['แผนก'] || row['department'] || '').trim();
+        const position = String(row['ตำแหน่ง'] || row['position'] || 'ครู').trim();
+        const systemRole = String(row['สิทธิ์ในระบบ'] || row['system_role'] || row['systemRole'] || 'teacher').trim();
+
+        if (!prefix || !firstName || !lastName || !email || !employeeId) {
+          errors.push({ row: i + 1, message: 'ข้อมูลไม่ครบ (คำนำหน้า, ชื่อ, นามสกุล, อีเมล, รหัสเจ้าหน้าที่)' });
+          continue;
+        }
+
+        const validRoles = ['teacher', 'admin', 'superadmin'];
+        const normalizedRole = validRoles.includes(systemRole) ? systemRole : 'teacher';
+
+        const result = await addTeacher({
+          prefix,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          employee_id: employeeId,
+          phone: phone || undefined,
+          department: department || undefined,
+          position: position || 'ครู',
+          system_role: normalizedRole as 'teacher' | 'admin' | 'superadmin',
+        });
+
+        if (result.success) {
+          imported++;
+        } else {
+          errors.push({ row: i + 1, message: result.error?.message || 'บันทึกไม่สำเร็จ' });
+        }
+      } catch (err) {
+        errors.push({ row: i + 1, message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' });
+      }
+    }
+
+    return { success: true, data: { imported, errors } };
   });
 }

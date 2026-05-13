@@ -64,18 +64,35 @@ export async function listClassrooms(params: {
   const classroomIds = (data || []).map((c) => c.id as string);
   const teacherNameById = await getClassroomTeacherNames(classroomIds);
 
+  // Batch fetch student counts (single query instead of N queries)
+  const studentCountMap = new Map<string, number>();
+  if (classroomIds.length > 0) {
+    const { data: studentRows } = await supabase
+      .from('students')
+      .select('classroom_id')
+      .in('classroom_id', classroomIds)
+      .eq('current_status', 'active');
+    for (const row of (studentRows || [])) {
+      const cid = row.classroom_id as string;
+      studentCountMap.set(cid, (studentCountMap.get(cid) || 0) + 1);
+    }
+  }
+
+  // Batch fetch teacher counts (single query instead of N queries)
+  const teacherCountMap = new Map<string, number>();
+  if (classroomIds.length > 0) {
+    const { data: tcRows } = await supabase
+      .from('teacher_classrooms')
+      .select('classroom_id')
+      .in('classroom_id', classroomIds);
+    for (const row of (tcRows || [])) {
+      const cid = row.classroom_id as string;
+      teacherCountMap.set(cid, (teacherCountMap.get(cid) || 0) + 1);
+    }
+  }
+
   const classrooms: ClassroomWithDetails[] = [];
   for (const c of (data || [])) {
-    const { count: studentCount } = await supabase
-      .from('students')
-      .select('*', { count: 'exact', head: true })
-      .eq('classroom_id', c.id as string)
-      .eq('current_status', 'active');
-
-    const { count: teacherCount } = await supabase
-      .from('teacher_classrooms')
-      .select('*', { count: 'exact', head: true })
-      .eq('classroom_id', c.id as string);
     const teacherNames = teacherNameById.get(c.id as string);
 
     classrooms.push({
@@ -87,8 +104,8 @@ export async function listClassrooms(params: {
       grade_level_name: ((c.grade_levels as unknown as Record<string, unknown>)?.name as string) || '',
       grade_level: c.grade_level as number,
       academic_year: ((c.academic_years as unknown as Record<string, unknown>)?.name as string) || '',
-      student_count: studentCount || 0,
-      teacher_count: teacherCount || 0,
+      student_count: studentCountMap.get(c.id as string) || 0,
+      teacher_count: teacherCountMap.get(c.id as string) || 0,
       homeroom_teacher_name: teacherNames?.homeroom || '',
       advisor_teacher_name: teacherNames?.advisor || teacherNames?.homeroom || '',
     });
