@@ -45,6 +45,7 @@ interface IndividualReportTransaction {
   points: number;
   note?: string | null;
   recorded_by_name?: string | null;
+  evidence?: Array<{ id: string; file_url: string; file_name: string }>;
 }
 
 interface IndividualReportData {
@@ -540,9 +541,9 @@ export default function StudentDetailPage() {
                     <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate print:max-w-none print:whitespace-normal print:text-neutral-700">
                       <div className="flex items-center gap-2">
                         <span>{t.note || '-'}</span>
-                        {(t as any).evidence?.length > 0 && (
+                        {t.evidence?.length > 0 && (
                           <div className="flex gap-1 shrink-0">
-                            {(t as any).evidence.map((e: any) => (
+                            {t.evidence.map((e) => (
                               <a key={e.id} href={e.file_url} target="_blank" rel="noopener noreferrer">
                                 <img src={e.file_url} alt={e.file_name || 'หลักฐาน'} className="size-8 rounded border object-cover hover:ring-2 hover:ring-primary transition-all" />
                               </a>
