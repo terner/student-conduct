@@ -28,9 +28,7 @@ export function AcademicYearSwitcher() {
       const academicYears = result.data as AcademicYear[];
       setYears(academicYears);
 
-      const stored = getStoredAcademicYearId();
-      if (stored && academicYears.some((year) => year.id === stored)) return;
-
+      // เลือกปีปัจจุบันเสมอ (is_current = true) ไม่สนใจค่าเก่า
       const current = academicYears.find((year) => year.is_current) || academicYears[0];
       if (current) setStoredAcademicYearId(current.id);
     }
