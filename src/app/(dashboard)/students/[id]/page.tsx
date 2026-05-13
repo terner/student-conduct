@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select';
 import { StudentDetail } from '@/components/features/students/student-detail';
 import { StudentForm, type SubmitResult } from '@/components/features/students/student-form';
-import { EvidenceUploader } from '@/components/features/scores/evidence-uploader';
+import { EvidenceUploader, createEvidenceFiles, type EvidenceFile } from '@/components/features/scores/evidence-uploader';
 import { getStudent, editStudent, checkStudentViewerRole } from '@/lib/actions/student.action';
 import { getCategories, getScoreRecordingAvailability, recordScore } from '@/lib/actions/score.action';
 import { getIndividualReport } from '@/lib/actions/report.action';
@@ -87,20 +87,30 @@ function formatPrintDate(value: Date) {
   });
 }
 
-async function uploadEvidenceFiles(transactionId: string, files: File[], fallbackError: string) {
-  if (files.length === 0) return;
-  const formData = new FormData();
-  formData.append('transaction_id', transactionId);
-  files.forEach((file) => formData.append('files', file));
-
-  const response = await fetch('/api/upload/evidence', {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    throw new Error(payload?.error || fallbackError);
+async function uploadEvidenceFiles(
+  transactionId: string,
+  evidenceFiles: EvidenceFile[],
+  fallbackError: string,
+  onProgress: (index: number, status: EvidenceFile['status']) => void,
+) {
+  if (evidenceFiles.length === 0) return;
+  // Upload files one by one with progress
+  for (let i = 0; i < evidenceFiles.length; i++) {
+    onProgress(i, 'uploading');
+    try {
+      const formData = new FormData();
+      formData.append('transaction_id', transactionId);
+      formData.append('files', evidenceFiles[i].file);
+      const response = await fetch('/api/upload/evidence', { method: 'POST', body: formData });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || fallbackError);
+      }
+      onProgress(i, 'done');
+    } catch {
+      onProgress(i, 'error');
+      throw new Error(`อัพโหลดรูปที่ ${i + 1} ไม่สำเร็จ`);
+    }
   }
 }
 
@@ -133,7 +143,7 @@ export default function StudentDetailPage() {
   const [extraPoints, setExtraPoints] = useState(0);
   const [extraReason, setExtraReason] = useState('');
   const [recordNote, setRecordNote] = useState('');
-  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
+  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
   const [recording, setRecording] = useState(false);
   const getStatusLabel = useCallback((status?: string | null) => {
     switch (status) {
@@ -240,7 +250,14 @@ export default function StudentDetailPage() {
         has_evidence: evidenceFiles.length > 0,
       });
       if (res.success) {
-        await uploadEvidenceFiles(res.data.id, evidenceFiles, studentT('uploadEvidenceFailed'));
+        await uploadEvidenceFiles(
+          res.data.id,
+          evidenceFiles,
+          studentT('uploadEvidenceFailed'),
+          (index, status) => {
+            setEvidenceFiles(prev => prev.map((f, i) => i === index ? { ...f, status } : f));
+          },
+        );
         toast(cat?.requires_approval ? studentT('scoreSubmittedApproval') : studentT('scoreRecordSuccess'));
         setShowRecordDialog(false);
         setRecordType('deduct');
@@ -658,14 +675,14 @@ export default function StudentDetailPage() {
             {recordType && recordCategory && categories.find(c => c.id === recordCategory)?.requires_evidence && (
             <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50/60 p-3">
               <Label>{studentT('evidenceRequiredLabel')}</Label>
-              <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} />
+              <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} uploading={recording} />
             </div>
             )}
 
             {recordType && recordCategory && !categories.find(c => c.id === recordCategory)?.requires_evidence && evidenceFiles.length > 0 && (
             <div className="space-y-1 rounded-md border p-3">
               <Label>{studentT('evidenceLabel')}</Label>
-              <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} />
+              <EvidenceUploader files={evidenceFiles} onChange={setEvidenceFiles} uploading={recording} />
             </div>
             )}
 
