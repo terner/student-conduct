@@ -44,7 +44,6 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
           <TableRow>
             <TableHead>{classroomT('roomName')}</TableHead>
             <TableHead>{classroomT('stage')}</TableHead>
-            <TableHead>{classroomT('gradeLevel')}</TableHead>
             <TableHead>{classroomT('studentsCount')}</TableHead>
             <TableHead>{classroomT('homeroomTeacher')}</TableHead>
             <TableHead>{classroomT('advisorTeacher')}</TableHead>
@@ -62,7 +61,6 @@ export function ClassroomTable({ data, loading, onEdit, onDelete }: ClassroomTab
               <TableCell>
                 <Badge variant="outline">{c.education_stage_name || classroomT('notSpecified')}</Badge>
               </TableCell>
-              <TableCell>{c.grade_level_name || c.grade_level}</TableCell>
               <TableCell>
                 <span className="flex items-center gap-1">
                   <Users className="h-3 w-3 text-muted-foreground" />

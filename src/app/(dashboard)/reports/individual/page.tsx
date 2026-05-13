@@ -298,9 +298,9 @@ export default function IndividualReportPage() {
           <Select
             value={academicYearId || null}
             onValueChange={(value: string | null) => setAcademicYearId(value || '')}
-            itemToStringLabel={(value) => academicYears.find((year) => year.id === value)?.name || String(value)}
+            itemToStringLabel={(value) => academicYears.find((year) => year.id === value)?.name || ''}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={commonT('academicYear')} />
             </SelectTrigger>
             <SelectContent>
@@ -318,9 +318,9 @@ export default function IndividualReportPage() {
               setGradeId(value || '');
               setClassroomName('');
             }}
-            itemToStringLabel={(value) => gradeOptions.find((grade) => grade.id === value)?.label || String(value)}
+            itemToStringLabel={(value) => gradeOptions.find((grade) => grade.id === value)?.label || ''}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={reportT('allGradeLevels')} />
             </SelectTrigger>
             <SelectContent>
@@ -335,9 +335,9 @@ export default function IndividualReportPage() {
           <Select
             value={classroomName || null}
             onValueChange={(value: string | null) => setClassroomName(value || '')}
-            itemToStringLabel={(value) => classroomOptions.find((classroom) => classroom.name === value)?.name || String(value)}
+            itemToStringLabel={(value) => classroomOptions.find((classroom) => classroom.name === value)?.name || ''}
           >
-            <SelectTrigger className="h-10 w-full min-w-0">
+            <SelectTrigger className="!h-10 w-full min-w-0">
               <SelectValue placeholder={reportT('allClassrooms')}>
                 <span className="truncate">{classroomName || reportT('allClassrooms')}</span>
               </SelectValue>
@@ -374,7 +374,7 @@ export default function IndividualReportPage() {
             }}
             itemToStringLabel={(value) => value === 'score' ? reportT('scoreBest') : reportT('watchlist')}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={reportT('rankModePlaceholder')} />
             </SelectTrigger>
             <SelectContent>
@@ -392,7 +392,7 @@ export default function IndividualReportPage() {
             }}
             itemToStringLabel={(value) => sortOptions.find((item) => item.value === value) ? sortLabel(value as TableSortBy) : String(value)}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <ArrowDownUp className="mr-1 h-4 w-4 text-muted-foreground" />
               <SelectValue placeholder={reportT('sortBy')} />
             </SelectTrigger>

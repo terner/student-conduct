@@ -4,7 +4,7 @@
 
 Multi-School Ready · Config-Driven Design · Clone & Deploy
 
-**Updated: 2026-05-10 — ระบบทำงานบน Production แล้ว และเพิ่ม academic structure master data แล้ว**
+**Updated: 2026-05-13 — Tree view, teacher CSV import, responsive filters, N+1 fix, phone format, avatar fix**
 
 ---
 
@@ -22,10 +22,11 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 | **Student Management** | ✅ | List + search/filter + create/edit + detail page + guardian fields + current score column |
 | **Score Recording** | ✅ | Add/deduct form + category management |
 | **Classroom Management** | ✅ | List + create/edit + detail page + create by ระดับชั้น → ชั้นปี → จำนวนห้อง |
-| **Academic Structure** | ✅ | Manage academic years, education stages, grade levels, classrooms |
-| **Teacher Management** | ✅ | List + create/edit + detail page + classroom assignment + teacher positions |
-| **Reports** | ✅ | Individual, classroom, threshold reports |
-| **Settings** | ✅ | School info + logo upload + CSV import + audit log viewer + Google Drive config + academic structure hub |
+| **Academic Structure** | ✅ | Tree view: manage stages → grade levels → classrooms in one page; auto-create classrooms |
+| **Teacher Management** | ✅ | List + filters + create/edit + detail page + CSV import + classroom assignment + teacher positions |
+| **Reports** | ✅ | Individual, classroom, threshold, statistics reports; score history with filters |
+| **Settings** | ✅ | School info + logo upload + CSV import + audit log viewer + academic structure tree view |
+| **Responsive UI** | ✅ | All filter grids responsive (sm:grid-cols-2 lg:grid-cols-[...]), sticky topbar, phone format |
 | **PDPA Consent** | ✅ | Consent page + rejected page + check on login |
 | **Change Password** | ✅ | Page + must_change_password enforcement |
 | **Auth Middleware** | ✅ | proxy.ts — auth guard + locale cookie |
@@ -37,7 +38,7 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 
 | ข้อมูล | จำนวน |
 |--------|-------|
-| นักเรียน | 300 |
+| นักเรียน | ~1,000+ |
 | ครู | 30 |
 | ห้องเรียน | 24 |
 | ระดับชั้นการศึกษา | 5 |
@@ -173,9 +174,9 @@ school-conduct/
 │   │   │   ├── students/page.tsx + [id]/page.tsx
 │   │   │   ├── classrooms/page.tsx + [id]/page.tsx
 │   │   │   ├── teachers/page.tsx + [id]/page.tsx
-│   │   │   ├── score/record/page.tsx + categories/page.tsx
-│   │   │   ├── reports/page.tsx + individual/ + classroom/ + threshold/
-│   │   │   └── settings/page.tsx + academic-years/ + education-stages/ + grade-levels/ + teacher-positions/ + import/ + logs/
+│   │   │   ├── score/record/page.tsx + history/page.tsx + categories/page.tsx
+│   │   │   ├── reports/page.tsx + individual/ + classroom/ + threshold/ + statistics/
+│   │   │   └── settings/page.tsx + academic-years/ + education-stages/ + teacher-positions/ + import/ + logs/
 │   │   ├── student/dashboard/page.tsx
 │   │   └── api/
 │   │       ├── auth/login/route.ts + logout/route.ts + debug/route.ts

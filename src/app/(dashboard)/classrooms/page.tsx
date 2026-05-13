@@ -39,6 +39,7 @@ export default function ClassroomsPage() {
   const [search, setSearch] = useState('');
   const [filterStageId, setFilterStageId] = useState<string>('');
   const [filterGrade, setFilterGrade] = useState<string>('');
+  const [filterClassroom, setFilterClassroom] = useState<string>('');
   const [stages, setStages] = useState<StageOption[]>([]);
 
   const getStageLabel = (stage: StageOption) => {
@@ -63,6 +64,15 @@ export default function ClassroomsPage() {
     if (result.success && result.data) {
       setData(result.data);
       setPage(1);
+      // Collect all grade options (only when no filter is applied, to keep options stable)
+      if (!filterStageId && !filterGrade) {
+        const seen = new Map<string, { id: string; grade_level: number }>();
+        result.data.forEach((c: any) => {
+          const key = c.grade_level_id || String(c.grade_level);
+          if (!seen.has(key)) seen.set(key, { id: c.grade_level_id || String(c.grade_level), grade_level: c.grade_level });
+        });
+        setAllGradeOptions(Array.from(seen.values()));
+      }
       setLoading(false);
       return;
     } else {
@@ -76,29 +86,27 @@ export default function ClassroomsPage() {
 
   // Client-side search filter
   const filteredData = useMemo(() => {
-    if (!search) return data;
+    let result = data;
+    if (filterClassroom) result = result.filter(c => c.id === filterClassroom);
+    if (!search) return result;
     const q = search.toLowerCase();
-    return data.filter(c =>
+    return result.filter(c =>
       c.name.toLowerCase().includes(q) ||
       c.homeroom_teacher_name?.toLowerCase().includes(q)
     );
-  }, [data, search]);
+  }, [data, search, filterClassroom]);
 
   const pagedData = useMemo(() => filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredData, page]);
 
   useEffect(() => { setPage(1); }, [search]);
 
-  // Grade options derived from classrooms
+  // Grade options — keep all options even when filtered
+  const [allGradeOptions, setAllGradeOptions] = useState<{ id: string; grade_level: number }[]>([]);
+
   const gradeOptions = useMemo(() => {
-    const seen = new Map<string, { id: string; grade_level: number }>();
-    data.forEach(c => {
-      const key = c.grade_level_id || String(c.grade_level);
-      if (!seen.has(key)) {
-        seen.set(key, { id: c.grade_level_id || String(c.grade_level), grade_level: c.grade_level });
-      }
-    });
-    return Array.from(seen.values()).sort((a, b) => a.grade_level - b.grade_level);
-  }, [data]);
+    // Use unfiltered options so dropdown doesn't collapse when filtering
+    return allGradeOptions.sort((a, b) => a.grade_level - b.grade_level);
+  }, [allGradeOptions]);
 
   const handleSubmit = async (formData: ClassroomInput) => {
     const result = editItem
@@ -123,12 +131,13 @@ export default function ClassroomsPage() {
     }
   };
 
-  const hasFilters = search || filterStageId || filterGrade;
+  const hasFilters = search || filterStageId || filterGrade || filterClassroom;
 
   const clearFilters = () => {
     setSearch('');
     setFilterStageId('');
     setFilterGrade('');
+    setFilterClassroom('');
   };
 
   return (
@@ -142,7 +151,7 @@ export default function ClassroomsPage() {
 
       {/* Filters */}
       <div className="rounded-md border bg-background p-4">
-        <div className="grid gap-3 md:grid-cols-[minmax(200px,2fr)_minmax(150px,1fr)_minmax(150px,1fr)_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(180px,2fr)_minmax(130px,1fr)_minmax(120px,1fr)_minmax(140px,1fr)_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -157,8 +166,12 @@ export default function ClassroomsPage() {
           <Select
             value={filterStageId || null}
             onValueChange={(v: string | null) => setFilterStageId(v || '')}
+            itemToStringLabel={(value) => {
+              const s = stages.find(s => s.id === value);
+              return s ? getStageLabel(s) : '';
+            }}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder="ทุกระดับ" />
             </SelectTrigger>
             <SelectContent>
@@ -171,13 +184,35 @@ export default function ClassroomsPage() {
           <Select
             value={filterGrade || null}
             onValueChange={(v: string | null) => setFilterGrade(v || '')}
+            itemToStringLabel={(value) => {
+              const g = gradeOptions.find(g => g.id === value);
+              return g ? `ชั้น ${g.grade_level}` : '';
+            }}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder="ทุกชั้นปี" />
             </SelectTrigger>
             <SelectContent>
               {gradeOptions.map(g => (
                 <SelectItem key={g.id} value={g.id} label={`ชั้น ${g.grade_level}`}>{`ชั้น ${g.grade_level}`}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filterClassroom || null}
+            onValueChange={(v: string | null) => setFilterClassroom(v || '')}
+            itemToStringLabel={(value) => {
+              const c = data.find(c => c.id === value);
+              return c ? c.name : '';
+            }}
+          >
+            <SelectTrigger className="!h-10 w-full">
+              <SelectValue placeholder="ทุกห้อง" />
+            </SelectTrigger>
+            <SelectContent>
+              {data.map(c => (
+                <SelectItem key={c.id} value={c.id} label={c.name}>{c.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>

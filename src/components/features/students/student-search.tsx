@@ -175,10 +175,10 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
             onValueChange={(v) => v !== null && setStageFilterId(v)}
             itemToStringLabel={(value) => {
               const stage = stages.find((item) => item.id === value);
-              return stage ? getStageLabel(stage) : String(value);
+              return stage ? getStageLabel(stage) : '';
             }}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={t('allStages')} />
             </SelectTrigger>
             <SelectContent>
@@ -200,7 +200,7 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
               return selected ? selected.label : String(value);
             }}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={t('allGrades')} />
             </SelectTrigger>
             <SelectContent>
@@ -223,7 +223,7 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
               return c ? c.name : String(value);
             }}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={loadingClassrooms ? common('loading') : t('allClassrooms')} />
             </SelectTrigger>
             <SelectContent>

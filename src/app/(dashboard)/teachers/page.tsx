@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Download, Plus, Search, RotateCcw } from 'lucide-react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { Download, Plus, Search, RotateCcw, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,10 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { TeacherTable } from '@/components/features/teachers/teacher-table';
 import { TeacherForm } from '@/components/features/teachers/teacher-form';
 import { SimplePagination } from '@/components/ui/simple-pagination';
-import { getTeachers, addTeacher, editTeacher, setTeacherActive } from '@/lib/actions/teacher.action';
+import { getTeachers, addTeacher, editTeacher, setTeacherActive, importTeachersCsv } from '@/lib/actions/teacher.action';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
 import type { TeacherInput } from '@/lib/validation/schemas';
-import { exportCsv } from '@/lib/utils/csv';
+import { exportCsv, parseCsvFile } from '@/lib/utils/csv';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -27,7 +27,9 @@ export default function TeachersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<TeacherWithProfile | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [page, setPage] = useState(1);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -144,6 +146,34 @@ export default function TeachersPage() {
 
   const hasFilters = search || filterRole || filterStatus || filterDepartment;
 
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const parsed = await parseCsvFile(file);
+      if (parsed.data.length === 0) {
+        toast(teacherT('importFailed'), { description: 'ไม่พบข้อมูลในไฟล์' });
+        return;
+      }
+      const res = await importTeachersCsv(parsed.data);
+      if (res.success) {
+        const d = res.data;
+        toast(teacherT('importSuccess', { count: d.imported }), {
+          description: d.errors.length > 0 ? `ข้าม ${d.errors.length} รายการ` : undefined,
+        });
+        fetchData();
+      } else {
+        toast(teacherT('importFailed'), { description: res.error?.message });
+      }
+    } catch (err) {
+      toast(teacherT('importFailed'), { description: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
   const clearFilters = () => {
     setSearch('');
     setFilterRole('');
@@ -159,6 +189,10 @@ export default function TeachersPage() {
           <p className="text-muted-foreground mt-1">{teacherT('description')}</p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
+          <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleImportFile} disabled={importing} />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            <Upload className="mr-2 h-4 w-4" />{importing ? teacherT('importing') : teacherT('importCsv')}
+          </Button>
           <Button variant="outline" onClick={handleExport} disabled={filteredData.length === 0}>
             <Download className="mr-2 h-4 w-4" />{teacherT('exportCsv')}
           </Button>
@@ -170,7 +204,7 @@ export default function TeachersPage() {
 
       {/* Filters */}
       <div className="rounded-md border bg-background p-4">
-        <div className="grid gap-3 md:grid-cols-[minmax(200px,2fr)_minmax(130px,1fr)_minmax(130px,1fr)_minmax(130px,1fr)_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(180px,2fr)_minmax(130px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -186,7 +220,7 @@ export default function TeachersPage() {
             value={filterRole || null}
             onValueChange={(v: string | null) => setFilterRole(v || '')}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={teacherT('allRoles')} />
             </SelectTrigger>
             <SelectContent>
@@ -200,7 +234,7 @@ export default function TeachersPage() {
             value={filterStatus || null}
             onValueChange={(v: string | null) => setFilterStatus(v || '')}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={teacherT('allStatuses')} />
             </SelectTrigger>
             <SelectContent>
@@ -213,7 +247,7 @@ export default function TeachersPage() {
             value={filterDepartment || null}
             onValueChange={(v: string | null) => setFilterDepartment(v || '')}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={teacherT('allDepartments')} />
             </SelectTrigger>
             <SelectContent>

@@ -190,10 +190,10 @@ export default function ScoreHistoryPage() {
             onValueChange={(v: string | null) => setFilterStageId(v || '')}
             itemToStringLabel={(value) => {
               const s = stages.find(s => s.id === value);
-              return s ? getStageLabel(s) : String(value);
+              return s ? getStageLabel(s) : '';
             }}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={scoreT('allStages')} />
             </SelectTrigger>
             <SelectContent>
@@ -212,10 +212,10 @@ export default function ScoreHistoryPage() {
             disabled={!filterStageId}
             itemToStringLabel={(value) => {
               const g = gradeOptions.find(g => g.id === value);
-              return g ? g.label : String(value);
+              return g ? g.label : '';
             }}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={scoreT('allGrades')} />
             </SelectTrigger>
             <SelectContent>
@@ -234,10 +234,10 @@ export default function ScoreHistoryPage() {
             disabled={!filterGrade}
             itemToStringLabel={(value) => {
               const c = classroomOptions.find(c => c.id === value);
-              return c ? c.name : String(value);
+              return c ? c.name : '';
             }}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={scoreT('allClassrooms')} />
             </SelectTrigger>
             <SelectContent>
@@ -255,10 +255,10 @@ export default function ScoreHistoryPage() {
             onValueChange={(v: string | null) => setFilterCategory(v || '')}
             itemToStringLabel={(value) => {
               const c = categories.find(c => c.id === value);
-              return c ? c.name : String(value);
+              return c ? c.name : '';
             }}
           >
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={scoreT('allCategories')} />
             </SelectTrigger>
             <SelectContent>

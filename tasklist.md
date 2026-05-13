@@ -165,7 +165,30 @@
 
 ---
 
-## ✅ งานล่าสุดที่ทำแล้ว (2026-05-10)
+## ✅ งานล่าสุดที่ทำแล้ว (2026-05-13)
+
+- [x] **Education Structure Tree View** — `/settings/education-stages` เป็น tree view (ระดับ → ชั้นปี → ห้องเรียน) ในหน้าเดียว
+- [x] สร้างห้องอัตโนมัติ: `{ชั้นปี}/{เลขถัดไป}` — ไม่ต้องกรอก form, กด `+` ปุ๊บสร้างปั๊บ
+- [x] ลบห้องได้เฉพาะห้องสุดท้ายในชั้นปี, ลบชั้นปีได้เมื่อไม่มีห้อง, ลบระดับได้เมื่อไม่มีชั้นปี
+- [x] **Teacher CSV Import** — `importTeachersCsv` server action + ปุ่มบนหน้ารายชื่อครู, headers ไทย/อังกฤษ
+- [x] **Teacher Detail Redesign** — แยกครูประจำชั้น/ครูผู้ช่วย, avatar, contact tiles, สิทธิ์ badge
+- [x] **Teacher Form Redesign** — avatar กลาง, ปุ่มแนวตั้งเต็มกว้าง `h-11`, สิทธิ์มีคำอธิบาย, ช่องสูงเท่ากัน
+- [x] **Responsive Filter Grids** — ทุกหน้าใช้ `sm:grid-cols-2 lg:grid-cols-[...]` ไม่ต้องกำหนดทีละ breakpoint
+- [x] **UUID Display Fix** — `itemToStringLabel` บนทุก filter Select ป้องกัน UUID แสดงใน UI
+- [x] **SelectTrigger `!h-10` Fix** — ทุก filter Select สูง 40px เท่ากับ Input
+- [x] **N+1 Query Fix** — `listClassrooms` batch student/teacher counts (49 queries → 3 queries)
+- [x] **Dashboard Layout Swap** — นักเรียนถึงเกณฑ์คู่กับแจกแจงคะแนน, รายการล่าสุดด้านล่าง
+- [x] **TopBar Sticky** — `sticky top-0 z-10` + `overflow-hidden h-dvh`
+- [x] **Phone Format Display** — `formatPhoneDisplay()` → `XXX-XXX-XXXX` ทั่วระบบ (teacher table, student detail)
+- [x] **Classroom Table Clickable** — กด row ไป `/classrooms/[id]`, dropdown action มี stopPropagation
+- [x] **Classroom Filter** — เพิ่ม dropdown "ชื่อห้อง" ในหน้า `/classrooms`
+- [x] **Avatar Upload Fix** — `studentSchema` เพิ่ม `avatar_url`, `teacherSchema` แก้ `.url()` → `.string()`
+- [x] **Login Form Fix** — `handleQuickLogin` ใช้ `finally` แทน `catch` สำหรับ `setLoading(false)`
+- [x] **Score History Filters** — หน้า `/score/history` มี filter: ค้นหา, ระดับ, ชั้นปี, ห้อง, ประเภท
+- [x] **Teacher Page Filters** — ค้นหา, สิทธิ์, สถานะ, แผนก + click row → detail
+- [x] **Classroom Table** — เอาคอลัมน์ชั้นปีออก, เพิ่ม filter ชื่อห้อง, responsive grid
+
+## ✅ งานก่อนหน้า (2026-05-10)
 
 - [x] เพิ่ม global academic year selector และให้มีผลกับ dashboard/students/classrooms/score record
 - [x] เพิ่ม master data `grade_levels` และ migration `supabase/migrations/20260510120000_add_grade_levels_master_data.sql`
@@ -242,6 +265,15 @@
 
 ### Low Priority / Nice to Have
 - [x] **Production rate limiting + shared cache** — ใช้ Upstash Redis ผ่าน Vercel Marketplace สำหรับ login/upload/storage test และ cache master data/select list โดย fallback เป็น in-memory เมื่อไม่มี env
+- [x] **Teacher CSV Import** — `importTeachersCsv` server action + ปุ่ม Import บนหน้ารายชื่อครู, headers ไทย/อังกฤษ
+- [x] **Education Structure Tree View** — `/settings/education-stages` tree view พร้อม auto-create/delete classrooms
+- [x] **Responsive Filter Grids** — ทุกหน้า filter ใช้ responsive grid, `!h-10` fix, `itemToStringLabel` UUID fix
+- [x] **Phone Format Display** — `formatPhoneDisplay()` → `XXX-XXX-XXXX` ทั่วระบบ
+- [x] **N+1 Query Fix** — `listClassrooms` batch student/teacher counts (49→3)
+- [x] **TopBar Sticky** — `sticky top-0` + `overflow-hidden h-dvh`
+- [x] **Dashboard Layout Swap** — นักเรียนถึงเกณฑ์คู่กับแจกแจงคะแนน, รายการล่าสุดด้านล่าง
+- [x] **Avatar Upload Fix** — `studentSchema` + `avatar_url`, `teacherSchema` แก้ `.url()` → `.string()`
+- [x] **Classroom Table Clickable** — กด row ไปหน้ารายละเอียด
 - [ ] **ScoreTimeline chart** — recharts line chart component
 - [ ] **PDPA version management** — admin publish new version
 - [x] **School branding in login page** — show logo + school name from Settings on login page
@@ -255,16 +287,16 @@
 |------|--------|-----------|
 | Database Schema (25+ tables) | ✅ 100% | All tables with data, including education_stages + grade_levels |
 | API Routes | ✅ 85% | Core auth + upload + evidence |
-| Backend Actions | ✅ 90% | All CRUD + dashboard + auth |
-| Validation | ✅ 100% | 25+ Zod schemas |
-| Security | ✅ 70% | Sanitization + headers, no rate limiting |
-| UI Components | ✅ 85% | Evidence uploader, notification bell |
-| Pages | ✅ 95% | 30 routes including approval, bonds, interventions, academic years |
+| Backend Actions | ✅ 95% | All CRUD + dashboard + auth + teacher CSV import |
+| Validation | ✅ 100% | 25+ Zod schemas, avatar_url fixed |
+| Security | ✅ 70% | Sanitization + headers, limited rate limiting |
+| UI Components | ✅ 90% | Teacher form redesign, tree view, responsive filters, phone format |
+| Pages | ✅ 95% | 30+ routes, all pages with responsive filters, clickable rows |
 | Auth Flow | ✅ 95% | Login, student login, role redirect, PDPA fix, must_change_password |
-| Academic Structure | ✅ 95% | Manage years/stages/grade levels/classrooms; annual rollover still pending |
-| i18n | ⏳ 65% | Config + switcher done; TH/EN messages ~722 strings each; main UI partially translated; strict coverage still pending for auth, validation, API/server errors, notification, and remaining hardcoded copy |
-| Reports | ✅ 80% | Individual, classroom, threshold, bond |
-| Advanced Features | ✅ 60% | Evidence, bonds, interventions, notifications, approval, academic years |
-| Testing | ✅ 新增 | 219 tests across 6 files (vitest) |
-| Infrastructure | ✅ 90% | school.config.ts, loading/error states, nav links |
-| **Overall** | **~88%** | Production-ready test data + academic structure done; upload/rollover/permissions remain |
+| Academic Structure | ✅ 98% | Tree view manage years/stages/grade levels/classrooms; auto-create classrooms; N+1 fixed |
+| i18n | ⏳ 65% | Config + switcher done; TH/EN messages ~730 strings each; main UI partially translated |
+| Reports | ✅ 85% | Individual, classroom, threshold, bond, statistics, score history with filters |
+| Advanced Features | ✅ 70% | Evidence, bonds, interventions, notifications, approval, teacher CSV import |
+| Testing | ✅ Playwright | Playwright installed for e2e testing |
+| Infrastructure | ✅ 95% | school.config.ts, loading/error states, nav links, sticky topbar, Supabase max-rows configured |
+| **Overall** | **~92%** | Production-ready; tree view, teacher import, responsive filters, phone format, N+1 fix, avatar fix done |

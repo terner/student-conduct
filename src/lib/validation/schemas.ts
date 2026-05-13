@@ -131,6 +131,7 @@ export const studentSchema = z.object({
     .regex(THAI_PHONE_REGEX, errorMessages.invalidPhone)
     .optional()
     .or(z.literal('')),
+  avatar_url: z.string().optional().or(z.literal('')),
 });
 
 export const studentImportSchema = z.object({
@@ -264,7 +265,7 @@ export const teacherSchema = z.object({
     .or(z.literal('')),
   system_role: z.enum(['teacher', 'admin', 'superadmin']).default('teacher'),
   is_admin: z.boolean().optional(),
-  avatar_url: z.string().url(errorMessages.invalidUrl).optional().or(z.literal('')),
+  avatar_url: z.string().optional().or(z.literal('')),
 });
 
 export const teacherClassroomSchema = z.object({

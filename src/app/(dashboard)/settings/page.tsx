@@ -170,7 +170,6 @@ export default function SettingsPage() {
           <TabsTrigger value="thresholds">{settingsT('thresholds')}</TabsTrigger>
           <TabsTrigger value="academic-structure">{settingsT('academicStructure')}</TabsTrigger>
           <TabsTrigger value="storage">{settingsT('storage')}</TabsTrigger>
-          <TabsTrigger value="tools">{settingsT('tools')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="school" className="mt-6">
@@ -367,7 +366,7 @@ export default function SettingsPage() {
               <CardDescription>{settingsT('academicStructureDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/settings/academic-years" />}>
                   <CalendarDays className="mr-2 h-4 w-4" />
                   {settingsT('manageAcademicYears')}
@@ -375,10 +374,6 @@ export default function SettingsPage() {
                 <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/settings/education-stages" />}>
                   <ListChecks className="mr-2 h-4 w-4" />
                   {settingsT('manageEducationStructure')}
-                </Button>
-                <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/classrooms" />}>
-                  <School className="mr-2 h-4 w-4" />
-                  {settingsT('createClassroom')}
                 </Button>
               </div>
             </CardContent>
@@ -495,50 +490,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="tools" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{settingsT('tools')}</CardTitle>
-              <CardDescription>{settingsT('toolsDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/students" />}>
-                <Users className="mr-2 h-4 w-4" />
-                {settingsT('manageStudents')}
-              </Button>
-              <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/teachers" />}>
-                <BookOpen className="mr-2 h-4 w-4" />
-                {settingsT('manageTeachers')}
-              </Button>
-              <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/classrooms" />}>
-                <School className="mr-2 h-4 w-4" />
-                {settingsT('manageClassrooms')}
-              </Button>
-              <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/score/categories" />}>
-                <Tags className="mr-2 h-4 w-4" />
-                {settingsT('scoreCategories')}
-              </Button>
-              {selectedYearOpen && (
-                <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/import" />}>
-                  <Download className="mr-2 h-4 w-4" />
-                  {settingsT('importStudentsCsv')}
-                </Button>
-              )}
-              <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/academic-years" />}>
-                <CalendarDays className="mr-2 h-4 w-4" />
-                {settingsT('manageAcademicYears')}
-              </Button>
-              <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/education-stages" />}>
-                <ListChecks className="mr-2 h-4 w-4" />
-                {settingsT('manageEducationStructure')}
-              </Button>
-              <Button variant="outline" className="justify-start" nativeButton={false} render={<a href="/settings/teacher-positions" />}>
-                <UserCog className="mr-2 h-4 w-4" />
-                {settingsT('manageTeacherPositions')}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );

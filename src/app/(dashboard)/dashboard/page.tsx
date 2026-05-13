@@ -190,61 +190,21 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t('recentTransactions')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentTx.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">{t('noRecentTransactions')}</p>
-            ) : (
-              <div className="space-y-2">
-                {recentTx.map((tx: any) => (
-                  <div key={tx.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
-                    <div className="flex min-w-0 items-center gap-2">
-                      {tx.points > 0 ? (
-                        <TrendingUp className="h-3 w-3 shrink-0 text-green-600" />
-                      ) : (
-                        <TrendingDown className="h-3 w-3 shrink-0 text-destructive" />
-                      )}
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{tx.student_name || tx.student_id_number}</div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {tx.student_id_number} · {tx.category_name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatDateTime(tx.created_at || tx.recorded_at)}
-                        </div>
-                      </div>
-                    </div>
-                    <span className={`shrink-0 font-mono text-xs font-medium ${tx.points > 0 ? 'text-green-600' : 'text-destructive'}`}>
-                      {tx.points > 0 ? `+${tx.points}` : tx.points}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {atRisk.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              {t('atRiskStudents')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
+        {atRisk.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                {t('atRiskStudents')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('student')}</TableHead>
                     <TableHead>{t('classroom')}</TableHead>
                     <TableHead>{t('currentScore')}</TableHead>
-                    <TableHead>{t('deductedScore')}</TableHead>
                     <TableHead>{t('action')}</TableHead>
                     <TableHead className="w-[90px]">{t('viewInfo')}</TableHead>
                   </TableRow>
@@ -258,8 +218,7 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell>{s.classroom_name || common('notAvailable')}</TableCell>
                       <TableCell><ScoreBadge score={s.current_score} /></TableCell>
-                      <TableCell className="font-medium text-destructive">{t('deductedPoints', { points: s.deducted_total })}</TableCell>
-                      <TableCell>{s.threshold_action || common('notAvailable')}</TableCell>
+                      <TableCell className="text-xs">{s.threshold_action || common('notAvailable')}</TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/students/${s.student_id}`} />}>
                           {t('view')}
@@ -269,10 +228,61 @@ export default function DashboardPage() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {atRisk.length === 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              {t('atRiskStudents')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground text-center py-4">{t('noAtRiskStudents')}</p>
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">{t('recentTransactions')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentTx.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">{t('noRecentTransactions')}</p>
+          ) : (
+            <div className="space-y-2">
+              {recentTx.map((tx: any) => (
+                <div key={tx.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {tx.points > 0 ? (
+                      <TrendingUp className="h-3 w-3 shrink-0 text-green-600" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 shrink-0 text-destructive" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{tx.student_name || tx.student_id_number}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {tx.student_id_number} · {tx.category_name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDateTime(tx.created_at || tx.recorded_at)}
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`shrink-0 font-mono text-xs font-medium ${tx.points > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                    {tx.points > 0 ? `+${tx.points}` : tx.points}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

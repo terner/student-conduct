@@ -6,11 +6,11 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 
 Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai Font
 
-## Current Implementation Snapshot — 2026-05-11
+## Current Implementation Snapshot — 2026-05-13
 
 สถานะล่าสุดของระบบใน repo นี้:
 
-- ใช้ Next.js 16 App Router + TypeScript + Supabase
+- ใช้ Next.js 16 App Router + TypeScript + Supabase + Turbopack
 - มี global academic year selector ใน top bar สำหรับเลือกดูข้อมูลย้อนหลังตามปีการศึกษา เช่น dashboard, รายชื่อนักเรียน, ห้องเรียน, รายงาน และประวัติคะแนน
 - Workflow ที่ต้องอิงปีปัจจุบันจริงของระบบ เช่น login นักเรียนและข้อมูลชุดปัจจุบัน ต้องตรวจจาก `academic_years.is_current = true` ไม่ใช่ค่าที่ผู้ใช้เลือกเอง
 - หน้า Settings → ปีการศึกษา ใช้ดูสถานะปีการศึกษา แจ้งเตือนเมื่อใกล้หมดปีหรือยังไม่มีปีปัจจุบัน และมี action เฉพาะสำหรับขึ้นปีการศึกษาถัดไปหลังปีเดิมสิ้นสุดแล้ว
@@ -19,21 +19,29 @@ Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
   2. ระดับชั้นการศึกษา (`education_stages`) เช่น อนุบาล, ประถมศึกษา, มัธยมศึกษา, มัธยมปลาย
   3. ชั้นปี (`grade_levels`) เช่น ป.1-ป.6, ม.1-ม.6
   4. ห้องเรียน (`classrooms`) เช่น ป.1/1, ป.1/2 โดยผูกกับ `academic_year_id`, `education_stage_id`, `grade_level_id`
-- มีหน้า Settings → โครงสร้างชั้นเรียน สำหรับไปจัดการ:
-  - `/settings/academic-years`
-  - `/settings/education-stages`
-  - `/settings/grade-levels`
-  - `/classrooms`
-- การเพิ่มห้องเรียนใช้ flow: เลือกระดับชั้น → เลือกชั้นปี → ใส่จำนวนห้อง → ระบบสร้างชื่อห้องจาก master data
+- หน้า Settings → โครงสร้างชั้นเรียน (`/settings/education-stages`) เป็น **Tree View**: จัดการระดับการศึกษา → ชั้นปี → ห้องเรียนในหน้าเดียว
+  - สร้างห้องเรียนอัตโนมัติจากชื่อชั้นปี + เลขลำดับถัดไป (ป.1/1, ป.1/2, ...)
+  - ลบได้เฉพาะห้องสุดท้ายในชั้นปี, ลบชั้นปีได้เมื่อไม่มีห้อง, ลบระดับได้เมื่อไม่มีชั้นปี
+- หน้าห้องเรียน (`/classrooms`) มี filter: ค้นหา, ระดับ, ชั้นปี, ชื่อห้อง — responsive ทุกขนาดจอ
+- หน้ารายชื่อครู (`/teachers`) มี filter: ค้นหา, สิทธิ์, สถานะ, แผนก — responsive ทุกขนาดจอ
+- หน้ารายละเอียดครู (`/teachers/[id]`) แยกครูประจำชั้น/ครูผู้ช่วยชัดเจน พร้อม avatar, contact, สิทธิ์
+- ฟอร์มเพิ่ม/แก้ไขครู ออกแบบใหม่ — avatar ตรงกลาง, ปุ่มแนวตั้งเต็มกว้าง, แต่ละสิทธิ์มีคำอธิบาย
+- ครูรองรับ **นำเข้าจาก CSV** (ปุ่ม Import บนหน้ารายชื่อครู) — headers รองรับทั้งไทย/อังกฤษ
 - หน้าเพิ่มนักเรียนและหน้าบันทึกคะแนนใช้ filter ที่สัมพันธ์กันจากข้อมูลห้องจริง ไม่ fix ชั้นปีใน code
-- ข้อมูลทดสอบปัจจุบันใน Supabase: นักเรียน 300, ครู 30, ห้องเรียน 24, ชั้นปี 12, ผู้ปกครอง 300
-- เพิ่มข้อมูลนักเรียน: คำนำหน้า, ผู้ปกครอง, ความสัมพันธ์, เบอร์โทรผู้ปกครอง และรองรับ CSV
-- เพิ่มข้อมูลครู: คำนำหน้า, เบอร์โทร, e-mail, ตำแหน่งครู และมีหน้ากำหนดตำแหน่งครู
+- ข้อมูลทดสอบปัจจุบันใน Supabase: นักเรียน ~1,000+, ครู 30, ห้องเรียน 24, ชั้นปี 12, ผู้ปกครอง 300
+- เพิ่มข้อมูลนักเรียน: คำนำหน้า, ผู้ปกครอง, ความสัมพันธ์, เบอร์โทรผู้ปกครอง, รูปโปรไฟล์ และรองรับ CSV
+- เพิ่มข้อมูลครู: คำนำหน้า, เบอร์โทร, e-mail, ตำแหน่งครู, รูปโปรไฟล์ และมีหน้ากำหนดตำแหน่งครู
 - ห้องเรียนรองรับทั้งครูประจำชั้นและครูที่ปรึกษา โดยเป็นคนเดียวกันได้
 - ตารางรายชื่อนักเรียนแสดงคะแนนปัจจุบัน และกด row เพื่อเข้าหน้า profile ได้
+- ตารางห้องเรียนและตารางครู กด row เพื่อเข้าหน้ารายละเอียดได้
 - ประวัติคะแนนรองรับ evidence metadata และ modal แสดงรูปหลักฐานถ้ามี
+- หน้าประวัติคะแนน (`/score/history`) มี filter: ค้นหา, ระดับ, ชั้นปี, ห้อง, ประเภท
+- หน้า dashboard สลับการ์ด — นักเรียนถึงเกณฑ์อยู่คู่กับแจกแจงคะแนน, รายการล่าสุดอยู่ด้านล่างเต็มกว้าง
+- เบอร์โทรแสดงผลในรูปแบบ `XXX-XXX-XXXX` ทั่วทั้งระบบ (`formatPhoneDisplay`)
+- TopBar sticky ติดด้านบนตลอดเวลา scroll — ทั้ง desktop และ mobile
 - Storage provider เลือกได้ผ่าน Settings/config ระหว่าง Vercel Blob, Google Drive และ Supabase Storage; Vercel Blob ใช้ `BLOB_READ_WRITE_TOKEN`/`STORAGE_PROVIDER` และ evidence รองรับ private blob ผ่าน `/api/blob/...` ส่วน Google Drive ยังเป็น optional provider ที่ใช้ service account/folder id ได้
 - Vercel Blob ผ่านการทดสอบด้วย token จริงแล้วสำหรับ upload/read/delete ของ logo, profile และ evidence บน private store; ระบบจึงคืนไฟล์ private ผ่าน `/api/blob/...` แทน URL ตรงเมื่อ provider เป็น Vercel Blob private
+- Fixed: studentSchema/teacherSchema รองรับ avatar_url (Zod validation), N+1 query ใน listClassrooms (49→3 queries), SelectTrigger height ทุก filter (`!h-10`), itemToStringLabel ป้องกัน UUID แสดงใน filter
 
 ## Academic Year Policy — 2026-05-11
 
@@ -49,15 +57,34 @@ Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
 
 ## Open Work — ต้องทำต่อ
 
-- Storage upload hardening ทำเพิ่มแล้ว: Settings มีปุ่ม test connection ตาม provider, upload routes ใช้ API error messages ตาม locale, จำกัด image/evidence type/size/count, เพิ่ม in-memory rate limit ระดับ route/user, audit log บันทึก IP/user-agent, และ Supabase fallback ของ evidence เปลี่ยนไปใช้ bucket `evidence`
+### ✅ Done (2026-05-13)
+
+- ✅ **Education Structure Tree View** — หน้า `/settings/education-stages` เป็น tree view: สร้าง/แก้ไข/ลบ ระดับการศึกษา → ชั้นปี → ห้องเรียนในหน้าเดียว สร้างห้องอัตโนมัติจากชื่อชั้นปี + เลขถัดไป ลบได้เฉพาะห้องสุดท้าย
+- ✅ **Teacher CSV Import** — ปุ่ม Import บนหน้ารายชื่อครู, headers รองรับไทย/อังกฤษ, parse + import ทันที
+- ✅ **Teacher Detail Redesign** — แยกครูประจำชั้น/ครูผู้ช่วย, avatar, contact, สิทธิ์
+- ✅ **Teacher Form Redesign** — avatar ตรงกลาง, ปุ่มแนวตั้งเต็มกว้าง (mobile-friendly), สิทธิ์มีคำอธิบาย, ทุกช่องสูงเท่ากัน
+- ✅ **Responsive Filter Grids** — ทุกหน้า filter ใช้ `sm:grid-cols-2 lg:grid-cols-[...]` ตอบสนองทุกขนาดจอโดยไม่ต้องกำหนดทีละ breakpoint
+- ✅ **UUID Display Fix** — ทุก filter Select มี `itemToStringLabel` ป้องกัน UUID แสดงใน UI
+- ✅ **SelectTrigger `!h-10` Fix** — ทุก filter Select สูงเท่ากับ Input (40px) โดย override `data-[size=default]:h-8`
+- ✅ **N+1 Query Fix** — `listClassrooms` batch student/teacher counts (49 queries → 3 queries)
+- ✅ **Dashboard Layout Swap** — นักเรียนถึงเกณฑ์อยู่คู่กับแจกแจงคะแนน, รายการล่าสุดด้านล่างเต็มกว้าง
+- ✅ **TopBar Sticky** — `sticky top-0` + `overflow-hidden h-dvh` ให้ topbar ติดด้านบนตลอด
+- ✅ **Phone Format Display** — `formatPhoneDisplay()` → `XXX-XXX-XXXX` ทั่วระบบ
+- ✅ **Classroom Table Clickable** — กด row ไปหน้ารายละเอียดห้อง
+- ✅ **Avatar Upload Fix** — `studentSchema` เพิ่ม `avatar_url`, `teacherSchema` แก้ `.url()` → `.string()`
+- ✅ **Login Form Fix** — `handleQuickLogin` เปลี่ยน `catch` → `finally` ให้ `setLoading(false)` ทำงานเสมอ
+- ✅ **Score History Filters** — เพิ่ม filter: ค้นหา, ระดับ, ชั้นปี, ห้อง, ประเภท — responsive
+
+### 🔶 ยังต้องทำต่อ
+
+- Storage upload hardening: Settings มีปุ่ม test connection ตาม provider, upload routes ใช้ API error messages ตาม locale, จำกัด image/evidence type/size/count, เพิ่ม in-memory rate limit ระดับ route/user, audit log บันทึก IP/user-agent, และ Supabase fallback ของ evidence เปลี่ยนไปใช้ bucket `evidence` แล้ว
 - ทำ permission/admin UI ให้กำหนด role หรือเพิ่ม admin ให้ครูบางคนจากหน้า UI ได้ครบ
 - Audit/action logs ระดับ MVP ต่อใช้งานแล้ว: มี helper กลางแบบ best-effort, บันทึก settings, teacher role/status/assignment, student add/edit/status/archive/import, score record/bulk/approve/void/category, classroom create/edit/delete/teacher assignment, upload logo/avatar/evidence, storage test และ login success/failure; upload/storage/login audit/action logs เก็บ IP/user-agent แล้ว; `/reports/threshold` บันทึก view_report และ export_csv แล้ว; หน้า `/settings/logs` แสดง Audit logs และ Action logs แยก tab แล้ว เหลือ hardening เช่น report coverage หน้าอื่น, before/after ที่ละเอียดขึ้น และ automated tests เพิ่ม
-- ทำ i18n ให้ครบทุกหน้าแบบ strict production-grade: ตอนนี้มี config, switcher และ `messages/th.json` + `messages/en.json` แล้ว และแปลง UI หลักไปหลายส่วนแล้ว รวมถึง validation/Zod messages หลัก, auth pages, auth login API, upload/storage API errors, notification bell type label, sidebar disabled tooltip, dashboard error page, Settings Google Drive labels และ `/students/me` state แล้ว แต่ยังเหลือ hardcoded Thai/English ที่ต้องไล่ต่อใน server action errors และ hardcoded copy ที่เหลือใน reports/score/settings/teacher/student profile/PDF
-- แยกข้อความที่เป็น domain/import format ออกจากงาน i18n ให้ชัด เช่น CSV Thai headers, คำนำหน้า, sample import data และ grade abbreviations อาจต้องคงไว้เป็นข้อมูลระบบ ไม่ใช่ UI copy
-- รายงานนักเรียนถึงเกณฑ์และการแจ้งเตือน: notification generation ทำแล้วเมื่อ record/approve คะแนนปีปัจจุบันถึง threshold, ส่งให้ admin/superadmin และครู homeroom/assistant ของห้อง, กัน duplicate ต่อ student/year/threshold/recipient ผ่าน metadata, mark-read ตรวจ ownership แล้ว และ `/reports/threshold` มี search/filter/pagination/export filename ตามปีการศึกษาแล้ว
-- Pagination รอบล่าสุดทำแล้วในหน้า list/report หลัก: `/teachers`, `/classrooms`, `/classrooms/[id]`, `/reports/individual`, `/reports/threshold`, `/reports/bond`, `/settings/logs`, `/interventions` และ notification bell มี load more แล้ว; หน้า score/student หลักมี pagination อยู่ก่อนแล้ว
+- ทำ i18n ให้ครบทุกหน้าแบบ strict production-grade: มี ~722 strings/ภาษา แต่ยังเหลือ hardcoded ในบางหน้า
+- แยกข้อความที่เป็น domain/import format ออกจากงาน i18n ให้ชัด เช่น CSV Thai headers, คำนำหน้า, sample import data
+- รายงานนักเรียนถึงเกณฑ์และการแจ้งเตือน: notification generation ทำแล้วเมื่อ record/approve คะแนนปีปัจจุบันถึง threshold
+- Pagination รอบล่าสุดทำแล้วในหน้า list/report หลัก
 - ทำ annual promotion/rollover: สร้างปีใหม่, copy/create ห้องตามโครงสร้าง, ย้าย enrollment นักเรียนรายปี
-- ทำ import wizard สำหรับปีการศึกษาใหม่ให้ preview ก่อนบันทึก และจัดการนักเรียนซ้ำ/ย้าย/จบการศึกษา
 - ทำรายงาน/สถิติเพิ่มเติม เช่น monthly snapshot, school statistics, export PDF/Excel
 - ปรับ RLS/permission ให้ละเอียดตาม production policy ก่อนใช้งานจริง
 - เพิ่ม automated tests สำหรับ classroom structure, grade-level filters, score record, import CSV

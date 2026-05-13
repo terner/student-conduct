@@ -285,10 +285,10 @@ export default function ScoreRecordPage() {
               onValueChange={(v: string | null) => setFilterStageId(v || '')}
               itemToStringLabel={(value) => {
                 const s = stages.find(s => s.id === value);
-                return s ? getStageLabel(s) : String(value);
+                return s ? getStageLabel(s) : '';
               }}
             >
-              <SelectTrigger className="h-10 w-full">
+              <SelectTrigger className="!h-10 w-full">
                 <SelectValue placeholder={t('allStages')} />
               </SelectTrigger>
               <SelectContent>
@@ -307,10 +307,10 @@ export default function ScoreRecordPage() {
               onValueChange={(v: string | null) => setFilterGrade(v || '')}
               itemToStringLabel={(value) => {
                 const g = gradeOptions.find(g => g.id === value);
-                return g ? g.label : String(value);
+                return g ? g.label : '';
               }}
             >
-              <SelectTrigger className="h-10 w-full">
+              <SelectTrigger className="!h-10 w-full">
                 <SelectValue placeholder={t('allGrades')} />
               </SelectTrigger>
               <SelectContent>
@@ -329,10 +329,10 @@ export default function ScoreRecordPage() {
               onValueChange={(v: string | null) => setFilterClassroom(v || '')}
               itemToStringLabel={(value) => {
                 const c = classroomOptions.find(c => c.id === value);
-                return c ? c.name : String(value);
+                return c ? c.name : '';
               }}
             >
-              <SelectTrigger className="h-10 w-full">
+              <SelectTrigger className="!h-10 w-full">
                 <SelectValue placeholder={t('allClassrooms')} />
               </SelectTrigger>
               <SelectContent>
