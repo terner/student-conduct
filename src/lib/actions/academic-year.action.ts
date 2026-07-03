@@ -5,6 +5,7 @@ import { canManageSchoolData } from '@/lib/security/roles';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
 import { buildPromotionEnrollmentRows, type PromotionSourceEnrollment } from '@/lib/academic-year/rollover';
+import { serverMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -53,12 +54,12 @@ export async function addAcademicYear(input: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const name = input.name.trim();
     if (!name) {
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'กรุณากรอกปีการศึกษา' } };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverMessage('apiErrors.academicYearNameRequired') } };
     }
 
     const supabase = await createClient();
@@ -84,12 +85,12 @@ export async function updateAcademicYear(id: string, input: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const name = input.name.trim();
     if (!name) {
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'กรุณากรอกปีการศึกษา' } };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverMessage('apiErrors.academicYearNameRequired') } };
     }
 
     const supabase = await createClient();
@@ -109,10 +110,11 @@ export async function updateAcademicYear(id: string, input: {
   });
 }
 
-function nextAcademicYearName(name: string) {
+async function nextAcademicYearName(name: string) {
   const numeric = Number(name);
   if (Number.isInteger(numeric)) return String(numeric + 1);
-  return `${name} ใหม่`;
+  const suffix = await serverMessage('apiErrors.nextYearSuffix');
+  return `${name} ${suffix}`;
 }
 
 function addOneYear(date: string | null) {
@@ -151,7 +153,7 @@ function classroomKey(classroom: {
 export async function createNextAcademicYearFromCurrent() {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const supabase = await createAdminClient();
@@ -163,11 +165,11 @@ export async function createNextAcademicYearFromCurrent() {
 
     if (sourceError) return { success: false, error: { code: 'DB_ERROR', message: sourceError.message } };
     if (!sourceYear?.id) {
-      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' } };
+      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: await serverMessage('apiErrors.noCurrentAcademicYear') } };
     }
 
     if (!sourceYear.end_date) {
-      return { success: false, error: { code: 'MISSING_END_DATE', message: 'ยังไม่ได้กำหนดวันที่สิ้นสุดของปีการศึกษาปัจจุบัน' } };
+      return { success: false, error: { code: 'MISSING_END_DATE', message: await serverMessage('apiErrors.missingCurrentYearEndDate') } };
     }
 
     const today = todayInBangkok();
@@ -176,12 +178,12 @@ export async function createNextAcademicYearFromCurrent() {
         success: false,
         error: {
           code: 'CURRENT_YEAR_NOT_ENDED',
-          message: `ยังไม่สามารถขึ้นปีการศึกษาใหม่ได้ ปี ${sourceYear.name} จะสิ้นสุดวันที่ ${sourceYear.end_date}`,
+          message: await serverMessage('apiErrors.currentYearNotEnded', { name: String(sourceYear.name), date: sourceYear.end_date }),
         },
       };
     }
 
-    const nextName = nextAcademicYearName(String(sourceYear.name));
+    const nextName = await nextAcademicYearName(String(sourceYear.name));
     const targetYearResult = await supabase
       .from('academic_years')
       .select('id, name')

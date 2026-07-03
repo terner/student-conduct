@@ -25,6 +25,8 @@ import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getSchoolStatisticsReport, type SchoolStatisticsReportData } from '@/lib/actions/report.action';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
+import { ExportButtons } from '@/components/features/reports/export-buttons';
+import { exportToCSV } from '@/lib/utils/export';
 
 const distributionColors: Record<string, string> = {
   excellent: '#059669',
@@ -121,7 +123,24 @@ export default function SchoolStatisticsPage() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{reportT('statistics')}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">{reportT('statistics')}</h1>
+            <ExportButtons
+              onExportCSV={() => {
+                if (!data) return;
+                const rows = [
+                  { 'รายการ': 'นักเรียนทั้งหมด', 'จำนวน': data.summary.total_students },
+                  { 'รายการ': 'คะแนนเฉลี่ย', 'จำนวน': data.summary.average_score },
+                  { 'รายการ': 'คะแนนที่หักทั้งหมด', 'จำนวน': data.summary.total_deducted },
+                  { 'รายการ': 'นักเรียนถึงเกณฑ์', 'จำนวน': data.summary.at_risk_count },
+                  { 'รายการ': 'จำนวนธุรกรรม', 'จำนวน': data.summary.transaction_count },
+                  { 'รายการ': 'คะแนนต่ำสุด', 'จำนวน': data.summary.min_score },
+                  { 'รายการ': 'คะแนนสูงสุด', 'จำนวน': data.summary.max_score },
+                ];
+                exportToCSV(rows, `สถิติโรงเรียน_${data.academic_year || ''}`);
+              }}
+            />
+          </div>
           <p className="text-muted-foreground mt-1">
             {reportT('statisticsForYear', { year: data.academic_year ?? '' })}
           </p>

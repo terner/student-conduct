@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { StudentDetail } from '@/components/features/students/student-detail';
+import { GuardianList } from '@/components/features/guardians/guardian-list';
 import { StudentForm, type SubmitResult } from '@/components/features/students/student-form';
 import { EvidenceUploader, type EvidenceFile } from '@/components/features/scores/evidence-uploader';
 import { getStudent, editStudent, checkStudentViewerRole, resetStudentPassword } from '@/lib/actions/student.action';
@@ -582,6 +583,13 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
       )}
 
       <StudentDetail student={student} scoreSummary={reportData?.summary} />
+
+      {/* Guardians Section */}
+      <Card className="print:break-inside-avoid print:hidden">
+        <CardContent className="pt-6">
+          <GuardianList studentId={student.id} studentName={`${student.prefix}${student.first_name} ${student.last_name}`} />
+        </CardContent>
+      </Card>
 
       {/* Score History */}
       {reportData?.transactions && reportData.transactions.length > 0 && (

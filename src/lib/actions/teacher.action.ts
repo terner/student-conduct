@@ -17,11 +17,12 @@ import { teacherSchema, teacherClassroomSchema } from '@/lib/validation/schemas'
 import { validateXSS } from '@/lib/security/validate-input';
 import { logAudit } from '@/lib/audit/log';
 import { normalizePhoneInput } from '@/lib/phone';
+import { serverMessage } from '@/lib/i18n/server';
 
 export async function getTeachers(params?: { search?: string; department?: string; include_inactive?: boolean }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const result = await listTeachers(params);
@@ -32,12 +33,12 @@ export async function getTeachers(params?: { search?: string; department?: strin
 export async function getTeacher(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const teacher = await getTeacherById(id);
     if (!teacher) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลครู' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.teacherNotFound') } };
     }
     return { success: true, data: teacher };
   });
@@ -63,7 +64,7 @@ export async function updateMyTeacherProfile(data: {
     const adminClient = await createAdminClient();
     const teacher = await getTeacherByProfileId(profile.id, adminClient);
     if (!teacher) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลครูของผู้ใช้นี้' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.teacherProfileNotFound') } };
     }
 
     const validated = teacherSchema.partial().parse({
@@ -84,7 +85,7 @@ export async function updateMyTeacherProfile(data: {
       avatar_url: validated.avatar_url || '',
     });
     if (xssCheck) {
-      return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
+      return { success: false, error: { code: 'XSS_DETECTED', message: await serverMessage('apiErrors.xssDetected') } };
     }
 
     const updateData = {
@@ -128,7 +129,7 @@ export async function addTeacher(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const validated = teacherSchema.parse({
@@ -146,7 +147,7 @@ export async function addTeacher(data: {
       avatar_url: validated.avatar_url || '',
     });
     if (xssCheck) {
-      return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
+      return { success: false, error: { code: 'XSS_DETECTED', message: await serverMessage('apiErrors.xssDetected') } };
     }
 
     const result = await createTeacher(validated);
@@ -177,7 +178,7 @@ export async function editTeacher(id: string, data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const adminClient = await createAdminClient();
@@ -205,7 +206,7 @@ export async function editTeacher(id: string, data: {
 export async function setTeacherActive(id: string, isActive: boolean) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const before = await getTeacherById(id);
@@ -230,7 +231,7 @@ export async function assignClassroom(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const validated = teacherClassroomSchema.parse(data);
@@ -254,7 +255,7 @@ export async function assignClassroom(data: {
 export async function unassignClassroom(teacherId: string, classroomId: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     await removeTeacherFromClassroom(teacherId, classroomId);
@@ -276,7 +277,7 @@ export async function unassignClassroom(teacherId: string, classroomId: string) 
 export async function importTeachersCsv(rows: Record<string, unknown>[]) {
   return withAuth(async (profile) => {
     if (!canImportData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์นำเข้าข้อมูล' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.importDataForbidden') } };
     }
 
     const errors: { row: number; message: string }[] = [];
@@ -306,7 +307,7 @@ export async function importTeachersCsv(rows: Record<string, unknown>[]) {
         const classroomName = String(row['ห้องที่ปรึกษา'] || row['classroom'] || row['homeroom'] || '').trim();
 
         if (!prefix || !firstName || !lastName || !email) {
-          errors.push({ row: i + 1, message: 'ข้อมูลไม่ครบ (คำนำหน้า, ชื่อ, นามสกุล, อีเมล)' });
+          errors.push({ row: i + 1, message: await serverMessage('apiErrors.teacherImportMissingFields') });
           continue;
         }
 
@@ -351,10 +352,10 @@ export async function importTeachersCsv(rows: Record<string, unknown>[]) {
             }
           }
         } else {
-          errors.push({ row: i + 1, message: result.error?.message || 'บันทึกไม่สำเร็จ' });
+          errors.push({ row: i + 1, message: result.error?.message || await serverMessage('apiErrors.genericTryAgain') });
         }
       } catch (err) {
-        errors.push({ row: i + 1, message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' });
+        errors.push({ row: i + 1, message: err instanceof Error ? err.message : await serverMessage('apiErrors.genericTryAgain') });
       }
     }
 
@@ -366,7 +367,7 @@ export async function importTeachersCsv(rows: Record<string, unknown>[]) {
 export async function resetTeacherPassword(teacherId: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const supabase = await createAdminClient();
@@ -374,7 +375,7 @@ export async function resetTeacherPassword(teacherId: string) {
     // Get teacher with profile
     const teacher = await getTeacherById(teacherId, supabase);
     if (!teacher) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลครู' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.teacherNotFound') } };
     }
 
     // Get profile to find user_id
@@ -385,7 +386,7 @@ export async function resetTeacherPassword(teacherId: string) {
       .single();
 
     if (profileError || !profileData?.user_id) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบบัญชีผู้ใช้ของครู' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.teacherUserAccountNotFound') } };
     }
 
     // Send password reset email via Supabase Auth
@@ -396,7 +397,7 @@ export async function resetTeacherPassword(teacherId: string) {
 
     if (resetError) {
       const msg = resetError.status === 429
-        ? 'ส่งอีเมลเกินจำนวน (4 อีเมล/ชั่วโมง) กรุณาลองใหม่ใน 1 ชั่วโมง'
+        ? await serverMessage('apiErrors.teacherResetRateLimited')
         : resetError.message;
       return { success: false, error: { code: 'RESET_FAILED', message: msg } };
     }
@@ -410,6 +411,6 @@ export async function resetTeacherPassword(teacherId: string) {
     });
 
     revalidatePath("/teachers");
-    return { success: true, data: { message: `ส่งลิงก์ตั้งรหัสผ่านไปที่ ${teacher.email} แล้ว` } };
+    return { success: true, data: { message: await serverMessage('apiErrors.teacherResetSent', { email: teacher.email || '' }) } };
   });
 }

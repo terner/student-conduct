@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/server-action';
 import { canManageSchoolData } from '@/lib/security/roles';
 import { createClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
+import { serverMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -31,7 +32,7 @@ export async function addEducationStage(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
     const supabase = await createClient();
     const { error } = await supabase.from('education_stages').insert(data);
@@ -49,7 +50,7 @@ export async function updateEducationStage(id: string, data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
     const supabase = await createClient();
     const { error } = await supabase.from('education_stages').update(data).eq('id', id);
@@ -62,12 +63,12 @@ export async function updateEducationStage(id: string, data: {
 export async function deleteEducationStage(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
     const supabase = await createClient();
     const { count } = await supabase.from('classrooms').select('*', { count: 'exact', head: true }).eq('education_stage_id', id);
     if (count && count > 0) {
-      return { success: false, error: { code: 'IN_USE', message: `มี ${count} ห้องเรียนที่ใช้ระดับนี้อยู่ ไม่สามารถลบได้` } };
+      return { success: false, error: { code: 'IN_USE', message: await serverMessage('apiErrors.educationStageInUse', { count }) } };
     }
     const { error } = await supabase.from('education_stages').delete().eq('id', id);
     if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };

@@ -322,6 +322,43 @@ export const studentGuardianSchema = z.object({
   can_pickup_student: z.boolean().default(false),
 });
 
+export const guardianRelationEnum = ['father', 'mother', 'guardian', 'relative', 'other'] as const;
+
+export const guardianManageSchema = z.object({
+  prefix: z.enum(guardianPrefixEnum).optional().or(z.literal('')),
+  first_name: z
+    .string()
+    .min(2, errorMessages.tooShort(2))
+    .max(50, errorMessages.tooLong(50))
+    .regex(thaiNameRegex, errorMessages.invalidName),
+  last_name: z
+    .string()
+    .min(2, errorMessages.tooShort(2))
+    .max(50, errorMessages.tooLong(50))
+    .regex(thaiNameRegex, errorMessages.invalidName),
+  relation: z.enum(guardianRelationEnum).default('guardian'),
+  phone: z
+    .string()
+    .regex(THAI_PHONE_REGEX, errorMessages.invalidPhone)
+    .optional()
+    .or(z.literal('')),
+  email: z
+    .string()
+    .email(errorMessages.invalidEmail)
+    .optional()
+    .or(z.literal('')),
+  address: z
+    .string()
+    .max(500, errorMessages.tooLong(500))
+    .optional()
+    .or(z.literal('')),
+  occupation: z
+    .string()
+    .max(100, errorMessages.tooLong(100))
+    .optional()
+    .or(z.literal('')),
+});
+
 // ─── Bond ───
 export const bondDocumentSchema = z.object({
   student_id: z.string().min(1, errorMessages.required),
@@ -432,6 +469,7 @@ export type ScoreBulkRecordInput = z.infer<typeof scoreBulkRecordSchema>;
 export type ClassroomInput = z.infer<typeof classroomSchema>;
 export type TeacherInput = z.infer<typeof teacherSchema>;
 export type GuardianInput = z.infer<typeof guardianSchema>;
+export type GuardianManageInput = z.infer<typeof guardianManageSchema>;
 export type InterventionInput = z.infer<typeof interventionSchema>;
 export type SchoolInfoInput = z.infer<typeof schoolInfoSchema>;
 export type ScoreSettingsInput = z.infer<typeof scoreSettingsSchema>;

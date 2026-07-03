@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/server-action';
 import { canManageSchoolData } from '@/lib/security/roles';
 import { createClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
+import { serverMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -69,7 +70,7 @@ export async function addGradeLevel(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const supabase = await createClient();
@@ -96,7 +97,7 @@ export async function updateGradeLevel(id: string, data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -117,7 +118,7 @@ export async function updateGradeLevel(id: string, data: {
 export async function deleteGradeLevel(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const supabase = await createClient();

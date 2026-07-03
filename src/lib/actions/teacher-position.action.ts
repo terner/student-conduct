@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/server-action';
 import { canManageSchoolData } from '@/lib/security/roles';
 import { createClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
+import { serverMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -43,11 +44,11 @@ export async function getTeacherPositions(options: { includeInactive?: boolean }
 export async function addTeacherPosition(data: { name: string; sort_order: number }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
     const name = data.name.trim();
     if (!name) {
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'กรุณากรอกชื่อตำแหน่ง' } };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverMessage('apiErrors.teacherPositionNameRequired') } };
     }
 
     const supabase = await createClient();
@@ -69,7 +70,7 @@ export async function updateTeacherPosition(id: string, data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const updateData: Record<string, unknown> = {};
@@ -89,7 +90,7 @@ export async function updateTeacherPosition(id: string, data: {
 export async function deleteTeacherPosition(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const supabase = await createClient();

@@ -8,6 +8,8 @@ import { validateXSS } from '@/lib/security/validate-input';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
 import { logAudit } from '@/lib/audit/log';
+import { serverMessage } from '@/lib/i18n/server';
+import { serverMessage } from '@/lib/i18n/server';
 
 const SHORT_LIST_TTL_MS = 60 * 1000;
 
@@ -24,15 +26,15 @@ function todayInBangkok() {
   return `${year}-${month}-${day}`;
 }
 
-function getAcademicYearClosedReason(year: {
+async function getAcademicYearClosedReason(year: {
   start_date?: string | null;
   end_date?: string | null;
 }, today = todayInBangkok()) {
   if (year.start_date && today < year.start_date) {
-    return `ยังไม่ถึงช่วงปีการศึกษา เริ่มวันที่ ${year.start_date}`;
+    return serverMessage('apiErrors.academicYearNotStarted', { date: year.start_date });
   }
   if (year.end_date && today > year.end_date) {
-    return `พ้นช่วงปีการศึกษาแล้ว สิ้นสุดวันที่ ${year.end_date}`;
+    return serverMessage('apiErrors.academicYearEnded', { date: year.end_date });
   }
   return '';
 }
@@ -48,14 +50,14 @@ async function ensureCurrentAcademicYearOpen(
 
   if (error) throw error;
   if (!acYear?.id) {
-    return { success: false as const, error: { code: 'NO_CURRENT_YEAR', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' } };
+    return { success: false as const, error: { code: 'NO_CURRENT_YEAR', message: await serverMessage('apiErrors.noCurrentAcademicYear') } };
   }
 
-  const closedReason = getAcademicYearClosedReason(acYear);
+  const closedReason = await getAcademicYearClosedReason(acYear);
   if (closedReason) {
     return {
       success: false as const,
-      error: { code: 'ACADEMIC_YEAR_CLOSED', message: `ไม่สามารถแก้ไขข้อมูลห้องเรียนได้ (${closedReason})` },
+      error: { code: 'ACADEMIC_YEAR_CLOSED', message: await serverMessage('apiErrors.classroomEditClosedAcademicYear', { reason: closedReason }) },
     };
   }
 
@@ -77,10 +79,10 @@ async function ensureClassroomEditableInCurrentYear(
 
   if (error) throw error;
   if (!classroom) {
-    return { success: false as const, error: { code: 'NOT_FOUND', message: 'ไม่พบห้องเรียน' } };
+    return { success: false as const, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.classroomNotFound') } };
   }
   if (classroom.academic_year_id !== currentYearResult.academicYear.id) {
-    return { success: false as const, error: { code: 'ACADEMIC_YEAR_NOT_CURRENT', message: 'แก้ไขได้เฉพาะห้องเรียนของปีการศึกษาปัจจุบัน' } };
+    return { success: false as const, error: { code: 'ACADEMIC_YEAR_NOT_CURRENT', message: await serverMessage('apiErrors.classroomEditCurrentYearOnly') } };
   }
 
   return { success: true as const, academicYear: currentYearResult.academicYear };
@@ -153,7 +155,7 @@ export async function getClassrooms(params?: {
     const canViewAll = canManageSchoolData(profile) || canApproveScores(profile);
     const isTeacher = hasRole(profile, 'teacher');
     if (!canViewAll && !isTeacher) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูห้องเรียน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.classroomViewForbidden') } };
     }
 
     const assignedClassroomIds = canViewAll ? [] : await getAssignedClassroomIds(profile.id);
@@ -182,12 +184,12 @@ export async function getClassrooms(params?: {
 export async function getClassroom(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const classroom = await getClassroomById(id);
     if (!classroom) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบห้องเรียน' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.classroomNotFound') } };
     }
     return { success: true, data: classroom };
   });
@@ -216,7 +218,7 @@ export async function addClassroom(data: {
       .maybeSingle();
 
     if (!gradeLevel) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบชั้นปีของระดับนี้' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.gradeLevelNotFound') } };
     }
 
     const roomCount = validated.name ? 1 : (validated.room_count || 1);
@@ -238,7 +240,7 @@ export async function addClassroom(data: {
         success: false,
         error: {
           code: 'CONFLICT',
-          message: `มีห้องเรียนนี้อยู่แล้ว: ${existingClassrooms.map(c => c.name).join(', ')}`,
+          message: await serverMessage('apiErrors.classroomAlreadyExists', { names: existingClassrooms.map(c => c.name).join(', ') }),
         },
       };
     }
@@ -249,7 +251,7 @@ export async function addClassroom(data: {
       const name = classroomNames[index];
       const xssCheck = validateXSS({ name });
       if (xssCheck) {
-        return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
+        return { success: false, error: { code: 'XSS_DETECTED', message: await serverMessage('apiErrors.xssDetected') } };
       }
 
       const result = await createClassroom({
@@ -282,7 +284,7 @@ export async function setClassroomTeacherAssignment(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const supabase = await createClient();
@@ -329,7 +331,7 @@ export async function editClassroom(id: string, data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const supabase = await createClient();
@@ -357,7 +359,7 @@ export async function editClassroom(id: string, data: {
 export async function removeClassroom(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     try {
@@ -382,7 +384,7 @@ export async function removeClassroom(id: string) {
         success: false,
         error: {
           code: 'CONFLICT',
-          message: err instanceof Error ? err.message : 'ไม่สามารถลบห้องเรียนได้',
+          message: err instanceof Error ? err.message : await serverMessage('apiErrors.classroomDeleteFailed'),
         },
       };
     }
