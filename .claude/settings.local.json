@@ -99,10 +99,39 @@
       "Bash(tee /tmp/supabase-mcp-result.log)",
       "Bash(tee /tmp/supabase-mcp-test.log)",
       "Bash(tee /tmp/supabase-mcp-auth.log)",
-      "Bash(tee /tmp/claude-mcp-help.log)"
+      "Bash(tee /tmp/claude-mcp-help.log)",
+      "Bash(rtk ls *)",
+      "Bash(rtk find *)",
+      "Bash(rtk grep *)",
+      "Bash(rtk read *)",
+      "Bash(rtk npm *)",
+      "Bash(rtk tsc *)",
+      "Bash(rtk lint *)",
+      "Bash(rtk git *)",
+      "Bash(rtk curl *)",
+      "Bash(sed -n '7,12p' messages/en.json)",
+      "Bash(sed -n '7,12p' messages/th.json)",
+      "Bash(file *)",
+      "Bash(rtk playwright *)",
+      "Bash(pnpm add *)",
+      "Bash(grep:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(PORT=3002 pnpm dev)",
+      "Bash(pnpm build *)",
+      "Bash(lsof -ti:3002)",
+      "Bash(xargs kill -9)",
+      "Bash(pnpm dev *)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(supabase projects *)",
+      "Bash(chmod +x ~/Downloads/dump_supabase.sh)"
     ]
   },
+  "enableAllProjectMcpServers": false,
+  "enabledMcpjsonServers": [
+    "vercel"
+  ],
   "disabledMcpjsonServers": [
-    "supabase"
+    "supabase",
+    "supabase-prod"
   ]
 }

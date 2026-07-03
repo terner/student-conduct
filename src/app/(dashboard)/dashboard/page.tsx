@@ -275,7 +275,7 @@ export default function DashboardPage() {
                       <TableCell><ScoreBadge score={s.current_score} /></TableCell>
                       <TableCell className="text-xs">{s.threshold_action || common('notAvailable')}</TableCell>
                       <TableCell>
-                        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/students/${s.student_id}`} />}>
+                        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
                           {t('view')}
                         </Button>
                       </TableCell>

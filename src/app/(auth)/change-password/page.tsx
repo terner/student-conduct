@@ -18,6 +18,7 @@ type ChangePasswordForm = {
 export default function ChangePasswordPage() {
   const router = useRouter();
   const t = useTranslations('authPages.changePassword');
+  const commonT = useTranslations('common');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -42,7 +43,7 @@ export default function ChangePasswordPage() {
       const result = await changePasswordWithOld(data.current_password, data.new_password);
 
       if (!result.success) {
-        setError(result.error?.message || t('genericError'));
+        setError(result.error?.message ?? '');
         setLoading(false);
         return;
       }
@@ -50,8 +51,8 @@ export default function ChangePasswordPage() {
       setSuccess(true);
       reset();
       setTimeout(() => router.push('/'), 1500);
-    } catch (err) {
-      setError(t('genericError'));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '');
       setLoading(false);
     }
   }
@@ -179,7 +180,7 @@ export default function ChangePasswordPage() {
             className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Save className="h-4 w-4" />
-            {loading ? 'กำลังบันทึก...' : t('submit')}
+            {loading ? commonT('saving') : t('submit')}
           </button>
         </form>
 
@@ -189,7 +190,7 @@ export default function ChangePasswordPage() {
             onClick={() => router.back()}
             className="text-sm text-muted-foreground hover:text-foreground"
           >
-            ยกเลิก
+            {t('cancel')}
           </button>
         </div>
       </div>

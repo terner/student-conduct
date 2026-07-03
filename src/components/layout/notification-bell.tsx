@@ -113,7 +113,7 @@ export function NotificationBell() {
     if (!notification.read_at) setUnreadCount((prev) => Math.max(0, prev - 1));
     if (notification.resource_type === 'student' && notification.resource_id) {
       setOpen(false);
-      router.push(`/students/${notification.resource_id}`);
+      router.push(`/students?studentId=${notification.resource_id}`);
     } else if (notification.resource_type === 'score_transaction') {
       setOpen(false);
       router.push('/score/approval');

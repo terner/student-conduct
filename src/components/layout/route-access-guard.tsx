@@ -14,8 +14,8 @@ function startsWithAny(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
-function isStudentProfilePath(pathname: string) {
-  return pathname.startsWith('/students/') && pathname !== '/students/me';
+function isStudentDetailModalPath(pathname: string) {
+  return pathname === '/students';
 }
 
 function defaultPath(roles: string[]) {
@@ -32,7 +32,7 @@ function canAccess(pathname: string, roles: string[]) {
 
   if (roles.includes('admin')) {
     if (pathname === '/settings') return true;
-    if (isStudentProfilePath(pathname)) return true;
+    if (isStudentDetailModalPath(pathname)) return true;
 
     return startsWithAny(pathname, [
       '/dashboard',
@@ -48,11 +48,11 @@ function canAccess(pathname: string, roles: string[]) {
   }
 
   if (roles.includes('teacher')) {
-    return startsWithAny(pathname, ['/score/record', '/reports/classroom']) || isStudentProfilePath(pathname);
+    return startsWithAny(pathname, ['/score/record', '/reports/classroom']) || isStudentDetailModalPath(pathname);
   }
 
   if (roles.includes('student')) {
-    return pathname === '/students/me' || pathname === '/student/dashboard' || isStudentProfilePath(pathname);
+    return pathname === '/students/me' || pathname === '/student/dashboard' || isStudentDetailModalPath(pathname);
   }
 
   return false;

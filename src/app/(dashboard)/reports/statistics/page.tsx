@@ -64,14 +64,8 @@ export default function SchoolStatisticsPage() {
   const commonT = useTranslations('common');
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [data, setData] = useState<SchoolStatisticsReportData | null>(null);
-  const [academicYearId, setAcademicYearId] = useState<string>('');
+  const [academicYearId, setAcademicYearId] = useState<string>(selectedAcademicYearId ?? '');
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (selectedAcademicYearId && !academicYearId) {
-      setAcademicYearId(selectedAcademicYearId);
-    }
-  }, [academicYearId, selectedAcademicYearId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,7 +123,7 @@ export default function SchoolStatisticsPage() {
         <div>
           <h1 className="text-2xl font-bold">{reportT('statistics')}</h1>
           <p className="text-muted-foreground mt-1">
-            {reportT('statisticsForYear', { year: data.academic_year || '-' })}
+            {reportT('statisticsForYear', { year: data.academic_year ?? '' })}
           </p>
         </div>
         <Select
@@ -139,7 +133,7 @@ export default function SchoolStatisticsPage() {
           }}
           itemToStringLabel={(value) => {
             const year = data.academic_years.find((item) => item.id === value);
-            if (!year) return String(value || '');
+            if (!year) return String(value ?? '');
             return `${year.name}${year.is_current ? ` ${reportT('currentYearBadge')}` : ''}`;
           }}
         >
@@ -257,7 +251,7 @@ export default function SchoolStatisticsPage() {
                 {data.top_risk_students.map((student) => (
                   <TableRow key={student.id}>
                     <TableCell>
-                      <Link href={`/students/${student.id}`} className="font-medium text-primary underline-offset-4 hover:underline">
+                      <Link href={`/students?studentId=${student.id}`} className="font-medium text-primary underline-offset-4 hover:underline">
                         {student.full_name}
                       </Link>
                       <div className="text-xs text-muted-foreground">{student.student_id_number}</div>

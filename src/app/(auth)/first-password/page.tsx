@@ -17,6 +17,7 @@ type FirstPasswordForm = {
 export default function FirstPasswordPage() {
   const router = useRouter();
   const t = useTranslations('authPages.firstPassword');
+  const commonT = useTranslations('common');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -38,14 +39,14 @@ export default function FirstPasswordPage() {
       const result = await changePassword(data.new_password);
 
       if (!result.success) {
-        setError(result.error?.message || t('genericError'));
+        setError(result.error?.message ?? '');
         setLoading(false);
         return;
       }
 
       router.replace('/pdpa-consent');
-    } catch (err) {
-      setError(t('genericError'));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '');
       setLoading(false);
     }
   }
@@ -133,7 +134,7 @@ export default function FirstPasswordPage() {
             className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Save className="h-4 w-4" />
-            {loading ? 'กำลังบันทึก...' : t('submit')}
+            {loading ? commonT('saving') : t('submit')}
           </button>
         </form>
       </div>

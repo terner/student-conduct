@@ -3,7 +3,6 @@
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { LanguageSwitcher } from './language-switcher'
-import { UserMenu } from './user-menu'
 import { NotificationBell } from './notification-bell'
 import { AcademicYearSwitcher } from './academic-year-switcher'
 import { Toaster } from '@/components/ui/sonner'
@@ -12,14 +11,10 @@ import { getRoles } from '@/lib/security/roles'
 
 interface TopBarProps {
   title?: string
-  firstName?: string
-  lastName?: string
   role?: string | string[]
-  email?: string
-  avatarUrl?: string
 }
 
-export function TopBar({ title, firstName, lastName, role, email, avatarUrl }: TopBarProps) {
+export function TopBar({ title, role }: TopBarProps) {
   const roles = getRoles({ role })
   const isStudentOnly = roles.includes('student') && !roles.some((r) => ['superadmin', 'admin', 'teacher'].includes(r))
 
@@ -40,7 +35,6 @@ export function TopBar({ title, firstName, lastName, role, email, avatarUrl }: T
         {!isStudentOnly && <AcademicYearSwitcher />}
         <NotificationBell />
         <LanguageSwitcher />
-        <UserMenu firstName={firstName} lastName={lastName} role={role} email={email} avatarUrl={avatarUrl} />
       </div>
       <Toaster />
     </header>

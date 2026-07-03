@@ -61,9 +61,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <SidebarProvider>
-      <AppSidebar schoolName={schoolName} schoolLogo={schoolLogo} role={role} />
+      <AppSidebar
+        schoolName={schoolName}
+        schoolLogo={schoolLogo}
+        role={role}
+        firstName={firstName}
+        lastName={lastName}
+        email={email}
+        avatarUrl={avatarUrl}
+      />
       <SidebarInset className="flex flex-1 flex-col overflow-hidden h-dvh">
-        <TopBar firstName={firstName} lastName={lastName} role={role} email={email} avatarUrl={avatarUrl} />
+        <TopBar role={role} />
         <main className="flex-1 overflow-y-auto">
           <AuthGuard>
             <RouteAccessGuard role={role}>{children}</RouteAccessGuard>

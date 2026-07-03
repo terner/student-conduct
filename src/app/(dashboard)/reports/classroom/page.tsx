@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { getClassrooms } from '@/lib/actions/classroom.action';
-import { getClassroomReport } from '@/lib/actions/report.action';
+import { getClassroomReport, type ClassroomReportData, type ClassroomReportStudent } from '@/lib/actions/report.action';
 import type { ClassroomWithDetails } from '@/lib/db/queries/classroom.queries';
 import { exportCsv } from '@/lib/utils/csv';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
@@ -37,7 +37,7 @@ export default function ClassroomReportPage() {
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [classrooms, setClassrooms] = useState<ClassroomWithDetails[]>([]);
   const [selectedId, setSelectedId] = useState('');
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<ClassroomReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingClassrooms, setLoadingClassrooms] = useState(true);
   const [error, setError] = useState('');
@@ -46,6 +46,20 @@ export default function ClassroomReportPage() {
     () => classrooms.find((classroom) => classroom.id === selectedId) || null,
     [classrooms, selectedId],
   );
+
+  const loadReport = useCallback(async (classroomId: string, mode: 'risk' | 'score' = rankMode) => {
+    if (!classroomId) return;
+    setLoading(true);
+    setError('');
+    const result = await getClassroomReport(classroomId, mode, selectedAcademicYearId || undefined);
+    if (result.success) {
+      setReportData(result.data);
+    } else {
+      setReportData(null);
+      setError(result.error.message);
+    }
+    setLoading(false);
+  }, [rankMode, selectedAcademicYearId]);
 
   useEffect(() => {
     async function loadClassrooms() {
@@ -68,21 +82,7 @@ export default function ClassroomReportPage() {
       }
     }
     loadClassrooms();
-  }, [selectedAcademicYearId]);
-
-  async function loadReport(classroomId: string, mode = rankMode) {
-    if (!classroomId) return;
-    setLoading(true);
-    setError('');
-    const result = await getClassroomReport(classroomId, mode, selectedAcademicYearId || undefined);
-    if (result.success) {
-      setReportData(result.data);
-    } else {
-      setReportData(null);
-      setError(result.error.message);
-    }
-    setLoading(false);
-  }
+  }, [loadReport, selectedAcademicYearId]);
 
   function handleExport() {
     if (!reportData?.students) return;
@@ -92,7 +92,7 @@ export default function ClassroomReportPage() {
       fair: levelT('fair'),
       poor: levelT('poor'),
     };
-    exportCsv(reportData.students.map((student: any) => ({
+    exportCsv(reportData.students.map((student: ClassroomReportStudent) => ({
       [t('rank')]: student.rank,
       [t('studentId')]: student.student_id_number,
       [t('studentName')]: student.full_name,
@@ -263,11 +263,11 @@ export default function ClassroomReportPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reportData.students?.map((s: any) => (
+                  {reportData.students?.map((s: ClassroomReportStudent) => (
                     <TableRow
                       key={s.id}
                       className="cursor-pointer"
-                      onClick={() => window.location.href = `/students/${s.id}`}
+                      onClick={() => window.location.href = `/students?studentId=${s.id}`}
                     >
                       <TableCell className="font-bold">#{s.rank}</TableCell>
                       <TableCell className="font-mono text-xs">{s.student_id_number}</TableCell>

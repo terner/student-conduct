@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 import { NextResponse } from 'next/server';
+import { apiMessage } from '@/lib/i18n/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,11 +16,11 @@ function isAuthorized(request: Request) {
 
 export async function GET(request: Request) {
   if (!process.env.SENTRY_TEST_TOKEN?.trim()) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ error: apiMessage(request, 'notFound') }, { status: 404 });
   }
 
   if (!isAuthorized(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: apiMessage(request, 'unauthorized') }, { status: 401 });
   }
 
   const dsnConfigured = Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN);

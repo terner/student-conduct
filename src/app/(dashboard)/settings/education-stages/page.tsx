@@ -1,14 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { Plus, Pencil, Trash2, Save, ChevronRight, ChevronDown, Search, Hash, School, BookOpen, GraduationCap, Building } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { Plus, Pencil, Trash2, ChevronRight, ChevronDown, Search, School, BookOpen, GraduationCap, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { getEducationStages, addEducationStage, updateEducationStage, deleteEducationStage } from '@/lib/actions/education-stage.action';
@@ -36,14 +35,6 @@ type LevelFormData = { education_stage_id: string; name: string; is_active?: boo
 type ClassroomFormData = { name: string; grade_level_id: string; education_stage_id: string; grade_level: number };
 type OpenChangeHandler = Dispatch<SetStateAction<boolean>>;
 
-// ─── Labels ────────────────────────────────────
-
-function stageLabel(stage: Pick<StageItem, 'code' | 'name_th'>) {
-  if (stage.code === 'secondary') return 'มัธยมต้น';
-  if (stage.code === 'highschool') return 'มัธยมปลาย';
-  return stage.name_th;
-}
-
 // ─── Page ──────────────────────────────────────
 
 export default function EducationStagesPage() {
@@ -51,6 +42,11 @@ export default function EducationStagesPage() {
   const commonT = useTranslations('common');
   const classroomT = useTranslations('classroom');
   const academicYearId = useSelectedAcademicYearId();
+  const stageLabel = useCallback((stage: Pick<StageItem, 'code' | 'name_th'>) => {
+    if (stage.code === 'secondary') return classroomT('secondaryStage');
+    if (stage.code === 'highschool') return classroomT('highschoolStage');
+    return stage.name_th;
+  }, [classroomT]);
 
   // Data
   const [stages, setStages] = useState<StageItem[]>([]);
@@ -76,7 +72,7 @@ export default function EducationStagesPage() {
   const [deleteTarget, setDeleteTarget] = useState<SelectedNode | null>(null);
 
   // Load
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     const [stageRes, levelRes, classRes] = await Promise.all([
       getEducationStages(),
@@ -87,18 +83,18 @@ export default function EducationStagesPage() {
     if (levelRes.success && levelRes.data) setLevels(levelRes.data);
     if (classRes.success && classRes.data) setClassrooms(classRes.data as ClassroomItem[]);
     setLoading(false);
-  }
+  }, [academicYearId]);
 
   useEffect(() => {
     void Promise.resolve().then(load);
-  }, [academicYearId]);
+  }, [load]);
 
   // Expand all on first load
   useEffect(() => {
     if (stages.length) {
-      void Promise.resolve().then(() => setExpanded(new Set(stages.map(s => s.id))));
+      void Promise.resolve().then(() => setExpanded(new Set(stages.map((stage) => stage.id))));
     }
-  }, [stages.length]);
+  }, [stages]);
 
   // ─── Toggle ──────────────────────────────
 
@@ -143,8 +139,8 @@ export default function EducationStagesPage() {
       const res = editingStage
         ? await updateEducationStage(editingStage.id, { name_th: data.name_th, name_en: data.name_en || undefined, sort_order: sortOrder })
         : await addEducationStage({ code, ...data, sort_order: sortOrder });
-      if (res.success) { toast(editingStage ? 'แก้ไขแล้ว' : 'เพิ่มแล้ว'); setShowStageForm(false); await load(); }
-      else toast('ผิดพลาด', { description: res.error?.message });
+      if (res.success) { toast(editingStage ? settingsT('educationStageEditSuccess') : settingsT('educationStageAddSuccess')); setShowStageForm(false); await load(); }
+      else toast(commonT('error'), { description: res.error?.message });
     } finally { setSaving(false); }
   }
 
@@ -164,8 +160,8 @@ export default function EducationStagesPage() {
       const res = editingLevel
         ? await updateGradeLevel(editingLevel.id, payload)
         : await addGradeLevel(payload);
-      if (res.success) { toast(editingLevel ? 'แก้ไขแล้ว' : 'เพิ่มแล้ว'); setShowLevelForm(false); await load(); }
-      else toast('ผิดพลาด', { description: res.error?.message });
+      if (res.success) { toast(editingLevel ? settingsT('gradeLevelEditSuccess') : settingsT('gradeLevelAddSuccess')); setShowLevelForm(false); await load(); }
+      else toast(commonT('error'), { description: res.error?.message });
     } finally { setSaving(false); }
   }
 
@@ -195,10 +191,10 @@ export default function EducationStagesPage() {
         ? await editClassroom(editingClassroom.id, data)
         : await addClassroom(data);
       if (res.success) {
-        toast(editingClassroom ? 'แก้ไขแล้ว' : 'เพิ่มแล้ว');
+        toast(editingClassroom ? classroomT('editSuccess') : classroomT('addSuccess'));
         setShowClassroomForm(false);
         await load();
-      } else toast('ผิดพลาด', { description: res.error?.message });
+      } else toast(commonT('error'), { description: res.error?.message });
     } finally { setSaving(false); }
   }
 
@@ -212,8 +208,8 @@ export default function EducationStagesPage() {
       if (deleteTarget.type === 'stage') res = await deleteEducationStage(deleteTarget.id);
       else if (deleteTarget.type === 'grade_level') res = await deleteGradeLevel(deleteTarget.id);
       else res = await removeClassroom(deleteTarget.id);
-      if (res?.success) { toast('ลบแล้ว'); setDeleteTarget(null); setSelected(null); await load(); }
-      else toast('ลบไม่สำเร็จ', { description: res?.error?.message });
+      if (res?.success) { toast(commonT('delete')); setDeleteTarget(null); setSelected(null); await load(); }
+      else toast(settingsT('deleteFailed'), { description: res?.error?.message });
     } finally { setSaving(false); }
   }
 
@@ -238,7 +234,7 @@ export default function EducationStagesPage() {
       if (stageClassrooms.some(c => c.name.toLowerCase().includes(q))) return true;
       return false;
     });
-  }, [stages, levels, classrooms, search]);
+  }, [stages, levels, classrooms, search, stageLabel]);
 
   function filteredLevels(stageId: string) {
     return levels.filter(l => l.education_stage_id === stageId).sort((a, b) => a.sort_order - b.sort_order);
@@ -267,9 +263,9 @@ export default function EducationStagesPage() {
       <div className="flex items-center justify-between gap-4 px-6 py-4 border-b shrink-0">
         <div>
           <h1 className="text-xl font-bold tracking-tight">{settingsT('manageEducationStructureTitle')}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">ระดับการศึกษา · ชั้นปี · ห้องเรียน</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{settingsT('educationStructureTreeSummary')}</p>
         </div>
-        <Button onClick={openAddStage} size="sm"><Plus className="mr-2 h-4 w-4" />เพิ่มระดับการศึกษา</Button>
+        <Button onClick={openAddStage} size="sm"><Plus className="mr-2 h-4 w-4" />{settingsT('addEducationStage')}</Button>
       </div>
 
       {/* Body */}
@@ -279,17 +275,17 @@ export default function EducationStagesPage() {
           <div className="p-3 shrink-0">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="ค้นหา..." value={search} onChange={e => setSearch(e.target.value)} className="h-8 pl-8 text-sm" />
+              <Input placeholder={settingsT('searchEducationStructurePlaceholder')} value={search} onChange={e => setSearch(e.target.value)} className="h-8 pl-8 text-sm" />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto px-2 pb-4">
             {filteredStages.length === 0 && !search ? (
               <div className="p-6 text-center text-sm text-muted-foreground space-y-3">
-                <p>ยังไม่มีระดับการศึกษา</p>
-                <Button size="sm" variant="outline" onClick={openAddStage}><Plus className="mr-2 h-3.5 w-3.5" />เพิ่มระดับการศึกษา</Button>
+                <p>{settingsT('noEducationStages')}</p>
+                <Button size="sm" variant="outline" onClick={openAddStage}><Plus className="mr-2 h-3.5 w-3.5" />{settingsT('addEducationStage')}</Button>
               </div>
             ) : filteredStages.length === 0 ? (
-              <div className="p-6 text-center text-sm text-muted-foreground">ไม่พบรายการ</div>
+              <div className="p-6 text-center text-sm text-muted-foreground">{settingsT('noEducationStructureResults')}</div>
             ) : (
               <div className="space-y-0.5">
                 {filteredStages.map(stage => {
@@ -321,7 +317,7 @@ export default function EducationStagesPage() {
                         <span className="text-sm truncate flex-1">{stageLabel(stage)}</span>
                         <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">{levelCount(stage.id)}</Badge>
                         <div className="hidden group-hover:flex items-center gap-0.5 ml-1">
-                          <Button variant="ghost" size="icon" className="h-5 w-5" disabled={saving} onClick={e => { e.stopPropagation(); openAddLevel(stage.id); }} title="เพิ่มชั้นปี">
+                          <Button variant="ghost" size="icon" className="h-5 w-5" disabled={saving} onClick={e => { e.stopPropagation(); openAddLevel(stage.id); }} title={settingsT('addGradeLevel')}>
                             <Plus className="h-3 w-3" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-5 w-5" disabled={saving} onClick={e => { e.stopPropagation(); openEditStage(stage); }}>
@@ -358,7 +354,7 @@ export default function EducationStagesPage() {
                                   <span className="text-sm truncate flex-1">{level.name}</span>
                                   <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">{classroomCount(level.id)}</Badge>
                                   <div className="hidden group-hover:flex items-center gap-0.5 ml-1">
-                                    <Button variant="ghost" size="icon" className="h-5 w-5" disabled={saving} onClick={e => { e.stopPropagation(); openAddClassroom(level.id, stage.id); }} title="เพิ่มห้อง">
+                                    <Button variant="ghost" size="icon" className="h-5 w-5" disabled={saving} onClick={e => { e.stopPropagation(); openAddClassroom(level.id, stage.id); }} title={settingsT('addClassroomShort')}>
                                       <Plus className="h-3 w-3" />
                                     </Button>
                                     <Button variant="ghost" size="icon" className="h-5 w-5" onClick={e => { e.stopPropagation(); openEditLevel(level); }}>
@@ -389,15 +385,18 @@ export default function EducationStagesPage() {
                                           <BookOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                           <span className="text-sm truncate flex-1">{cr.name}</span>
                                           {cr.student_count != null && (
-                                            <span className="text-[10px] text-muted-foreground shrink-0">{cr.student_count} คน</span>
+                                            <span className="text-[10px] text-muted-foreground shrink-0">{`${cr.student_count} ${settingsT('studentsCountSuffix')}`}</span>
                                           )}
-                                          {isLast && (
-                                            <div className="hidden group-hover:flex items-center gap-0.5 ml-1">
+                                          <div className="hidden group-hover:flex items-center gap-0.5 ml-1">
+                                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={e => { e.stopPropagation(); openEditClassroom(cr); }}>
+                                              <Pencil className="h-3 w-3" />
+                                            </Button>
+                                            {isLast && (
                                               <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={e => { e.stopPropagation(); setDeleteTarget({ type: 'classroom', id: cr.id }); }}>
                                                 <Trash2 className="h-3 w-3" />
                                               </Button>
-                                            </div>
-                                          )}
+                                            )}
+                                          </div>
                                         </div>
                                       );
                                     })}
@@ -405,7 +404,7 @@ export default function EducationStagesPage() {
                                       onClick={() => !saving && openAddClassroom(level.id, stage.id)}
                                       className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted w-full transition-colors"
                                     >
-                                      <Plus className="h-3 w-3" /> เพิ่มห้องเรียน
+                                      <Plus className="h-3 w-3" /> {settingsT('addClassroomShort')}
                                     </button>
                                   </div>
                                 )}
@@ -417,7 +416,7 @@ export default function EducationStagesPage() {
                               onClick={() => !saving && openAddLevel(stage.id)}
                               className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted w-full transition-colors"
                             >
-                              <Plus className="h-3 w-3" /> เพิ่มชั้นปี
+                              <Plus className="h-3 w-3" /> {settingsT('addGradeLevel')}
                             </button>
                           )}
                         </div>
@@ -432,7 +431,7 @@ export default function EducationStagesPage() {
                 onClick={() => !saving && openAddStage()}
                 className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted w-full transition-colors mt-1"
               >
-                <Plus className="h-3 w-3" /> เพิ่มระดับการศึกษา
+                <Plus className="h-3 w-3" /> {settingsT('addEducationStage')}
               </button>
             )}
           </div>
@@ -443,8 +442,8 @@ export default function EducationStagesPage() {
           {!selectedItem ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
               <Building className="h-10 w-10 opacity-20" />
-              <p className="text-sm">เลือกโครงสร้างทางซ้ายเพื่อดูรายละเอียด</p>
-              <p className="text-xs opacity-60">หรือกดปุ่มด้านบนเพื่อเพิ่มระดับการศึกษา</p>
+              <p className="text-sm">{settingsT('selectEducationStructureNode')}</p>
+              <p className="text-xs opacity-60">{settingsT('selectEducationStructureNodeDescription')}</p>
             </div>
           ) : (
             <div className="max-w-lg space-y-4">
@@ -464,10 +463,10 @@ export default function EducationStagesPage() {
                     const s = selectedItem as StageItem;
                     return (
                       <>
-                        <InfoRow label="ชื่อไทย" value={s.name_th} />
-                        <InfoRow label="ชื่ออังกฤษ" value={s.name_en || '—'} />
-                        <InfoRow label="สถานะ" value={s.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'} />
-                        <InfoRow label="จำนวนชั้นปี" value={`${levelCount(s.id)} ชั้นปี`} />
+                        <InfoRow label={settingsT('stageNameTh')} value={s.name_th} />
+                        <InfoRow label={settingsT('stageNameEn')} value={s.name_en ?? ''} />
+                        <InfoRow label={settingsT('stageStatus')} value={s.is_active ? commonT('active') : commonT('inactive')} />
+                        <InfoRow label={settingsT('stageLevelCount')} value={`${levelCount(s.id)} ${classroomT('gradeLevel')}`} />
                       </>
                     );
                   })()}
@@ -476,10 +475,10 @@ export default function EducationStagesPage() {
                     const s = selectedStageForLevel;
                     return (
                       <>
-                        <InfoRow label="ชื่อ" value={l.name} />
-                        <InfoRow label="ระดับการศึกษา" value={s ? stageLabel(s) : '—'} />
-                        <InfoRow label="สถานะ" value={l.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'} />
-                        <InfoRow label="จำนวนห้อง" value={`${classroomCount(l.id)} ห้อง`} />
+                        <InfoRow label={settingsT('itemName')} value={l.name} />
+                        <InfoRow label={settingsT('educationStageLabel')} value={s ? stageLabel(s) : ''} />
+                        <InfoRow label={settingsT('stageStatus')} value={l.is_active ? commonT('active') : commonT('inactive')} />
+                        <InfoRow label={settingsT('classroomCountLabel')} value={`${classroomCount(l.id)} ${classroomT('classroomFull')}`} />
                       </>
                     );
                   })()}
@@ -488,13 +487,13 @@ export default function EducationStagesPage() {
                     const l = selectedLevelForClassroom;
                     return (
                       <>
-                        <InfoRow label="ชื่อห้อง" value={cr.name} />
-                        <InfoRow label="ชั้นปี" value={l?.name || '—'} />
-                        <InfoRow label="ระดับการศึกษา" value={cr.education_stage_name || '—'} />
-                        <InfoRow label="ครูประจำชั้น" value={cr.homeroom_teacher_name || '—'} />
-                        <InfoRow label="ครูผู้ช่วย" value={cr.advisor_teacher_name || '—'} />
-                        <InfoRow label="จำนวนนักเรียน" value={`${cr.student_count ?? 0} คน`} />
-                        <InfoRow label="จำนวนครู" value={`${cr.teacher_count ?? 0} คน`} />
+                        <InfoRow label={settingsT('classroomNameLabel')} value={cr.name} />
+                        <InfoRow label={classroomT('gradeLevel')} value={l?.name ?? ''} />
+                        <InfoRow label={settingsT('educationStageLabel')} value={cr.education_stage_name ?? ''} />
+                        <InfoRow label={settingsT('homeroomTeacher')} value={cr.homeroom_teacher_name ?? ''} />
+                        <InfoRow label={settingsT('assistantTeacher')} value={cr.advisor_teacher_name ?? ''} />
+                        <InfoRow label={settingsT('studentCountLabel')} value={`${cr.student_count ?? 0} ${settingsT('studentsCountSuffix')}`} />
+                        <InfoRow label={settingsT('teacherCountLabel')} value={`${cr.teacher_count ?? 0} ${settingsT('teachersCountSuffix')}`} />
                       </>
                     );
                   })()}
@@ -513,18 +512,21 @@ export default function EducationStagesPage() {
                   <div className="space-y-2">
                     <div className="flex gap-2">
                       {selected?.type === 'stage' && (
-                        <Button size="sm" variant="outline" onClick={() => openEditStage(selectedItem as StageItem)}><Pencil className="mr-2 h-3.5 w-3.5" />แก้ไข</Button>
+                        <Button size="sm" variant="outline" onClick={() => openEditStage(selectedItem as StageItem)}><Pencil className="mr-2 h-3.5 w-3.5" />{commonT('edit')}</Button>
                       )}
                       {selected?.type === 'grade_level' && (
-                        <Button size="sm" variant="outline" onClick={() => openEditLevel(selectedItem as LevelItem)}><Pencil className="mr-2 h-3.5 w-3.5" />แก้ไข</Button>
+                        <Button size="sm" variant="outline" onClick={() => openEditLevel(selectedItem as LevelItem)}><Pencil className="mr-2 h-3.5 w-3.5" />{commonT('edit')}</Button>
+                      )}
+                      {selected?.type === 'classroom' && (
+                        <Button size="sm" variant="outline" onClick={() => openEditClassroom(selectedItem as ClassroomItem)}><Pencil className="mr-2 h-3.5 w-3.5" />{commonT('edit')}</Button>
                       )}
                       <Button size="sm" variant="destructive" disabled={hasChildren} onClick={() => setDeleteTarget({ type: selected!.type, id: selected!.id })}>
-                        <Trash2 className="mr-2 h-3.5 w-3.5" />ลบ
+                        <Trash2 className="mr-2 h-3.5 w-3.5" />{commonT('delete')}
                       </Button>
                     </div>
                     {hasChildren && (
                       <p className="text-xs text-muted-foreground">
-                        {selected?.type === 'stage' ? '⚠️ ต้องลบชั้นปีทั้งหมดก่อนลบระดับการศึกษา' : '⚠️ ต้องลบห้องเรียนทั้งหมดก่อนลบชั้นปี'}
+                        {selected?.type === 'stage' ? settingsT('deleteStageBlocked') : settingsT('deleteGradeLevelBlocked')}
                       </p>
                     )}
                   </div>
@@ -574,12 +576,12 @@ export default function EducationStagesPage() {
       <Dialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>ยืนยันการลบ</DialogTitle>
-            <DialogDescription>คุณแน่ใจที่จะลบ &quot;{deleteLabel()}&quot; หรือไม่? การดำเนินการนี้ไม่สามารถยกเลิกได้</DialogDescription>
+            <DialogTitle>{settingsT('deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>{settingsT('deleteItemDescription', { name: deleteLabel() })}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>ยกเลิก</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={saving}>{saving ? 'กำลังลบ...' : 'ยืนยันลบ'}</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>{commonT('cancel')}</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={saving}>{saving ? settingsT('deleting') : settingsT('confirmDelete')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -613,6 +615,8 @@ function StageFormDialog({
   saving: boolean;
   onSave: (data: StageFormData) => Promise<void>;
 }) {
+  const settingsT = useTranslations('settings');
+  const commonT = useTranslations('common');
   const [data, setData] = useState({ name_th: '', name_en: '' });
   useEffect(() => {
     void Promise.resolve().then(() => {
@@ -625,22 +629,22 @@ function StageFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{editing ? 'แก้ไขระดับการศึกษา' : 'เพิ่มระดับการศึกษา'}</DialogTitle>
-          <DialogDescription>{editing ? 'แก้ไขข้อมูลระดับการศึกษา' : 'สร้างระดับการศึกษาใหม่ เช่น ประถม มัธยมต้น มัธยมปลาย'}</DialogDescription>
+          <DialogTitle>{editing ? settingsT('editEducationStage') : settingsT('addEducationStage')}</DialogTitle>
+          <DialogDescription>{editing ? settingsT('editEducationStageDescription') : settingsT('addEducationStageDescription')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
-            <Label>ชื่อภาษาไทย <span className="text-destructive">*</span></Label>
-            <Input value={data.name_th} onChange={e => setData({ ...data, name_th: e.target.value })} placeholder="ประถมศึกษา" />
+            <Label>{settingsT('nameTh')} <span className="text-destructive">{commonT('requiredMark')}</span></Label>
+            <Input value={data.name_th} onChange={e => setData({ ...data, name_th: e.target.value })} placeholder={settingsT('nameThPlaceholder')} />
           </div>
           <div className="space-y-1.5">
-            <Label>ชื่อภาษาอังกฤษ</Label>
-            <Input value={data.name_en} onChange={e => setData({ ...data, name_en: e.target.value })} placeholder="Primary Education" />
+            <Label>{settingsT('nameEn')}</Label>
+            <Input value={data.name_en} onChange={e => setData({ ...data, name_en: e.target.value })} placeholder={settingsT('nameEnPlaceholder')} />
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>ยกเลิก</Button>
-          <Button onClick={() => onSave(data)} disabled={saving}>{saving ? 'กำลังบันทึก...' : 'บันทึก'}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{commonT('cancel')}</Button>
+          <Button onClick={() => onSave(data)} disabled={saving}>{saving ? commonT('saving') : commonT('save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -668,6 +672,8 @@ function LevelFormDialog({
   onSave: (data: LevelFormData) => Promise<void>;
   stageLabel: (stage: Pick<StageItem, 'code' | 'name_th'>) => string;
 }) {
+  const settingsT = useTranslations('settings');
+  const commonT = useTranslations('common');
   const [data, setData] = useState<LevelFormData>({ education_stage_id: '', name: '', is_active: true });
   useEffect(() => {
     void Promise.resolve().then(() => {
@@ -680,28 +686,28 @@ function LevelFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{editing ? 'แก้ไขชั้นปี' : 'เพิ่มชั้นปี'}</DialogTitle>
-          <DialogDescription>ชั้นปีอยู่ภายใต้ระดับการศึกษา</DialogDescription>
+          <DialogTitle>{editing ? settingsT('editGradeLevel') : settingsT('addGradeLevel')}</DialogTitle>
+          <DialogDescription>{settingsT('gradeLevelDialogDescription')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
-            <Label>ระดับการศึกษา</Label>
+            <Label>{settingsT('educationStageLabel')}</Label>
             <Input value={stageLabel(stages.find((s) => s.id === data.education_stage_id) || { code: '', name_th: '' })} disabled />
           </div>
           <div className="space-y-1.5">
-            <Label>ชื่อ <span className="text-destructive">*</span></Label>
-            <Input value={data.name} onChange={e => setData({ ...data, name: e.target.value })} placeholder="ป.1, ม.1, อนุบาล 1" />
+            <Label>{settingsT('itemName')} <span className="text-destructive">{commonT('requiredMark')}</span></Label>
+            <Input value={data.name} onChange={e => setData({ ...data, name: e.target.value })} placeholder={settingsT('gradeLevelNamePlaceholder')} />
           </div>
           {editing && (
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={data.is_active} onChange={e => setData({ ...data, is_active: e.target.checked })} className="h-4 w-4" />
-              ใช้งาน
+              {commonT('active')}
             </label>
           )}
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>ยกเลิก</Button>
-          <Button onClick={() => onSave(data)} disabled={saving}>{saving ? 'กำลังบันทึก...' : 'บันทึก'}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{commonT('cancel')}</Button>
+          <Button onClick={() => onSave(data)} disabled={saving}>{saving ? commonT('saving') : commonT('save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -733,6 +739,9 @@ function ClassroomFormDialog({
   onSave: (data: ClassroomFormData) => Promise<void>;
   stageLabel: (stage: Pick<StageItem, 'code' | 'name_th'>) => string;
 }) {
+  const classroomT = useTranslations('classroom');
+  const settingsT = useTranslations('settings');
+  const commonT = useTranslations('common');
   const [data, setData] = useState<ClassroomFormData>({ name: '', grade_level_id: '', education_stage_id: '', grade_level: 1 });
   const selectedLevel = levels.find((l) => l.id === data.grade_level_id);
 
@@ -759,12 +768,12 @@ function ClassroomFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{editing ? 'แก้ไขห้องเรียน' : 'เพิ่มห้องเรียน'}</DialogTitle>
-          <DialogDescription>ห้องเรียนอยู่ภายใต้ชั้นปี</DialogDescription>
+          <DialogTitle>{editing ? classroomT('edit') : classroomT('add')}</DialogTitle>
+          <DialogDescription>{settingsT('classroomBelongsToGradeLevel')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
-            <Label>ระดับการศึกษา</Label>
+            <Label>{settingsT('educationStageLabel')}</Label>
             <select
               className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
               value={data.education_stage_id}
@@ -773,14 +782,14 @@ function ClassroomFormDialog({
                 setData({ ...data, education_stage_id: stageId, grade_level_id: '' });
               }}
             >
-              <option value="">เลือกระดับ</option>
+              <option value="">{settingsT('chooseEducationStage')}</option>
               {stages.map((s) => (
                 <option key={s.id} value={s.id}>{stageLabel(s)}</option>
               ))}
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label>ชั้นปี <span className="text-destructive">*</span></Label>
+            <Label>{classroomT('gradeLevel')} <span className="text-destructive">{commonT('requiredMark')}</span></Label>
             <select
               className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
               value={data.grade_level_id}
@@ -789,24 +798,28 @@ function ClassroomFormDialog({
                 setData({ ...data, grade_level_id: e.target.value, grade_level: level?.level_no || 1 });
               }}
             >
-              <option value="">เลือกชั้นปี</option>
+              <option value="">{settingsT('chooseGradeLevel')}</option>
               {filteredLevels.map((l) => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label>ชื่อห้อง <span className="text-destructive">*</span></Label>
+            <Label>{settingsT('classroomNameLabel')} <span className="text-destructive">{commonT('requiredMark')}</span></Label>
             <Input
               value={data.name}
               onChange={e => setData({ ...data, name: e.target.value })}
-              placeholder={selectedLevel ? `${selectedLevel.name}/1` : 'ป.1/1'}
+              placeholder={
+                selectedLevel
+                  ? settingsT('classroomNamePlaceholder', { name: selectedLevel.name })
+                  : classroomT('namePlaceholder')
+              }
             />
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>ยกเลิก</Button>
-          <Button onClick={() => onSave(data)} disabled={saving}>{saving ? 'กำลังบันทึก...' : 'บันทึก'}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{commonT('cancel')}</Button>
+          <Button onClick={() => onSave(data)} disabled={saving}>{saving ? commonT('saving') : commonT('save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

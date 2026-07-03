@@ -7,7 +7,7 @@ import { Spinner } from '@/components/ui/spinner';
 
 /**
  * /students/me — Resolves the logged-in user's student record and
- * redirects to their own student detail page.
+ * redirects to the student list with their own detail modal open.
  */
 export default function StudentMePage() {
   const router = useRouter();
@@ -21,12 +21,12 @@ export default function StudentMePage() {
         const res = await fetch('/api/auth/me/student');
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          setError(data.error || t('notFound'));
+          setError(typeof data.error === 'string' ? data.error : '');
           return;
         }
         const data = await res.json();
         if (data.id) {
-          router.replace(`/students/${data.id}`);
+          router.replace(`/students?studentId=${data.id}`);
         } else {
           setError(t('notFound'));
         }

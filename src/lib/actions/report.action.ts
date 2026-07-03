@@ -3,7 +3,7 @@
 import { withAuth } from '@/lib/server-action';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { canApproveScores, hasRole } from '@/lib/security/roles';
-import { listStudents, getScoreSummary } from '@/lib/db';
+import { getScoreSummary } from '@/lib/db';
 import type { StudentThresholdInfo } from '@/types';
 import { logAction } from '@/lib/audit/log';
 import { serverMessage } from '@/lib/i18n/server';
@@ -75,7 +75,7 @@ export interface SchoolStatisticsReportData {
   top_risk_students: Array<{ id: string; student_id_number: string; full_name: string; classroom_name: string; current_score: number; total_deducted: number }>;
 }
 
-interface ClassroomReportStudent {
+export interface ClassroomReportStudent {
   id: string;
   full_name: string;
   student_id_number: string;
@@ -87,7 +87,7 @@ interface ClassroomReportStudent {
   rank: number;
 }
 
-interface ClassroomReportData {
+export interface ClassroomReportData {
   classroom: {
     id: string;
     name: string;
@@ -101,6 +101,42 @@ interface ClassroomReportData {
   total_students: number;
   students: ClassroomReportStudent[];
   rank_mode: 'risk' | 'score';
+}
+
+export interface ThresholdRule {
+  deducted: number;
+  action: string;
+  color: string;
+}
+
+export interface ThresholdReportData {
+  academic_year: string;
+  base_score: number;
+  thresholds: ThresholdRule[];
+  students: StudentThresholdInfo[];
+  total_at_risk: number;
+}
+
+interface AcademicYearOption {
+  id: string;
+  name: string;
+  base_score?: number;
+  is_current?: boolean;
+}
+
+interface ClassroomSnapshot {
+  id: string;
+  name: string;
+  education_stage_id: string;
+  grade_level: number;
+  academic_year_id?: string | null;
+}
+
+interface StudentProfileSnapshot {
+  id: string;
+  student_id_number: string;
+  profiles?: Record<string, unknown>;
+  classrooms?: Record<string, unknown>;
 }
 
 function formatProfileFullName(profile: Record<string, unknown> | null | undefined) {
@@ -164,8 +200,9 @@ export async function getStudentRankingReport(params: StudentRankingReportParams
       .select('id, name, base_score, is_current')
       .order('name', { ascending: false });
 
-    const selectedYear = (academicYears || []).find((year: any) => year.id === params.academic_year_id)
-      || (academicYears || []).find((year: any) => year.is_current)
+    const yearOptions = (academicYears || []) as AcademicYearOption[];
+    const selectedYear = yearOptions.find((year) => year.id === params.academic_year_id)
+      || yearOptions.find((year) => year.is_current)
       || (academicYears || [])[0];
     const academicYearId = selectedYear?.id as string | undefined;
     const baseScore = (selectedYear?.base_score as number | undefined) || 100;
@@ -200,7 +237,7 @@ export async function getStudentRankingReport(params: StudentRankingReportParams
       studentRows = (data || []) as Record<string, unknown>[];
     }
 
-    let students = studentRows.map((row) => {
+    let students: StudentProfileSnapshot[] = studentRows.map((row) => {
       if ('students' in row) {
         const student = row.students as Record<string, unknown>;
         return {
@@ -210,7 +247,12 @@ export async function getStudentRankingReport(params: StudentRankingReportParams
           classrooms: row.classrooms as Record<string, unknown>,
         };
       }
-      return row;
+      return {
+        id: row.id as string,
+        student_id_number: row.student_id_number as string,
+        profiles: row.profiles as Record<string, unknown>,
+        classrooms: row.classrooms as Record<string, unknown>,
+      };
     });
 
     if (params.grade_level_id) {
@@ -421,13 +463,13 @@ export async function getDashboardStats() {
       supabase.from('students').select('id, profiles!inner(full_name, prefix)').eq('current_status', 'active'),
     ]);
 
-    const thresholds: Array<{ deducted: number }> = (thresholdsRes.data?.value as any) || [];
+    const thresholds = ((thresholdsRes.data?.value as unknown) || []) as Array<{ deducted: number }>;
     const firstThreshold = thresholds.length > 0 ? thresholds[0].deducted : 20;
-    const allStudents = studentsRes.data || [];
-    const studentIds = allStudents.map((s: any) => s.id);
+    const allStudents = (studentsRes.data || []) as Array<{ id: string }>;
+    const studentIds = allStudents.map((student) => student.id);
 
     // ── Bulk-fetch ALL score_transactions ──
-    let allTransactions: { student_id: string; points: number }[] = [];
+    const allTransactions: { student_id: string; points: number }[] = [];
     if (studentIds.length > 0) {
       const chunkSize = 1000;
       for (let i = 0; i < studentIds.length; i += chunkSize) {
@@ -458,14 +500,11 @@ export async function getDashboardStats() {
     let poorCount = 0;
 
     for (const student of allStudents) {
-      const s = student as any;
-      // Calculate score: start with base, subtract all deductions, add all additions
-      const netPoints = scoreMap.get(s.id) || 0;
       const totalDeducted = allTransactions
-        .filter(t => t.student_id === s.id && t.points < 0)
+        .filter(t => t.student_id === student.id && t.points < 0)
         .reduce((sum, t) => sum + Math.abs(t.points), 0);
       const totalAdded = allTransactions
-        .filter(t => t.student_id === s.id && t.points > 0)
+        .filter(t => t.student_id === student.id && t.points > 0)
         .reduce((sum, t) => sum + t.points, 0);
 
       const score = baseScore + totalAdded - totalDeducted;
@@ -513,8 +552,9 @@ export async function getSchoolStatisticsReport(academicYearId?: string) {
       .select('id, name, base_score, is_current')
       .order('name', { ascending: false });
 
-    const selectedYear = (academicYears || []).find((year: any) => year.id === academicYearId)
-      || (academicYears || []).find((year: any) => year.is_current)
+    const yearOptions = (academicYears || []) as AcademicYearOption[];
+    const selectedYear = yearOptions.find((year) => year.id === academicYearId)
+      || yearOptions.find((year) => year.is_current)
       || (academicYears || [])[0];
 
     if (!selectedYear?.id) {
@@ -810,6 +850,8 @@ export async function getIndividualReport(studentId: string, academicYearId?: st
       return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.studentNotFound') } };
     }
 
+    const studentClassroom = student.classrooms as { name?: string; grade_level?: number; education_stage_id?: string } | null;
+
     // Get score transactions
     const { data: transactions } = await supabase
       .from('score_transactions')
@@ -833,9 +875,9 @@ export async function getIndividualReport(studentId: string, academicYearId?: st
           id: student.id,
           full_name: formatProfileFullName(student.profiles as Record<string, unknown>),
           student_id_number: student.student_id_number,
-          classroom_name: (student.classrooms as any)?.name || '',
-          grade_level: (student.classrooms as any)?.grade_level,
-          education_stage_id: (student.classrooms as any)?.education_stage_id,
+          classroom_name: studentClassroom?.name || '',
+          grade_level: studentClassroom?.grade_level,
+          education_stage_id: studentClassroom?.education_stage_id,
         },
         academic_year: acYear?.name || '',
         base_score: acYear?.base_score || 100,
@@ -900,11 +942,13 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
       return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.classroomNotFound') } };
     }
 
-    if (!acYear && (classroom as any).academic_year_id) {
+    const classroomRecord = classroom as unknown as ClassroomSnapshot;
+
+    if (!acYear && classroomRecord.academic_year_id) {
       const { data: classroomYear } = await supabase
         .from('academic_years')
         .select('id, base_score, name')
-        .eq('id', (classroom as any).academic_year_id)
+        .eq('id', classroomRecord.academic_year_id)
         .maybeSingle();
       acYear = classroomYear as { id: string; base_score: number; name: string } | null;
     }
@@ -936,10 +980,10 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
         success: true,
         data: {
           classroom: {
-            id: (classroom as any).id,
-            name: (classroom as any).name,
-            education_stage_id: (classroom as any).education_stage_id,
-            grade_level: (classroom as any).grade_level,
+            id: classroomRecord.id,
+            name: classroomRecord.name,
+            education_stage_id: classroomRecord.education_stage_id,
+            grade_level: classroomRecord.grade_level,
           },
           academic_year: acYear?.name || '',
           base_score: baseScore,
@@ -953,7 +997,7 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
     }
 
     // ── Bulk-fetch score_transactions for these students ──
-    const studentIds = students.map((s: any) => s.id);
+    const studentIds = students.map((student) => String(student.id || ''));
     const summaryMap = new Map<string, {
       totalDeducted: number;
       totalAdded: number;
@@ -1009,8 +1053,7 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
     const distribution = { excellent: 0, good: 0, fair: 0, poor: 0 };
 
     for (const student of students) {
-      const s = student as any;
-      const summary = summaryMap.get(s.id) || {
+      const summary = summaryMap.get(String(student.id || '')) || {
         totalDeducted: 0,
         totalAdded: 0,
         deductCount: 0,
@@ -1025,9 +1068,9 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
       else distribution.poor++;
 
       studentStats.push({
-        id: s.id,
-        full_name: formatProfileFullName(s.profiles as Record<string, unknown>),
-        student_id_number: s.student_id_number,
+        id: String(student.id || ''),
+        full_name: formatProfileFullName(student.profiles as Record<string, unknown>),
+        student_id_number: String(student.student_id_number || ''),
         total_deducted: summary.totalDeducted,
         total_added: summary.totalAdded,
         current_score: summary.currentScore,
@@ -1046,10 +1089,10 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
       success: true,
       data: {
         classroom: {
-          id: (classroom as any).id,
-          name: (classroom as any).name,
-          education_stage_id: (classroom as any).education_stage_id,
-          grade_level: (classroom as any).grade_level,
+          id: classroomRecord.id,
+          name: classroomRecord.name,
+          education_stage_id: classroomRecord.education_stage_id,
+          grade_level: classroomRecord.grade_level,
         },
         academic_year: acYear?.name || '',
         base_score: baseScore,
@@ -1069,9 +1112,15 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
 }
 
 export async function getThresholdReport(academicYearId?: string) {
-  return withAuth(async (profile) => {
+  return withAuth<ThresholdReportData>(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายงานถึงเกณฑ์' } };
+      return {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: await serverMessage('apiErrors.thresholdReportForbidden'),
+        },
+      };
     }
 
     const supabase = await createAdminClient();
@@ -1094,15 +1143,16 @@ export async function getThresholdReport(academicYearId?: string) {
       .select('value')
       .eq('key', 'thresholds')
       .single();
+    const thresholdValues = (((thresholdsRes.data?.value as unknown) || []) as Array<{
+      deducted: number;
+      action: string;
+      color: string;
+    }>);
     const thresholds: Array<{
       deducted: number;
       action: string;
       color: string;
-    }> = (((thresholdsRes.data?.value as any) || []) as Array<{
-      deducted: number;
-      action: string;
-      color: string;
-    }>)
+    }> = thresholdValues
       .map((threshold) => ({
         ...threshold,
         deducted: Number(threshold.deducted),
@@ -1134,12 +1184,14 @@ export async function getThresholdReport(academicYearId?: string) {
       if (!data || data.length < enrollmentPageSize) break;
     }
 
-    const students = (enrollmentRows || [])
+    const students: StudentProfileSnapshot[] = (enrollmentRows || [])
       .map((row: Record<string, unknown>) => ({
-        ...((row.students as Record<string, unknown>) || {}),
-        classrooms: row.classrooms,
+        id: ((row.students as Record<string, unknown>)?.id as string) || '',
+        student_id_number: ((row.students as Record<string, unknown>)?.student_id_number as string) || '',
+        profiles: ((row.students as Record<string, unknown>)?.profiles as Record<string, unknown>) || undefined,
+        classrooms: (row.classrooms as Record<string, unknown>) || undefined,
       }))
-      .filter((student: Record<string, unknown>) => Boolean(student.id));
+      .filter((student) => Boolean(student.id));
 
     if (!students || students.length === 0) {
       await logAction({
@@ -1165,8 +1217,8 @@ export async function getThresholdReport(academicYearId?: string) {
     }
 
     // ── Bulk-fetch ALL score_transactions (no N+1 per student) ──
-    const studentIds = students.map((s: any) => s.id);
-    let allTransactions: { student_id: string; points: number; status: string }[] = [];
+    const studentIds = students.map((student) => String(student.id || ''));
+    const allTransactions: { student_id: string; points: number; status: string }[] = [];
 
     const chunkSize = 100;
     for (let i = 0; i < studentIds.length; i += chunkSize) {
@@ -1209,8 +1261,7 @@ export async function getThresholdReport(academicYearId?: string) {
     const reportData: StudentThresholdInfo[] = [];
 
     for (const student of students) {
-      const s = student as any;
-      const scores = scoreMap.get(s.id) || { deducted: 0, added: 0, deductCount: 0, addCount: 0 };
+      const scores = scoreMap.get(String(student.id || '')) || { deducted: 0, added: 0, deductCount: 0, addCount: 0 };
       const currentScore = baseScore - scores.deducted + scores.added;
 
       // Find applicable threshold
@@ -1228,13 +1279,13 @@ export async function getThresholdReport(academicYearId?: string) {
       }
 
       if (thresholdIndex >= 0) {
-        const fullName = formatProfileFullName(s.profiles as Record<string, unknown>);
+        const fullName = formatProfileFullName(student.profiles as Record<string, unknown>);
         reportData.push({
-          student_id: s.id,
+          student_id: String(student.id || ''),
           first_name: fullName.split(' ')[0] || '',
           last_name: fullName.split(' ').slice(1).join(' ') || '',
-          student_id_number: s.student_id_number,
-          classroom_name: (s.classrooms as any)?.name || '',
+          student_id_number: String(student.student_id_number || ''),
+          classroom_name: ((student.classrooms as { name?: string } | undefined)?.name) || '',
           current_score: currentScore,
           deducted_total: scores.deducted,
           threshold_level: thresholdIndex + 1,

@@ -396,7 +396,7 @@ export default function ScoreRecordPage() {
                   <TableRow
                     key={s.id}
                     className="cursor-pointer"
-                    onClick={() => router.push(`/students/${s.id}`)}
+                    onClick={() => router.push(`/students?studentId=${s.id}`)}
                   >
                     <TableCell className="font-mono text-xs">{s.student_id_number}</TableCell>
                     <TableCell className="font-medium">{s.full_name}</TableCell>

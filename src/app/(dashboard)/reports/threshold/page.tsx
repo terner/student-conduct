@@ -11,10 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
-import { getThresholdReport, logReportExport } from '@/lib/actions/report.action';
+import { getThresholdReport, logReportExport, type ThresholdReportData } from '@/lib/actions/report.action';
 import { exportCsv } from '@/lib/utils/csv';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 import { createClient } from '@/lib/supabase/client';
+import type { StudentThresholdInfo } from '@/types';
 
 const PAGE_SIZE = 25;
 
@@ -23,7 +24,7 @@ export default function ThresholdReportPage() {
   const reportT = useTranslations('report');
   const commonT = useTranslations('common');
   const selectedAcademicYearId = useSelectedAcademicYearId();
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<ThresholdReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('all');
@@ -39,7 +40,12 @@ export default function ThresholdReportPage() {
   }, [selectedAcademicYearId]);
 
   useEffect(() => {
-    loadReport(true);
+    const timeoutId = window.setTimeout(() => {
+      void loadReport(true);
+    }, 0);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [loadReport]);
 
   useEffect(() => {
@@ -83,16 +89,19 @@ export default function ThresholdReportPage() {
     };
   }, [loadReport, selectedAcademicYearId]);
 
-  const students = reportData?.students || [];
-  const classrooms = Array.from(new Set(students.map((s: any) => s.classroom_name).filter(Boolean))).sort() as string[];
+  const students = useMemo(() => reportData?.students ?? [], [reportData]);
+  const classrooms = useMemo(
+    () => Array.from(new Set(students.map((student) => student.classroom_name).filter(Boolean))).sort(),
+    [students],
+  );
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return students.filter((s: any) => {
-      const fullName = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
+    return students.filter((s: StudentThresholdInfo) => {
+      const fullName = `${s.first_name ?? ''} ${s.last_name ?? ''}`.toLowerCase();
       const matchesSearch = !query
         || fullName.includes(query)
-        || String(s.student_id_number || '').toLowerCase().includes(query)
-        || String(s.classroom_name || '').toLowerCase().includes(query);
+        || String(s.student_id_number ?? '').toLowerCase().includes(query)
+        || String(s.classroom_name ?? '').toLowerCase().includes(query);
       const matchesLevel = levelFilter === 'all' || String(s.threshold_level) === levelFilter;
       const matchesClassroom = classroomFilter === 'all' || s.classroom_name === classroomFilter;
       return matchesSearch && matchesLevel && matchesClassroom;
@@ -107,7 +116,7 @@ export default function ThresholdReportPage() {
   }
 
   async function handleExport() {
-    const data = filteredStudents.map((s: any) => ({
+    const data = filteredStudents.map((s: StudentThresholdInfo) => ({
       [reportT('studentId')]: s.student_id_number,
       [reportT('studentName')]: `${s.first_name} ${s.last_name}`,
       [t('classroom')]: s.classroom_name,
@@ -116,10 +125,10 @@ export default function ThresholdReportPage() {
       [reportT('level')]: s.threshold_level,
       [t('action')]: s.threshold_action,
     }));
-    const filename = t('exportFileName', { year: String(reportData?.academic_year || 'unknown').replace(/\s+/g, '_') });
+    const filename = t('exportFileName', { year: String(reportData?.academic_year ?? '').replace(/\s+/g, '_') });
     exportCsv(data, filename);
     await logReportExport('threshold', {
-      academic_year: reportData?.academic_year || '',
+      academic_year: reportData?.academic_year ?? '',
       exported_count: data.length,
       filters: { search, level: levelFilter, classroom: classroomFilter },
     });
@@ -133,7 +142,7 @@ export default function ThresholdReportPage() {
         <div>
           <h1 className="text-2xl font-bold">{t('title')}</h1>
           <p className="text-muted-foreground mt-1">
-            {t('description', { year: reportData?.academic_year || '-', count: filteredStudents.length })}
+            {t('description', { year: reportData?.academic_year ?? '', count: filteredStudents.length })}
           </p>
         </div>
         <Button variant="outline" onClick={handleExport} disabled={filteredStudents.length === 0}>
@@ -168,9 +177,9 @@ export default function ThresholdReportPage() {
             aria-label={t('levelFilter')}
           >
             <option value="all">{t('allLevels')}</option>
-            {reportData?.thresholds?.map((_: any, index: number) => (
+            {reportData?.thresholds?.map((threshold, index: number) => (
               <option key={index} value={String(index + 1)}>
-                {t('levelLabel', { level: index + 1 })}
+                {t('levelLabel', { level: index + 1 })} {threshold.deducted}
               </option>
             ))}
           </select>
@@ -215,8 +224,8 @@ export default function ThresholdReportPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pagedStudents.map((s: any) => (
-                  <TableRow key={s.student_id} className={s.threshold_color ? '' : ''}>
+                {pagedStudents.map((s: StudentThresholdInfo) => (
+                  <TableRow key={s.student_id}>
                     <TableCell className="font-mono text-xs">{s.student_id_number}</TableCell>
                     <TableCell className="font-medium">{s.first_name} {s.last_name}</TableCell>
                     <TableCell>{s.classroom_name}</TableCell>
@@ -229,7 +238,7 @@ export default function ThresholdReportPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{s.threshold_action}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" nativeButton={false} render={<Link href={`/students/${s.student_id}`} />}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
                         <Eye className="h-3 w-3" />
                       </Button>
                     </TableCell>

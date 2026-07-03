@@ -16,3 +16,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
   then
   `supabase db query --linked ... --workdir supabase`
 - `supabase db query --linked -f` can apply schema/SQL files, but it does not accept raw pg_dump `COPY ... \.` payloads directly. Convert those to `INSERT` statements first when replaying `data.sql`.
+
+## i18n Rules
+
+- No fallback UI copy. Do not add literal fallback text such as `'Error'`, `'-'`, `'Unknown error'`, or inline translated strings in components/actions.
+- No hardcoded user-facing copy. Add message keys in `messages/th.json` and `messages/en.json`, then read them through the app's i18n helpers.
+- Keep domain values separate from UI translation. Enumerations, status codes, and stored data formats can stay domain-level, but all rendered labels and returned user-facing error messages must come from i18n keys.

@@ -8,18 +8,19 @@ import { useTranslations } from 'next-intl'
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen,
   ClipboardPlus, FileText, Settings, School, AlertTriangle,
-  LogOut, Tags, CheckCircle2,
-  CalendarDays, History, Upload,
+  Tags, CheckCircle2,
+  History, Upload,
   type LucideIcon,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
   SidebarGroupContent, SidebarGroupLabel, SidebarHeader,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator, useSidebar,
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
 } from '@/components/ui/sidebar'
 import { getRoles } from '@/lib/security/roles'
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action'
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection'
+import { UserMenu } from '@/components/layout/user-menu'
 
 interface NavItem {
   label: string
@@ -33,9 +34,13 @@ interface AppSidebarProps {
   schoolName?: string
   schoolLogo?: string
   role?: string | string[] | null
+  firstName?: string
+  lastName?: string
+  email?: string
+  avatarUrl?: string
 }
 
-export function AppSidebar({ schoolName, schoolLogo, role }: AppSidebarProps) {
+export function AppSidebar({ schoolName, schoolLogo, role, firstName, lastName, email, avatarUrl }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('nav')
   const { isMobile, setOpenMobile } = useSidebar()
@@ -168,21 +173,17 @@ export function AppSidebar({ schoolName, schoolLogo, role }: AppSidebarProps) {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-3 shadow-[0_-8px_18px_-18px_rgb(0_0_0_/_0.35)]">
-        <SidebarSeparator className="mx-0 mb-1 group-data-[collapsible=icon]:hidden" />
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              tooltip={t('logout')}
-              render={<a href="/api/auth/logout" />}
-              className="border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground shadow-sm hover:border-sidebar-ring hover:bg-sidebar-primary hover:text-sidebar-primary-foreground focus-visible:ring-sidebar-ring active:bg-sidebar-primary active:text-sidebar-primary-foreground group-data-[collapsible=icon]:border-sidebar-border group-data-[collapsible=icon]:bg-sidebar-accent group-data-[collapsible=icon]:text-sidebar-accent-foreground"
-            >
-              <LogOut className="size-4" />
-              <span className="font-semibold">{t('logout')}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarFooter className="border-t border-sidebar-border/60 bg-sidebar p-3">
+        <UserMenu
+          firstName={firstName}
+          lastName={lastName}
+          role={role || undefined}
+          email={email}
+          avatarUrl={avatarUrl}
+          placement="sidebar"
+          dropdownSide={isMobile ? 'top' : 'right'}
+          dropdownAlign="start"
+        />
       </SidebarFooter>
     </Sidebar>
   )

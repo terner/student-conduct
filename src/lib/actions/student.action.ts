@@ -12,6 +12,7 @@ import { buildGuardianFullName } from '@/lib/guardian';
 import { normalizePhoneInput } from '@/lib/phone';
 import { normalizeEnrollmentStatus, studentCurrentStatusFromEnrollment } from '@/lib/students/import-status';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
+import { serverMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 const SHORT_LIST_TTL_MS = 60 * 1000;
@@ -89,15 +90,15 @@ function todayInBangkok() {
   return `${year}-${month}-${day}`;
 }
 
-function getAcademicYearClosedReason(year: {
+async function getAcademicYearClosedReason(year: {
   start_date?: string | null;
   end_date?: string | null;
 }, today = todayInBangkok()) {
   if (year.start_date && today < year.start_date) {
-    return `ยังไม่ถึงช่วงปีการศึกษา เริ่มวันที่ ${year.start_date}`;
+    return serverMessage('apiErrors.academicYearNotStarted', { date: year.start_date });
   }
   if (year.end_date && today > year.end_date) {
-    return `พ้นช่วงปีการศึกษาแล้ว สิ้นสุดวันที่ ${year.end_date}`;
+    return serverMessage('apiErrors.academicYearEnded', { date: year.end_date });
   }
   return '';
 }
@@ -172,7 +173,7 @@ async function ensureStudentEditableInOpenAcademicYear(
 
   if (currentYearError) throw currentYearError;
   if (!currentYear?.id) {
-    return { success: false as const, message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' };
+    return { success: false as const, message: await serverMessage('apiErrors.noCurrentAcademicYear') };
   }
 
   if (classroomId) {
@@ -183,7 +184,7 @@ async function ensureStudentEditableInOpenAcademicYear(
       .maybeSingle();
 
     if (classroom?.academic_year_id !== currentYear.id) {
-      return { success: false as const, message: 'ห้องเรียนนี้ไม่อยู่ในปีการศึกษาปัจจุบัน' };
+      return { success: false as const, message: await serverMessage('apiErrors.invalidClassroomCurrentYear') };
     }
   }
 
@@ -196,14 +197,17 @@ async function ensureStudentEditableInOpenAcademicYear(
 
   if (error) throw error;
   if (!enrollment) {
-    return { success: false as const, message: 'นักเรียนนี้ไม่อยู่ในปีการศึกษาปัจจุบัน' };
+    return { success: false as const, message: await serverMessage('apiErrors.studentNotFoundCurrentYear') };
   }
 
-  const closedReason = getAcademicYearClosedReason(currentYear);
+  const closedReason = await getAcademicYearClosedReason(currentYear);
   if (closedReason) {
     return {
       success: false as const,
-      message: `ไม่สามารถแก้ไขข้อมูลนักเรียนของปี ${currentYear.name || ''} ได้ (${closedReason})`,
+      message: await serverMessage('apiErrors.studentEditClosedAcademicYear', {
+        year: currentYear.name || '',
+        reason: closedReason,
+      }),
     };
   }
 
@@ -224,12 +228,12 @@ export async function getStudents(params: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile) && !canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายชื่อนักเรียน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.studentListForbidden') } };
     }
 
     const validated = paginationSchema.parse(params);
     if (!validated.academic_year) {
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'กรุณาเลือกปีการศึกษา' } };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverMessage('apiErrors.selectAcademicYear') } };
     }
 
     const result = await listStudents({
@@ -244,7 +248,7 @@ export async function getStudents(params: {
 export async function getStudentsForClientFilters(academicYearId?: string) {
   return withAuth<StudentWithProfile[]>(async (profile) => {
     if (!canManageSchoolData(profile) && !canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายชื่อนักเรียน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.studentListForbidden') } };
     }
 
     const cacheKey = `students-client-filters:${academicYearId || 'current'}`;
@@ -266,7 +270,7 @@ export async function getStudentsForClientFilters(academicYearId?: string) {
 export async function getStudentScores(studentIds: string[], academicYearId?: string) {
   return withAuth<Record<string, number>>(async (profile) => {
     if (!canManageSchoolData(profile) && !canApproveScores(profile) && !canRecordScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.generalForbidden') } };
     }
 
     const supabase = await createAdminClient();
@@ -320,13 +324,13 @@ export async function getStudentsForCsvExport(params: {
 }) {
   return withAuth<StudentExportRow[]>(async (profile) => {
     if (!canManageSchoolData(profile) && !canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ส่งออกข้อมูลนักเรียน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.studentExportForbidden') } };
     }
 
     const adminClient = await createAdminClient();
     const academicYearId = params.academic_year;
     if (!academicYearId) {
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'กรุณาเลือกปีการศึกษา' } };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverMessage('apiErrors.selectAcademicYear') } };
     }
 
     let query = adminClient
@@ -472,12 +476,12 @@ export async function getStudent(id: string) {
   return withAuth(async (profile) => {
     const canView = await canViewStudentProfile(profile, id);
     if (!canView) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูข้อมูลนักเรียนนี้' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.studentAccessForbidden') } };
     }
 
     const student = await getStudentById(id);
     if (!student) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลนักเรียน' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.studentNotFound') } };
     }
     return { success: true, data: student };
   });
@@ -500,7 +504,7 @@ export async function addStudent(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile) && !canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบหรือผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.adminOrSuperadminOnly') } };
     }
 
     // Validate
@@ -520,7 +524,7 @@ export async function addStudent(data: {
       guardian_phone: validated.guardian_phone || '',
     });
     if (xssCheck) {
-      return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
+      return { success: false, error: { code: 'XSS_DETECTED', message: await serverMessage('apiErrors.xssDetected') } };
     }
 
     // Check student_id_number uniqueness
@@ -534,7 +538,7 @@ export async function addStudent(data: {
     if (existingStudent) {
       return {
         success: false,
-        error: { code: 'DUPLICATE_STUDENT_ID', message: 'รหัสนักเรียนนี้มีอยู่ในระบบแล้ว' },
+        error: { code: 'DUPLICATE_STUDENT_ID', message: await serverMessage('apiErrors.duplicateStudentId') },
       };
     }
 
@@ -547,7 +551,7 @@ export async function addStudent(data: {
       .maybeSingle();
 
     if (!currentAcademicYear?.id) {
-      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' } };
+      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: await serverMessage('apiErrors.noCurrentAcademicYear') } };
     }
 
     const { data: classroom } = await supabase
@@ -558,7 +562,7 @@ export async function addStudent(data: {
       .maybeSingle();
 
     if (!classroom) {
-      return { success: false, error: { code: 'INVALID_CLASSROOM_YEAR', message: 'ห้องเรียนนี้ไม่อยู่ในปีการศึกษาปัจจุบัน' } };
+      return { success: false, error: { code: 'INVALID_CLASSROOM_YEAR', message: await serverMessage('apiErrors.invalidClassroomCurrentYear') } };
     }
 
     const result = await createStudent({
@@ -610,11 +614,11 @@ export async function editStudent(id: string, data: {
 }) {
   return withAuth(async (profile) => {
     if (data.current_status !== undefined && !canApproveScores(profile) && !canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่เปลี่ยนสถานะนักเรียนได้' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.adminOnlyStudentStatus') } };
     }
 
     if (!(await canEditStudentProfile(profile, id))) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด หรือครูประจำชั้น/ครูที่ปรึกษา' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.studentEditPermission') } };
     }
 
     const validated = studentSchema.partial().parse({
@@ -626,7 +630,7 @@ export async function editStudent(id: string, data: {
       guardian_full_name: buildGuardianFullName(validated),
     });
     if (xssCheck) {
-      return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
+      return { success: false, error: { code: 'XSS_DETECTED', message: await serverMessage('apiErrors.xssDetected') } };
     }
 
     const editableYear = await ensureStudentEditableInOpenAcademicYear(id, validated.classroom_id);
@@ -673,7 +677,7 @@ export async function getStudentScoreInfo(studentId: string) {
 export async function getClassroomsForSelect(academicYearId?: string) {
   return withAuth(async (profile) => {
     if (!canRecordScores(profile) && !canImportData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูห้องเรียน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.classroomViewForbidden') } };
     }
 
     const cacheKey = `classrooms-for-select:${academicYearId || 'all'}`;
@@ -751,7 +755,7 @@ export async function getStudentDashboard() {
       .single();
 
     if (!student) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลนักเรียน' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.studentNotFound') } };
     }
 
     // Get score transactions
@@ -838,7 +842,7 @@ export async function getStudentDashboard() {
 export async function deleteStudent(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const before = await getStudentById(id);
@@ -860,7 +864,7 @@ export async function deleteStudent(id: string) {
 export async function getStudentListForSelect(academicYearId?: string) {
   return withAuth(async (profile) => {
     if (!canRecordScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายชื่อนักเรียนสำหรับบันทึกคะแนน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.studentListForScoreForbidden') } };
     }
 
     const cacheKey = `students-for-select:${academicYearId || 'current'}`;
@@ -936,7 +940,7 @@ export async function getStudentListForSelect(academicYearId?: string) {
 export async function importStudentsCsv(rows: Record<string, unknown>[]) {
   return withAuth(async (profile) => {
     if (!canImportData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์นำเข้าข้อมูล' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.importDataForbidden') } };
     }
 
     const adminClient = await createAdminClient();
@@ -962,7 +966,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         const csvGradeLevel = Number(row['ชั้นปี'] || row['grade_level'] || 0);
 
         if (!studentId || !firstName || !lastName || !classroomName) {
-          errors.push({ row: i + 1, message: 'ข้อมูลไม่ครบ (รหัส, ชื่อ, นามสกุล, ห้อง)' });
+          errors.push({ row: i + 1, message: await serverMessage('apiErrors.studentImportMissingRequiredFields') });
           continue;
         }
 
@@ -973,13 +977,19 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
           .maybeSingle();
 
         if (!acYear?.id) {
-          errors.push({ row: i + 1, message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' });
+          errors.push({ row: i + 1, message: await serverMessage('apiErrors.noCurrentAcademicYear') });
           continue;
         }
 
-        const closedReason = getAcademicYearClosedReason(acYear);
+        const closedReason = await getAcademicYearClosedReason(acYear);
         if (closedReason) {
-          errors.push({ row: i + 1, message: `ไม่สามารถนำเข้านักเรียนของปี ${acYear.name} ได้ (${closedReason})` });
+          errors.push({
+            row: i + 1,
+            message: await serverMessage('apiErrors.studentImportClosedAcademicYear', {
+              year: acYear.name,
+              reason: closedReason,
+            }),
+          });
           continue;
         }
 
@@ -997,7 +1007,10 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         const { data: classroom } = await classroomQuery.maybeSingle();
 
         if (!classroom) {
-          errors.push({ row: i + 1, message: `ไม่พบห้องเรียน "${classroomName}" ในปีการศึกษานี้` });
+          errors.push({
+            row: i + 1,
+            message: await serverMessage('apiErrors.studentImportClassroomNotFound', { classroom: classroomName }),
+          });
           continue;
         }
 
@@ -1118,7 +1131,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         });
 
         if (authError || !authUser?.user) {
-          errors.push({ row: i + 1, message: 'สร้างบัญชีผู้ใช้ไม่สำเร็จ' });
+          errors.push({ row: i + 1, message: await serverMessage('apiErrors.studentImportCreateAuthFailed') });
           continue;
         }
 
@@ -1138,7 +1151,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
 
         if (!profile) {
           await adminClient.auth.admin.deleteUser(authUser.user.id);
-          errors.push({ row: i + 1, message: 'สร้างโปรไฟล์ไม่สำเร็จ' });
+          errors.push({ row: i + 1, message: await serverMessage('apiErrors.studentImportCreateProfileFailed') });
           continue;
         }
 
@@ -1156,7 +1169,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
 
         if (!studentRecord) {
           await adminClient.auth.admin.deleteUser(authUser.user.id);
-          errors.push({ row: i + 1, message: 'สร้างข้อมูลนักเรียนไม่สำเร็จ' });
+          errors.push({ row: i + 1, message: await serverMessage('apiErrors.studentImportCreateStudentFailed') });
           continue;
         }
 
@@ -1188,7 +1201,10 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
 
         imported++;
       } catch (err) {
-        errors.push({ row: i + 1, message: err instanceof Error ? err.message : 'ข้อผิดพลาดไม่ทราบสาเหตุ' });
+        errors.push({
+          row: i + 1,
+          message: err instanceof Error ? err.message : await serverMessage('apiErrors.unknownError'),
+        });
       }
     }
 
@@ -1274,7 +1290,7 @@ export async function resetStudentPassword(studentId: string) {
   return withAuth(async (authProfile) => {
     const canEdit = await canEditStudentProfile(authProfile, studentId);
     if (!canEdit) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะครูประจำชั้น ครูที่ปรึกษา หรือผู้ดูแลระบบ' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.studentResetPasswordForbidden') } };
     }
 
     const adminClient = await createAdminClient();
@@ -1285,7 +1301,7 @@ export async function resetStudentPassword(studentId: string) {
       .single();
 
     if (!student?.profile_id) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลนักเรียน' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.studentNotFound') } };
     }
 
     const { data: profile } = await adminClient
@@ -1295,7 +1311,7 @@ export async function resetStudentPassword(studentId: string) {
       .single();
 
     if (!profile?.user_id) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบ profile นักเรียน' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.studentProfileMissing') } };
     }
 
     // Generate random password
@@ -1320,7 +1336,7 @@ export async function resetStudentPassword(studentId: string) {
     );
 
     if (!authRes.ok) {
-      return { success: false, error: { code: 'AUTH_ERROR', message: 'ไม่สามารถเปลี่ยนรหัสผ่านได้' } };
+      return { success: false, error: { code: 'AUTH_ERROR', message: await serverMessage('apiErrors.authPasswordResetFailed') } };
     }
 
     await adminClient

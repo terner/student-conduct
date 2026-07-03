@@ -21,6 +21,7 @@ import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl
 import { logAudit } from '@/lib/audit/log';
 import { notifyThresholdReached } from '@/lib/notifications/threshold';
 import { notifyScoreApprovalPending, resolveScoreApprovalPendingNotifications } from '@/lib/notifications/score-approval';
+import { serverMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -37,15 +38,15 @@ function todayInBangkok() {
   return `${year}-${month}-${day}`;
 }
 
-function getAcademicYearClosedReason(year: {
+async function getAcademicYearClosedReason(year: {
   start_date?: string | null;
   end_date?: string | null;
 }, today = todayInBangkok()) {
   if (year.start_date && today < year.start_date) {
-    return `ยังไม่ถึงช่วงปีการศึกษา เริ่มวันที่ ${year.start_date}`;
+    return serverMessage('apiErrors.academicYearNotStarted', { date: year.start_date });
   }
   if (year.end_date && today > year.end_date) {
-    return `พ้นช่วงปีการศึกษาแล้ว สิ้นสุดวันที่ ${year.end_date}`;
+    return serverMessage('apiErrors.academicYearEnded', { date: year.end_date });
   }
   return '';
 }
@@ -83,23 +84,23 @@ async function ensureAcademicYearOpenForScoring(
   if (!academicYear?.id) {
     return {
       success: false as const,
-      error: { code: 'NO_CURRENT_YEAR', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' },
+      error: { code: 'NO_CURRENT_YEAR', message: await serverMessage('apiErrors.noCurrentAcademicYear') },
     };
   }
 
   if (!academicYear.is_current) {
     return {
       success: false as const,
-      error: { code: 'ACADEMIC_YEAR_NOT_CURRENT', message: 'บันทึกคะแนนได้เฉพาะปีการศึกษาปัจจุบัน' },
+      error: { code: 'ACADEMIC_YEAR_NOT_CURRENT', message: await serverMessage('apiErrors.scoreCurrentYearOnly') },
       academicYear,
     };
   }
 
-  const closedReason = getAcademicYearClosedReason(academicYear);
+  const closedReason = await getAcademicYearClosedReason(academicYear);
   if (closedReason) {
     return {
       success: false as const,
-      error: { code: 'ACADEMIC_YEAR_CLOSED', message: `ไม่สามารถบันทึกคะแนนย้อนหลังได้ (${closedReason})` },
+      error: { code: 'ACADEMIC_YEAR_CLOSED', message: await serverMessage('apiErrors.scoreRecordClosedAcademicYear', { reason: closedReason }) },
       academicYear,
     };
   }
@@ -110,17 +111,17 @@ async function ensureAcademicYearOpenForScoring(
 export async function getScoreRecordingAvailability(academicYearId?: string) {
   return withAuth(async (profile) => {
     if (!canRecordScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์บันทึกคะแนน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreRecordForbidden') } };
     }
 
     const supabase = await createAdminClient();
     const academicYear = await resolveAcademicYearForScoring(supabase, academicYearId);
     if (!academicYear?.id) {
-      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' } };
+      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: await serverMessage('apiErrors.noCurrentAcademicYear') } };
     }
 
-    const closedReason = getAcademicYearClosedReason(academicYear);
-    const notCurrentReason = academicYear.is_current ? '' : 'บันทึกคะแนนได้เฉพาะปีการศึกษาปัจจุบัน';
+    const closedReason = await getAcademicYearClosedReason(academicYear);
+    const notCurrentReason = academicYear.is_current ? '' : await serverMessage('apiErrors.scoreCurrentYearOnly');
     return {
       success: true,
       data: {
@@ -149,7 +150,7 @@ export async function getScores(params: {
 }) {
   return withAuth(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูประวัติคะแนน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreHistoryForbidden') } };
     }
 
     const result = await listScoreTransactions(params);
@@ -189,14 +190,14 @@ export async function recordScore(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canRecordScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์บันทึกคะแนน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreRecordForbidden') } };
     }
 
     const validated = scoreRecordSchema.parse(data);
 
     const xssCheck = validateXSS({ note: validated.note || '' });
     if (xssCheck) {
-      return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
+      return { success: false, error: { code: 'XSS_DETECTED', message: await serverMessage('apiErrors.xssDetected') } };
     }
 
     const supabase = await createAdminClient();
@@ -215,7 +216,7 @@ export async function recordScore(data: {
         .maybeSingle();
 
       if (!enrollment) {
-        return { success: false, error: { code: 'INVALID_ACADEMIC_YEAR', message: 'นักเรียนนี้ไม่อยู่ในปีการศึกษาที่เลือก' } };
+        return { success: false, error: { code: 'INVALID_ACADEMIC_YEAR', message: await serverMessage('apiErrors.invalidStudentAcademicYear') } };
       }
     }
 
@@ -227,7 +228,7 @@ export async function recordScore(data: {
       .single();
 
     if (category?.requires_evidence && !data.has_evidence) {
-      return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: 'รายการนี้ต้องแนบหลักฐานก่อนบันทึก' } };
+      return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: await serverMessage('apiErrors.scoreEvidenceRequired') } };
     }
 
     const result = await createScoreTransaction({
@@ -285,7 +286,7 @@ export async function recordBulkScore(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canRecordScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์บันทึกคะแนน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreRecordForbidden') } };
     }
 
     const supabase = await createClient();
@@ -300,7 +301,7 @@ export async function recordBulkScore(data: {
       .single();
 
     if (category?.requires_evidence) {
-      return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: 'รายการนี้ต้องแนบหลักฐาน จึงไม่รองรับการบันทึกแบบกลุ่ม' } };
+      return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: await serverMessage('apiErrors.scoreBulkEvidenceUnsupported') } };
     }
 
     const results = [];
@@ -348,7 +349,7 @@ export async function recordBulkScore(data: {
 export async function voidScore(transactionId: string, voidReason: string) {
   return withAuth(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ยกเลิกรายการคะแนน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreVoidForbidden') } };
     }
 
     const validated = scoreVoidSchema.parse({ transaction_id: transactionId, void_reason: voidReason });
@@ -361,10 +362,10 @@ export async function voidScore(transactionId: string, voidReason: string) {
       .maybeSingle();
 
     if (!before) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบรายการคะแนน' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.scoreTransactionNotFound') } };
     }
     if (before.status === 'voided') {
-      return { success: false, error: { code: 'CONFLICT', message: 'รายการนี้ถูกยกเลิกแล้ว' } };
+      return { success: false, error: { code: 'CONFLICT', message: await serverMessage('apiErrors.scoreTransactionAlreadyVoided') } };
     }
 
     if (before.academic_year_id) {
@@ -389,7 +390,7 @@ export async function voidScore(transactionId: string, voidReason: string) {
 export async function approveScore(transactionId: string) {
   return withAuth(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์อนุมัติคะแนน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreApproveForbidden') } };
     }
 
     const supabase = await createClient();
@@ -400,10 +401,10 @@ export async function approveScore(transactionId: string) {
       .maybeSingle();
 
     if (!transaction) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบรายการคะแนน' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.scoreTransactionNotFound') } };
     }
     if (transaction.status !== 'pending') {
-      return { success: false, error: { code: 'CONFLICT', message: 'อนุมัติได้เฉพาะรายการที่รออนุมัติ' } };
+      return { success: false, error: { code: 'CONFLICT', message: await serverMessage('apiErrors.scoreApprovePendingOnly') } };
     }
 
     if (transaction.academic_year_id) {
@@ -418,7 +419,7 @@ export async function approveScore(transactionId: string) {
         .eq('transaction_id', transactionId);
 
       if (!count) {
-        return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: 'รายการนี้ต้องมีหลักฐานก่อนอนุมัติ' } };
+        return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: await serverMessage('apiErrors.scoreApprovalEvidenceRequired') } };
       }
     }
 
@@ -479,13 +480,13 @@ export async function saveCategory(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const validated = scoreCategorySchema.parse(data);
     const xssCheck = validateXSS({ name: validated.name, description: validated.description || '' });
     if (xssCheck) {
-      return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
+      return { success: false, error: { code: 'XSS_DETECTED', message: await serverMessage('apiErrors.xssDetected') } };
     }
 
     await upsertScoreCategory(validated);
@@ -504,11 +505,11 @@ export async function saveCategory(data: {
 export async function removeCategory(categoryId: string) {
   return withAuth(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบ' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     if (!categoryId) {
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'ไม่พบประเภทคะแนน' } };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverMessage('apiErrors.scoreCategoryNotFound') } };
     }
 
     await deactivateScoreCategory(categoryId);

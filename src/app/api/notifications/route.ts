@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClientWithUser, createClient } from '@/lib/supabase/server';
+import { createClientWithUser } from '@/lib/supabase/server';
 import { apiMessage } from '@/lib/i18n/api';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   if (!profile) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: apiMessage(request, 'forbidden') }, { status: 403 });
   }
 
   const { data: notifications } = await supabase

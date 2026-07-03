@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { TeacherAssignmentTable } from '@/components/features/classrooms/teacher-table';
 import { StudentTable } from '@/components/features/students/student-table';
+import { StudentDetailDialog } from '@/components/features/students/student-detail-dialog';
 import { getClassroom, setClassroomTeacherAssignment } from '@/lib/actions/classroom.action';
 import { getStudents } from '@/lib/actions/student.action';
 import { getTeachers } from '@/lib/actions/teacher.action';
@@ -27,6 +28,7 @@ export default function ClassroomDetailPage() {
   const [studentTotal, setStudentTotal] = useState(0);
   const [studentPage, setStudentPage] = useState(1);
   const [teachers, setTeachers] = useState<TeacherWithProfile[]>([]);
+  const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -124,9 +126,17 @@ export default function ClassroomDetailPage() {
             page={studentPage}
             pageSize={20}
             onPageChange={setStudentPage}
+            onView={(student) => setDetailStudentId(student.id)}
           />
         </CardContent>
       </Card>
+
+      {detailStudentId && (
+        <StudentDetailDialog
+          studentId={detailStudentId}
+          onClose={() => setDetailStudentId(null)}
+        />
+      )}
     </div>
   );
 }

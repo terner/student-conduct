@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { ImageIcon, Phone, School, ShieldCheck, User, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -55,25 +56,28 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
   }
 
   return (
-    <div className="grid gap-4 print:grid-cols-3 print:gap-3 xl:grid-cols-[1fr_320px]">
-      <div className="grid gap-4 print:contents md:grid-cols-2">
-      <Card className="print:order-1 print:col-span-2 print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
+    <div className="grid gap-4 print:grid-cols-3 print:gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid min-w-0 gap-4 print:contents md:grid-cols-2">
+      <Card className="md:col-span-2 print:order-1 print:col-span-2 print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none">
         <CardHeader className="print:border-b print:bg-neutral-50 print:px-3 print:py-2">
           <CardTitle className="flex items-center gap-2 text-lg print:text-[12px] print:font-semibold">
             <User className="h-5 w-5 text-muted-foreground print:hidden" />
             {studentT('detail')}
           </CardTitle>
         </CardHeader>
-        <CardContent className="print:grid print:grid-cols-[64px_1fr] print:gap-3 print:px-3 print:py-2">
-          <div className="mb-4 flex items-center gap-4 print:mb-0 print:block">
+        <CardContent className="grid gap-4 sm:grid-cols-[96px_1fr] print:grid-cols-[64px_1fr] print:gap-3 print:px-3 print:py-2">
+          <div className="flex items-center gap-4 sm:block print:block">
             {student.avatar_url ? (
-              <img
+              <Image
                 src={student.avatar_url}
                 alt={studentT('studentPhotoAlt', { name: `${student.prefix}${student.first_name} ${student.last_name}` })}
-                className="size-20 rounded-lg border object-cover print:size-16 print:rounded-md"
+                width={96}
+                height={96}
+                unoptimized
+                className="size-20 rounded-lg border object-cover sm:size-24 print:size-16 print:rounded-md"
               />
             ) : (
-              <div className="flex size-20 items-center justify-center rounded-lg border border-dashed text-muted-foreground print:size-16 print:rounded-md">
+              <div className="flex size-20 items-center justify-center rounded-lg border border-dashed text-muted-foreground sm:size-24 print:size-16 print:rounded-md">
                 <ImageIcon className="size-7 print:size-5" />
               </div>
             )}
@@ -81,7 +85,7 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
               <p className="truncate font-medium">{student.prefix}{student.first_name} {student.last_name}</p>
             </div>
           </div>
-          <dl className="space-y-3 text-sm print:grid print:grid-cols-2 print:gap-x-5 print:gap-y-1.5 print:space-y-0 print:text-[11px]">
+          <dl className="grid gap-3 text-sm sm:grid-cols-2 print:grid-cols-2 print:gap-x-5 print:gap-y-1.5 print:text-[11px]">
             <InfoRow
               label={studentT('fullName')}
               value={`${student.prefix}${student.first_name} ${student.last_name}`}
@@ -156,8 +160,8 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
       </Card>
       </div>
 
-      <Card className="print:order-2 print:col-span-1 print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none xl:sticky xl:top-20 xl:self-start">
-        <CardHeader className="print:border-b print:bg-neutral-900 print:px-3 print:py-2 print:text-white">
+      <Card className="print:order-2 print:col-span-1 print:break-inside-avoid print:rounded-md print:border print:border-neutral-300 print:bg-white print:shadow-none xl:sticky xl:top-4 xl:self-start">
+        <CardHeader className="border-b bg-muted/30 print:border-b print:bg-neutral-900 print:px-3 print:py-2 print:text-white">
           <CardTitle className="text-lg print:text-[12px] print:font-semibold">{studentT('conductScore')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 print:space-y-1.5 print:px-3 print:py-2">

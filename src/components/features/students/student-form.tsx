@@ -83,7 +83,6 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     relative: t('guardianRelationRelative'),
     other: t('guardianRelationOther'),
   };
-  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [availableClassrooms, setAvailableClassrooms] = useState<ClassroomOption[]>([]);
   const [stages, setStages] = useState<StageOption[]>([]);
   const [selectedYearId, setSelectedYearId] = useState<string>('');
@@ -125,7 +124,6 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   });
 
   const classroomId = watch('classroom_id');
-  const selectedClassroom = availableClassrooms.find(c => c.id === classroomId);
 
   // If classrooms are provided via props (backward compat), use those
   const displayClassrooms = useMemo(() => {
@@ -204,7 +202,6 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
       getEducationStages(),
     ]).then(([yearRes, stageRes]) => {
       if (yearRes.success && yearRes.data) {
-        setAcademicYears(yearRes.data);
         const current = yearRes.data.find((y: AcademicYear) => y.is_current);
         if (current) {
           setSelectedYearId(current.id);
@@ -362,13 +359,40 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="student_id_number">{t('idTenDigits')} *</Label>
-        <Input id="student_id_number" inputMode="numeric" {...register('student_id_number')} placeholder={t('idPlaceholder')} />
-        {errors.student_id_number && <p className="text-xs text-destructive">{errors.student_id_number.message}</p>}
+      <div className={`grid gap-3 ${defaultValues?.current_status ? 'sm:grid-cols-2' : ''}`}>
+        <div className="space-y-2">
+          <Label htmlFor="student_id_number">{t('idTenDigits')} *</Label>
+          <Input id="student_id_number" inputMode="numeric" {...register('student_id_number')} placeholder={t('idPlaceholder')} />
+          {errors.student_id_number && <p className="text-xs text-destructive">{errors.student_id_number.message}</p>}
+        </div>
+
+        {defaultValues?.current_status && (
+          <div className="space-y-2">
+            <Label>{t('status')}</Label>
+            <Select
+              value={statusValue}
+              onValueChange={(v) => v && setValue('current_status', v as StudentInput['current_status'])}
+              itemToStringLabel={(value) => {
+                const labels: Record<string, string> = { active: t('statusActive'), inactive: t('statusInactive'), transferred: t('statusTransferred'), graduated: t('statusGraduated'), suspended: t('statusSuspended') };
+                return labels[value] || String(value);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active" label={t('statusActive')}>{t('statusActive')}</SelectItem>
+                <SelectItem value="inactive" label={t('statusInactive')}>{t('statusInactive')}</SelectItem>
+                <SelectItem value="transferred" label={t('statusTransferred')}>{t('statusTransferred')}</SelectItem>
+                <SelectItem value="graduated" label={t('statusGraduated')}>{t('statusGraduated')}</SelectItem>
+                <SelectItem value="suspended" label={t('statusSuspended')}>{t('statusSuspended')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>{t('gradeLevel')} *</Label>
           <Select
@@ -523,38 +547,13 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
         </div>
       </div>
 
-      {defaultValues?.current_status && (
-        <div className="space-y-2">
-          <Label>{t('status')}</Label>
-          <Select
-            value={statusValue}
-            onValueChange={(v) => v && setValue('current_status', v as StudentInput['current_status'])}
-            itemToStringLabel={(value) => {
-              const labels: Record<string, string> = { active: t('statusActive'), inactive: t('statusInactive'), transferred: t('statusTransferred'), graduated: t('statusGraduated'), suspended: t('statusSuspended') };
-              return labels[value] || String(value);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active" label={t('statusActive')}>{t('statusActive')}</SelectItem>
-              <SelectItem value="inactive" label={t('statusInactive')}>{t('statusInactive')}</SelectItem>
-              <SelectItem value="transferred" label={t('statusTransferred')}>{t('statusTransferred')}</SelectItem>
-              <SelectItem value="graduated" label={t('statusGraduated')}>{t('statusGraduated')}</SelectItem>
-              <SelectItem value="suspended" label={t('statusSuspended')}>{t('statusSuspended')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="grid grid-cols-1 gap-2 border-t pt-4 sm:flex sm:justify-end">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onCancel}>
             {common('cancel')}
           </Button>
         )}
-        <Button type="submit" disabled={isSubmitting || loading}>
+        <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting || loading}>
           {isSubmitting || loading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : null}

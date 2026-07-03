@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { ArrowLeft, AlertCircle, Edit3, ClipboardPlus, Loader2, Printer, KeyRound, Copy, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,13 +11,10 @@ import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { StudentDetail } from '@/components/features/students/student-detail';
 import { StudentForm, type SubmitResult } from '@/components/features/students/student-form';
-import { EvidenceUploader, createEvidenceFiles, type EvidenceFile } from '@/components/features/scores/evidence-uploader';
+import { EvidenceUploader, type EvidenceFile } from '@/components/features/scores/evidence-uploader';
 import { getStudent, editStudent, checkStudentViewerRole, resetStudentPassword } from '@/lib/actions/student.action';
 import { getCategories, getScoreRecordingAvailability, recordScore } from '@/lib/actions/score.action';
 import { getIndividualReport } from '@/lib/actions/report.action';
@@ -28,15 +25,10 @@ import type { ScoreCategory } from '@/types';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 import { useTranslations } from 'next-intl';
 
-const STATUS_OPTIONS = [
-  { value: 'active', labelKey: 'statusActive' },
-  { value: 'inactive', labelKey: 'statusInactive' },
-  { value: 'transferred', labelKey: 'statusTransferred' },
-  { value: 'graduated', labelKey: 'statusGraduated' },
-  { value: 'suspended', labelKey: 'statusSuspended' },
-];
-
-type StudentStatusValue = NonNullable<StudentInput['current_status']>;
+interface StudentDetailDialogProps {
+  studentId: string;
+  onClose: () => void;
+}
 
 interface IndividualReportTransaction {
   id: string;
@@ -90,8 +82,8 @@ function formatPrintDate(value: Date) {
 async function uploadEvidenceFiles(
   transactionId: string,
   evidenceFiles: EvidenceFile[],
-  fallbackError: string,
   onProgress: (index: number, status: EvidenceFile['status']) => void,
+  formatUploadError: (index: number) => string,
 ) {
   if (evidenceFiles.length === 0) return;
   // Upload files one by one with progress
@@ -104,30 +96,27 @@ async function uploadEvidenceFiles(
       const response = await fetch('/api/upload/evidence', { method: 'POST', body: formData });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        throw new Error(payload?.error || fallbackError);
+        throw new Error(typeof payload?.error === 'string' ? payload.error : '');
       }
       onProgress(i, 'done');
     } catch {
       onProgress(i, 'error');
-      throw new Error(`อัพโหลดรูปที่ ${i + 1} ไม่สำเร็จ`);
+      throw new Error(formatUploadError(i + 1));
     }
   }
 }
 
-export default function StudentDetailPage() {
+export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogProps) {
   const commonT = useTranslations('common');
   const studentT = useTranslations('student');
   const scoreT = useTranslations('score');
   const settingsT = useTranslations('settings');
-  const params = useParams();
-  const router = useRouter();
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [student, setStudent] = useState<StudentWithProfile | null>(null);
   const [reportData, setReportData] = useState<IndividualReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showEditForm, setShowEditForm] = useState(false);
-  const [changingStatus, setChangingStatus] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
   const [resetPasswordResult, setResetPasswordResult] = useState<string | null>(null);
   const [categories, setCategories] = useState<ScoreCategory[]>([]);
@@ -148,6 +137,16 @@ export default function StudentDetailPage() {
   const [recordNote, setRecordNote] = useState('');
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
   const [recording, setRecording] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleCloseDetail = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  const handleModalOpenChange = useCallback((open: boolean) => {
+    if (!open) handleCloseDetail();
+  }, [handleCloseDetail]);
+
   const getStatusLabel = useCallback((status?: string | null) => {
     switch (status) {
       case 'active':
@@ -161,16 +160,19 @@ export default function StudentDetailPage() {
       case 'suspended':
         return studentT('statusSuspended');
       default:
-        return status || commonT('notAvailable');
+        return status ?? '';
     }
-  }, [commonT, studentT]);
+  }, [studentT]);
 
   const loadData = useCallback(async () => {
-    const id = params.id as string;
+    setLoading(true);
+    setError('');
+    setStudent(null);
+    setReportData(null);
     const [studentRes, reportRes, roleRes, scoreRecordRes] = await Promise.all([
-      getStudent(id),
-      getIndividualReport(id, selectedAcademicYearId || undefined),
-      checkStudentViewerRole(id),
+      getStudent(studentId),
+      getIndividualReport(studentId, selectedAcademicYearId || undefined),
+      checkStudentViewerRole(studentId),
       getScoreRecordingAvailability(selectedAcademicYearId || undefined),
     ]);
 
@@ -199,7 +201,7 @@ export default function StudentDetailPage() {
     } else {
       setScoreRecordingAvailability({ can_record: false, reason: settingsT('academicYearAvailabilityCheckFailed') });
     }
-  }, [params.id, selectedAcademicYearId, settingsT, studentT]);
+  }, [selectedAcademicYearId, settingsT, studentId, studentT]);
 
   useEffect(() => {
     async function load() {
@@ -257,10 +259,10 @@ export default function StudentDetailPage() {
         await uploadEvidenceFiles(
           res.data.id,
           evidenceFiles,
-          studentT('uploadEvidenceFailed'),
           (index, status) => {
             setEvidenceFiles(prev => prev.map((f, i) => i === index ? { ...f, status } : f));
           },
+          (index) => studentT('evidenceUploadFailedItem', { index }),
         );
         toast(cat?.requires_approval ? studentT('scoreSubmittedApproval') : studentT('scoreRecordSuccess'));
         setShowRecordDialog(false);
@@ -288,6 +290,8 @@ export default function StudentDetailPage() {
     try {
       const res = await resetStudentPassword(student.id);
       if (res.success) {
+        setShowRecordDialog(false);
+        setShowEditForm(false);
         setResetPasswordResult(res.data.temporary_password);
       } else {
         toast(commonT('error'), { description: res.error?.message });
@@ -296,25 +300,6 @@ export default function StudentDetailPage() {
       toast(commonT('error'));
     } finally {
       setResettingPassword(false);
-    }
-  };
-
-  const handleStatusChange = async (newStatus: string | null) => {
-    if (!newStatus) return;
-    if (!student || changingStatus) return;
-    setChangingStatus(true);
-    try {
-      const result = await editStudent(student.id, { current_status: newStatus as StudentStatusValue });
-      if (result.success) {
-        toast(studentT('statusChangeSuccess'));
-        await loadData();
-      } else {
-        toast(commonT('error'), { description: result.error?.message });
-      }
-    } catch {
-      toast(commonT('error'), { description: studentT('statusChangeFailed') });
-    } finally {
-      setChangingStatus(false);
     }
   };
 
@@ -366,35 +351,161 @@ export default function StudentDetailPage() {
     window.print();
   };
 
+  const openRecordPanel = () => {
+    setShowEditForm(false);
+    setResetPasswordResult(null);
+    setRecordType('deduct');
+    setRecordCategory('');
+    setRecordPoints(5);
+    setExtraPoints(0);
+    setExtraReason('');
+    setRecordNote('');
+    setEvidenceFiles([]);
+    setShowRecordDialog(true);
+  };
+
+  const openEditPanel = () => {
+    setShowRecordDialog(false);
+    setResetPasswordResult(null);
+    setShowEditForm(true);
+  };
+
   const canRecordScoreInSelectedYear = canManage && scoreRecordingAvailability?.can_record === true;
   const canEditStudentInSelectedYear = canChangeStatus && scoreRecordingAvailability?.can_record === true;
   const scoreActionUnavailableReason = scoreRecordingAvailability?.reason || studentT('currentYearOnly');
+  const hasActiveActionPanel = showRecordDialog || showEditForm || Boolean(resetPasswordResult);
+
+  useEffect(() => {
+    if (!hasActiveActionPanel) return;
+    contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [hasActiveActionPanel]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div>
-      </div>
+      <Dialog open onOpenChange={handleModalOpenChange}>
+        <DialogContent showCloseButton={false} className="w-[calc(100vw-1rem)] max-w-3xl p-0 sm:max-w-3xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{studentT('detail')}</DialogTitle>
+          </DialogHeader>
+          <div className="flex min-h-[320px] items-center justify-center p-6">
+            <div className="flex flex-col items-center gap-2">
+              <Spinner className="size-8" />
+              <p className="text-sm text-muted-foreground">{commonT('loading')}</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
   if (error || !student) {
     return (
-      <div className="p-6">
-        <div className="flex items-center gap-2 text-destructive">
-          <AlertCircle className="h-5 w-5" />
-          <span>{error || studentT('notFound')}</span>
-        </div>
-        <Button variant="outline" className="mt-4" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {commonT('back')}
-        </Button>
-      </div>
+      <Dialog open onOpenChange={handleModalOpenChange}>
+        <DialogContent showCloseButton={false} className="w-[calc(100vw-1rem)] max-w-md p-0 sm:max-w-md">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{studentT('detail')}</DialogTitle>
+          </DialogHeader>
+          <div className="p-6">
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              <span>{error || studentT('notFound')}</span>
+            </div>
+            <Button variant="outline" className="mt-4" onClick={handleCloseDetail}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {commonT('back')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
   return (
-    <div className="space-y-5 p-4 pb-24 print:space-y-3 print:bg-white print:p-0 print:pb-0 print:text-xs print:text-black sm:p-6 sm:pb-6">
+    <Dialog open onOpenChange={handleModalOpenChange}>
+      <DialogContent showCloseButton={false} className="h-dvh w-screen max-w-none overflow-hidden rounded-none p-0 print:static print:h-auto print:w-full print:max-w-none print:translate-x-0 print:translate-y-0 print:overflow-visible print:rounded-none print:bg-white print:ring-0 sm:h-[min(94dvh,940px)] sm:w-[calc(100vw-1rem)] sm:max-w-7xl sm:rounded-xl">
+        <div className="flex h-full flex-col print:block">
+          <DialogHeader className="border-b bg-background px-4 py-3 print:hidden sm:px-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={handleCloseDetail}>
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                {student.avatar_url ? (
+                  <Image
+                    src={student.avatar_url}
+                    alt={studentT('studentPhotoAlt', { name: `${student.prefix}${student.first_name} ${student.last_name}` })}
+                    width={48}
+                    height={48}
+                    unoptimized
+                    className="size-12 shrink-0 rounded-md border object-cover"
+                  />
+                ) : (
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-sm font-semibold text-muted-foreground">
+                    {student.first_name.slice(0, 1)}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <DialogTitle className="truncate text-xl font-bold leading-tight">
+                      {student.prefix}{student.first_name} {student.last_name}
+                    </DialogTitle>
+                    <Badge
+                      variant="outline"
+                      className={student.current_status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}
+                    >
+                      {getStatusLabel(student.current_status)}
+                    </Badge>
+                  </div>
+                  <DialogDescription className="mt-1">
+                    {studentT('id')}: <span className="font-mono">{student.student_id_number}</span>
+                    {student.classroom_name ? ` · ${studentT('classroom')} ${student.classroom_name}` : ''}
+                  </DialogDescription>
+                </div>
+              </div>
+              <div className="hidden flex-wrap gap-2 pl-12 sm:pl-16 lg:flex lg:pl-0">
+                <Button type="button" variant="outline" onClick={handlePrint}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  {studentT('exportPdf')}
+                </Button>
+                {canManage && (
+                  <Button
+                    type="button"
+                    disabled={!canRecordScoreInSelectedYear}
+                    title={canRecordScoreInSelectedYear ? undefined : scoreActionUnavailableReason}
+                    onClick={openRecordPanel}
+                  >
+                    <ClipboardPlus className="mr-2 h-4 w-4" />
+                    {scoreT('recordTitle')}
+                  </Button>
+                )}
+                {canChangeStatus && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!canEditStudentInSelectedYear}
+                    title={canEditStudentInSelectedYear ? undefined : scoreActionUnavailableReason}
+                    onClick={openEditPanel}
+                  >
+                    <Edit3 className="mr-2 h-4 w-4" />
+                    {studentT('edit')}
+                  </Button>
+                )}
+                {canResetPassword && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={resettingPassword}
+                    onClick={handleResetPassword}
+                  >
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    {resettingPassword ? commonT('processing') : studentT('resetPasswordAction')}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+          <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto print:h-auto print:overflow-visible">
+          <div className={`flex flex-col gap-5 p-4 print:space-y-3 print:bg-white print:p-0 print:pb-0 print:text-xs print:text-black sm:p-5 ${hasActiveActionPanel ? 'pb-6 sm:pb-6' : 'pb-24 sm:pb-24 lg:pb-6'}`}>
       <div className="hidden border-b border-neutral-300 pb-3 print:block">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -414,76 +525,17 @@ export default function StudentDetailPage() {
             <p className="whitespace-nowrap font-medium">
               {commonT('academicYear')}{' '}
               <span className="text-2xl font-bold leading-none text-neutral-900">
-                {reportData?.academic_year || '-'}
+                {reportData?.academic_year ?? ''}
               </span>
             </p>
           </div>
         </div>
       </div>
-      {/* Header */}
-      <div className="flex flex-col gap-4 print:hidden lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <Button variant="ghost" size="icon" className="shrink-0 print:hidden" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold leading-tight print:text-lg sm:text-2xl">{student.prefix}{student.first_name} {student.last_name}</h1>
-              <Badge
-                variant="outline"
-                className={student.current_status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}
-              >
-                {getStatusLabel(student.current_status)}
-              </Badge>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground print:mt-0 print:text-xs">
-              {studentT('id')}: <span className="font-mono">{student.student_id_number}</span>
-              {student.classroom_name ? ` · ${studentT('classroom')} ${student.classroom_name}` : ''}
-            </p>
-          </div>
-        </div>
-        <div className="hidden gap-2 print:hidden sm:flex">
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" />
-            PDF
-          </Button>
-          {canManage && (
-            <Button
-              disabled={!canRecordScoreInSelectedYear}
-              title={canRecordScoreInSelectedYear ? undefined : scoreActionUnavailableReason}
-              onClick={() => { setRecordType('deduct'); setRecordCategory(''); setRecordPoints(5); setExtraPoints(0); setExtraReason(''); setRecordNote(''); setEvidenceFiles([]); setShowRecordDialog(true); }}
-            >
-              <ClipboardPlus className="mr-2 h-4 w-4" />
-              {scoreT('recordTitle')}
-            </Button>
-          )}
-          {canChangeStatus && (
-            <Button
-              variant="outline"
-              disabled={!canEditStudentInSelectedYear}
-              title={canEditStudentInSelectedYear ? undefined : scoreActionUnavailableReason}
-              onClick={() => setShowEditForm(true)}
-            >
-              <Edit3 className="mr-2 h-4 w-4" />
-              {studentT('edit')}
-            </Button>
-          )}
-          {canResetPassword && (
-            <Button
-              variant="outline"
-              disabled={resettingPassword}
-              onClick={handleResetPassword}
-            >
-              <KeyRound className="mr-2 h-4 w-4" />
-              {resettingPassword ? commonT('processing') : 'รีเซ็ตรหัสผ่าน'}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 backdrop-blur print:hidden sm:hidden">
+      {!hasActiveActionPanel && (
+      <div className="absolute inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 backdrop-blur print:hidden lg:hidden">
         <div className={`grid gap-2 ${canManage || canEditProfile ? 'grid-cols-[auto_1fr_auto]' : 'grid-cols-1'}`}>
           <Button
+            type="button"
             variant="outline"
             size="icon"
             onClick={handlePrint}
@@ -493,9 +545,10 @@ export default function StudentDetailPage() {
           </Button>
           {canManage && (
             <Button
+              type="button"
               disabled={!canRecordScoreInSelectedYear}
               title={canRecordScoreInSelectedYear ? undefined : scoreActionUnavailableReason}
-              onClick={() => { setRecordType('deduct'); setRecordCategory(''); setRecordPoints(5); setExtraPoints(0); setExtraReason(''); setRecordNote(''); setEvidenceFiles([]); setShowRecordDialog(true); }}
+              onClick={openRecordPanel}
             >
               <ClipboardPlus className="mr-2 h-4 w-4" />
               {scoreT('recordTitle')}
@@ -503,10 +556,11 @@ export default function StudentDetailPage() {
           )}
           {canChangeStatus && (
             <Button
+              type="button"
               variant="outline"
               disabled={!canEditStudentInSelectedYear}
               title={canEditStudentInSelectedYear ? undefined : scoreActionUnavailableReason}
-              onClick={() => setShowEditForm(true)}
+              onClick={openEditPanel}
               aria-label={studentT('edit')}
             >
               <Edit3 className="h-4 w-4" />
@@ -514,53 +568,20 @@ export default function StudentDetailPage() {
           )}
           {canResetPassword && (
             <Button
+              type="button"
               variant="outline"
               disabled={resettingPassword}
               onClick={handleResetPassword}
-              aria-label="รีเซ็ตรหัสผ่าน"
+              aria-label={studentT('resetPasswordAction')}
             >
               <KeyRound className="h-4 w-4" />
             </Button>
           )}
         </div>
       </div>
+      )}
 
       <StudentDetail student={student} scoreSummary={reportData?.summary} />
-
-      {canChangeStatus && scoreRecordingAvailability?.can_record === true && (
-        <Card className="print:hidden">
-          <CardHeader>
-            <CardTitle className="text-lg">{studentT('manageStatus')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-              <Select
-                value={student.current_status}
-                onValueChange={handleStatusChange}
-                disabled={changingStatus}
-                itemToStringLabel={(value) => {
-                  const opt = STATUS_OPTIONS.find(o => o.value === value);
-                  return opt ? studentT(opt.labelKey) : String(value);
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} label={studentT(opt.labelKey)}>
-                      {studentT(opt.labelKey)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-sm text-muted-foreground">
-                {changingStatus ? studentT('changingStatus') : studentT('changeStatus')}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Score History */}
       {reportData?.transactions && reportData.transactions.length > 0 && (
@@ -594,12 +615,19 @@ export default function StudentDetailPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate print:max-w-none print:whitespace-normal print:text-neutral-700">
                       <div className="flex items-center gap-2">
-                        <span>{t.note || '-'}</span>
+                        <span>{t.note ?? ''}</span>
                         {t.evidence && t.evidence.length > 0 && (
                           <div className="flex gap-1 shrink-0">
                             {t.evidence.map((e) => (
                               <a key={e.id} href={e.file_url} target="_blank" rel="noopener noreferrer">
-                                <img src={e.file_url} alt={e.file_name || 'หลักฐาน'} className="size-8 rounded border object-cover hover:ring-2 hover:ring-primary transition-all" />
+                                <Image
+                                  src={e.file_url}
+                                  alt={e.file_name ?? ''}
+                                  width={32}
+                                  height={32}
+                                  unoptimized
+                                  className="size-8 rounded border object-cover hover:ring-2 hover:ring-primary transition-all"
+                                />
                               </a>
                             ))}
                           </div>
@@ -629,15 +657,15 @@ export default function StudentDetailPage() {
         </Card>
       )}
 
-      {canRecordScoreInSelectedYear && (
-        <Dialog open={showRecordDialog} onOpenChange={setShowRecordDialog}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{scoreT('recordTitle')}</DialogTitle>
-            <DialogDescription>
+      {canRecordScoreInSelectedYear && showRecordDialog && (
+        <Card className="order-first border-primary/30 print:hidden">
+          <CardHeader>
+            <CardTitle>{scoreT('recordTitle')}</CardTitle>
+            <p className="text-sm text-muted-foreground">
               {student?.prefix}{student?.first_name} {student?.last_name} ({student?.student_id_number})
-            </DialogDescription>
-          </DialogHeader>
+            </p>
+          </CardHeader>
+          <CardContent>
 
           <div className="space-y-4 py-2">
             <div className="space-y-1">
@@ -789,37 +817,36 @@ export default function StudentDetailPage() {
             )}
           </div>
 
-          <DialogFooter className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 border-t pt-4 sm:grid-cols-2">
             <Button
               variant="outline"
               onClick={() => setShowRecordDialog(false)}
-              className="h-14 w-full px-4 text-base font-semibold"
+              className="h-12 w-full px-4 text-base font-semibold"
             >
               {commonT('cancel')}
             </Button>
             <Button
               onClick={handleRecordScore}
               disabled={!recordType || !recordCategory || recordPoints <= 0 || (categories.find(c => c.id === recordCategory)?.requires_evidence && evidenceFiles.length === 0) || (extraPoints > 0 && !extraReason.trim()) || recording}
-              className="h-14 w-full px-4 text-base font-semibold"
+              className="h-12 w-full px-4 text-base font-semibold"
             >
               {recording && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {commonT('save')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Edit Dialog */}
-      {canEditStudentInSelectedYear && (
-      <Dialog open={showEditForm} onOpenChange={(open) => !open && setShowEditForm(false)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{studentT('edit')}</DialogTitle>
-            <DialogDescription>
+      {canEditStudentInSelectedYear && showEditForm && (
+        <Card className="order-first border-primary/30 print:hidden">
+          <CardHeader>
+            <CardTitle>{studentT('edit')}</CardTitle>
+            <p className="text-sm text-muted-foreground">
               {studentT('editDescription')}
-            </DialogDescription>
-          </DialogHeader>
+            </p>
+          </CardHeader>
+          <CardContent>
           <StudentForm
             defaultValues={{
               prefix: normalizeStudentPrefix(student.prefix),
@@ -828,31 +855,33 @@ export default function StudentDetailPage() {
               student_id_number: student.student_id_number,
               classroom_id: student.classroom_id,
               class_number: 1,
-              avatar_url: student.avatar_url || '',
+              avatar_url: student.avatar_url ?? '',
               current_status: canChangeStatus ? student.current_status : undefined,
-              guardian_full_name: student.guardian_full_name || '',
+              guardian_full_name: student.guardian_full_name ?? '',
               guardian_relation: normalizeGuardianRelation(student.guardian_relation),
-              guardian_phone: student.guardian_phone || '',
+              guardian_phone: student.guardian_phone ?? '',
             }}
             onSubmit={handleEditStudent}
             onCancel={() => setShowEditForm(false)}
           />
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Reset Password Result Modal */}
-      <Dialog open={!!resetPasswordResult} onOpenChange={() => setResetPasswordResult(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+      {resetPasswordResult && (
+        <Card className="order-first border-green-200 print:hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
-              รีเซ็ตรหัสผ่านสำเร็จ
-            </DialogTitle>
-            <DialogDescription>
-              รหัสผ่านชั่วคราวสำหรับ {student?.prefix}{student?.first_name} {student?.last_name}
-            </DialogDescription>
-          </DialogHeader>
+              {studentT('passwordResetSuccess')}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {studentT('resetPasswordTempDescription', {
+                name: `${student?.prefix ?? ''}${student?.first_name ?? ''} ${student?.last_name ?? ''}`.trim(),
+              })}
+            </p>
+          </CardHeader>
+          <CardContent>
           <div className="space-y-3 py-2">
             <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
               <code className="flex-1 text-lg font-bold tracking-wider text-center select-all">{resetPasswordResult}</code>
@@ -862,18 +891,23 @@ export default function StudentDetailPage() {
                 className="h-8 w-8 shrink-0"
                 onClick={() => {
                   if (resetPasswordResult) navigator.clipboard.writeText(resetPasswordResult);
-                  toast('คัดลอกรหัสผ่านแล้ว');
+                  toast(studentT('passwordCopied'));
                 }}
               >
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
           </div>
-          <DialogFooter>
-            <Button onClick={() => setResetPasswordResult(null)} className="w-full">ปิด</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          <div className="border-t pt-4">
+            <Button onClick={() => setResetPasswordResult(null)} className="w-full sm:w-auto">{commonT('close')}</Button>
+          </div>
+          </CardContent>
+        </Card>
+      )}
+          </div>
+        </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

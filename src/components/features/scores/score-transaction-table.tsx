@@ -1,9 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, UserCheck, Ban, AlertTriangle, Loader2, ArrowUpRight, type LucideProps } from 'lucide-react';
+import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, UserCheck, Ban, Loader2, ArrowUpRight, type LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -66,6 +67,8 @@ export function ScoreTransactionTable({
   const [voidLoading, setVoidLoading] = useState(false);
   const [approveLoading, setApproveLoading] = useState<string | null>(null);
   const [detailTx, setDetailTx] = useState<ScoreTransactionWithDetails | null>(null);
+  const specialAddLabel = studentT('specialAdd');
+  const specialDeductLabel = studentT('specialDeduct');
 
   if (loading) {
     return (
@@ -120,7 +123,8 @@ export function ScoreTransactionTable({
           </TableHeader>
           <TableBody>
             {data.map((t) => {
-              const StatusIcon = statusConfig[t.status]?.icon;
+              const status = statusConfig[t.status];
+              const StatusIcon = status?.icon;
               return (
                 <TableRow
                   key={t.id}
@@ -133,7 +137,7 @@ export function ScoreTransactionTable({
                   <TableCell className="font-mono text-xs" onClick={showStudentProfileLink ? (e) => e.stopPropagation() : undefined}>
                     {showStudentProfileLink ? (
                       <Link
-                        href={`/students/${t.student_id}`}
+                        href={`/students?studentId=${t.student_id}`}
                         className="rounded-sm underline-offset-4 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {t.student_id_number}
@@ -149,13 +153,13 @@ export function ScoreTransactionTable({
                     </span>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
-                    {t.note || '-'}
+                    {t.note ?? ''}
                   </TableCell>
                   <TableCell className="text-xs">{t.recorded_by_name}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={statusConfig[t.status]?.color || ''}>
+                    <Badge variant="outline" className={status?.color ?? ''}>
                       {StatusIcon && <StatusIcon className="mr-1 h-3 w-3 inline" />}
-                      {statusConfig[t.status]?.labelKey ? scoreT(statusConfig[t.status].labelKey) : t.status}
+                      {status?.labelKey ? scoreT(status.labelKey) : ''}
                     </Badge>
                   </TableCell>
                   {showActions && (
@@ -254,13 +258,18 @@ export function ScoreTransactionTable({
           </DialogHeader>
           {detailTx && (
             <div className="space-y-3">
+              {(() => {
+                const detailStatus = statusConfig[detailTx.status];
+                const detailPoints = detailTx.points ?? 0;
+                return (
+                  <>
               {/* Info Card */}
               <div className="rounded-lg border p-4 space-y-2.5 text-sm">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{studentT('detail')}</p>
                   {showStudentProfileLink && (
-                    <Button variant="ghost" size="sm" className="h-auto p-0 text-primary hover:text-primary/80" nativeButton={false} render={<Link href={`/students/${detailTx.student_id}`} />}>
-                      <span className="text-xs">ดูโปรไฟล์</span>
+                    <Button variant="ghost" size="sm" className="h-auto p-0 text-primary hover:text-primary/80" nativeButton={false} render={<Link href={`/students?studentId=${detailTx.student_id}`} />}>
+                      <span className="text-xs">{scoreT('openStudentProfile')}</span>
                       <ArrowUpRight className="h-3.5 w-3.5 ml-0.5" />
                     </Button>
                   )}
@@ -277,24 +286,19 @@ export function ScoreTransactionTable({
               <div className="rounded-lg border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-muted-foreground">{scoreT('points')}</p>
-                  <Badge variant="outline" className={statusConfig[detailTx.status]?.color || ''}>
-                    {statusConfig[detailTx.status]?.labelKey ? scoreT(statusConfig[detailTx.status].labelKey) : detailTx.status}
+                  <Badge variant="outline" className={detailStatus?.color ?? ''}>
+                    {detailStatus?.labelKey ? scoreT(detailStatus.labelKey) : ''}
                   </Badge>
                 </div>
-                <p className={`text-2xl font-bold tabular-nums ${(detailTx.points || 0) > 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  {(detailTx.points || 0) > 0 ? `+${detailTx.points}` : detailTx.points}
+                <p className={`text-2xl font-bold tabular-nums ${detailPoints > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  {detailPoints > 0 ? `+${detailPoints}` : detailPoints}
                 </p>
                 <p className="text-sm text-muted-foreground mt-0.5">{detailTx.category_name}</p>
                 {(() => {
-                  if (!detailTx.note) return null;
-                  const parts = detailTx.note.split('\n').filter(Boolean);
-                  const specialPart = parts.find(p => p.startsWith('คะแนนพิเศษ') || p.startsWith('Special'));
-                  if (!specialPart) return null;
-                  const match = specialPart.match(/(\d+):/);
-                  const specialPoints = match ? parseInt(match[1], 10) : 0;
-                  if (!specialPoints) return null;
-                  const basePoints = Math.abs(detailTx.points || 0) - specialPoints;
-                  const isDeduct = (detailTx.points || 0) < 0;
+                  const noteDetails = extractSpecialNote(detailTx.note, specialAddLabel, specialDeductLabel);
+                  if (!noteDetails) return null;
+                  const basePoints = Math.abs(detailPoints) - noteDetails.points;
+                  const isDeduct = detailPoints < 0;
                   return (
                     <div className="mt-2 pt-2 border-t text-xs space-y-0.5">
                       <div className="flex justify-between text-muted-foreground">
@@ -302,8 +306,8 @@ export function ScoreTransactionTable({
                         <span className="tabular-nums">{isDeduct ? `-${basePoints}` : `+${basePoints}`}</span>
                       </div>
                       <div className="flex justify-between text-amber-600">
-                        <span>⚡ {specialPart.includes('เพิ่ม') && !specialPart.includes('หักเพิ่ม') ? 'เพิ่ม' : 'หักเพิ่ม'}</span>
-                        <span className="tabular-nums">{isDeduct ? `-${specialPoints}` : `+${specialPoints}`}</span>
+                        <span>{`⚡ ${noteDetails.type === 'add' ? specialAddLabel : specialDeductLabel}`}</span>
+                        <span className="tabular-nums">{isDeduct ? `-${noteDetails.points}` : `+${noteDetails.points}`}</span>
                       </div>
                     </div>
                   );
@@ -313,9 +317,8 @@ export function ScoreTransactionTable({
               {/* Note */}
               {(() => {
                 if (!detailTx.note) return null;
-                const parts = detailTx.note.split('\n').filter(Boolean);
-                const specialPart = parts.find(p => p.startsWith('คะแนนพิเศษ') || p.startsWith('Special'));
-                const mainNote = parts.filter(p => p !== specialPart).join('\n');
+                const noteDetails = extractSpecialNote(detailTx.note, specialAddLabel, specialDeductLabel);
+                const mainNote = splitMainNote(detailTx.note, noteDetails?.line);
                 return (
                   <>
                     {mainNote && (
@@ -324,13 +327,11 @@ export function ScoreTransactionTable({
                         <p className="text-sm">{mainNote}</p>
                       </div>
                     )}
-                    {specialPart && (() => {
-                      const colonIdx = specialPart.lastIndexOf(':');
-                      const specialReason = colonIdx > 0 ? specialPart.slice(colonIdx + 1).trim() : '';
+                    {noteDetails && (() => {
                       return (
                         <div className="rounded-lg border p-4 border-amber-200 bg-amber-50/30 dark:border-amber-800 dark:bg-amber-950/20">
-                          <p className="text-xs font-medium text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2">⚡ หมายเหตุคะแนนพิเศษ</p>
-                          <p className="text-sm">{specialReason || specialPart}</p>
+                          <p className="text-xs font-medium text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2">{`⚡ ${scoreT('specialNoteTitle')}`}</p>
+                          <p className="text-sm">{noteDetails.reason}</p>
                         </div>
                       );
                     })()}
@@ -346,9 +347,9 @@ export function ScoreTransactionTable({
                   {detailTx.evidence.map((item) => {
                     const url = resolveEvidenceUrl(item);
                     return (
-                      <a key={item.id} href={url || undefined} target="_blank" rel="noreferrer" className="shrink-0 overflow-hidden rounded-lg border">
+                      <a key={item.id} href={url ? url : undefined} target="_blank" rel="noreferrer" className="shrink-0 overflow-hidden rounded-lg border">
                         {url && item.file_type?.startsWith('image/') ? (
-                          <img src={url} alt={item.file_name} className="h-20 w-20 object-cover" />
+                          <Image src={url} alt={item.file_name} width={80} height={80} className="h-20 w-20 object-cover" unoptimized />
                         ) : (
                           <div className="flex h-20 w-20 items-center justify-center text-xs text-muted-foreground p-1">{item.file_name}</div>
                         )}
@@ -400,6 +401,9 @@ export function ScoreTransactionTable({
               <Button variant="outline" className="w-full" onClick={() => setDetailTx(null)}>
                 {scoreT('close')}
               </Button>
+                  </>
+                );
+              })()}
             </div>
           )}
         </DialogContent>
@@ -413,7 +417,7 @@ function InfoLine({ icon, label, value, mono }: { icon: React.ReactNode; label: 
     <div className="flex items-center gap-1.5">
       <span className="shrink-0 text-muted-foreground">{icon}</span>
       <span className="text-muted-foreground shrink-0">{label}:</span>
-      <span className={`truncate ${mono ? 'font-mono' : ''}`}>{value || '—'}</span>
+      <span className={`truncate ${mono ? 'font-mono' : ''}`}>{value ?? ''}</span>
     </div>
   );
 }
@@ -423,8 +427,40 @@ function TimelineEntry({ icon, label, who, when }: { icon: React.ReactNode; labe
     <div className="flex items-center gap-1.5">
       {icon}
       <span className="shrink-0">{label}:</span>
-      <span className="font-medium">{who || '—'}</span>
+      <span className="font-medium">{who ?? ''}</span>
       {when && <span className="opacity-60 text-[11px]">{new Date(when).toLocaleString()}</span>}
     </div>
   );
+}
+
+function extractSpecialNote(note: string | null | undefined, addLabel: string, deductLabel: string) {
+  if (!note) return null;
+
+  const line = note
+    .split('\n')
+    .map((part) => part.trim())
+    .find((part) => part.includes(addLabel) || part.includes(deductLabel));
+
+  if (!line) return null;
+
+  const match = line.match(/(\d+):\s*(.+)$/);
+  if (!match) return null;
+
+  const points = Number(match[1]);
+  if (!Number.isFinite(points) || points <= 0) return null;
+
+  return {
+    line,
+    points,
+    reason: match[2].trim(),
+    type: line.includes(deductLabel) ? 'deduct' as const : 'add' as const,
+  };
+}
+
+function splitMainNote(note: string, specialLine?: string) {
+  return note
+    .split('\n')
+    .map((part) => part.trim())
+    .filter((part) => part && part !== specialLine)
+    .join('\n');
 }

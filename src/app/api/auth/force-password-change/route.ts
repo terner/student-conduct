@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { apiMessage } from '@/lib/i18n/api'
+import { serverMessage } from '@/lib/i18n/server'
 
 export async function POST(request: Request) {
   try {
@@ -15,7 +16,11 @@ export async function POST(request: Request) {
 
     if (updateError) {
       return NextResponse.json(
-        { error: 'เกิดข้อผิดพลาด: ' + updateError.message },
+        {
+          error: await serverMessage('authPages.forcePasswordChange.updateFailed', {
+            message: updateError.message,
+          }),
+        },
         { status: 500 }
       )
     }
@@ -23,7 +28,7 @@ export async function POST(request: Request) {
     if (!profiles || profiles.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'ไม่พบผู้ใช้ที่ต้องอัปเดต',
+        message: await serverMessage('authPages.forcePasswordChange.noneUpdated'),
         count: 0
       })
     }
@@ -37,7 +42,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `อัปเดตสำเร็จ ${profiles.length} ผู้ใช้`,
+      message: await serverMessage('authPages.forcePasswordChange.updated', { count: profiles.length }),
       count: profiles.length,
       details: grouped
     })

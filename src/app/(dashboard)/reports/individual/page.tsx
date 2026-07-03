@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowDownUp, Download, Eye, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,8 +48,24 @@ const sortOptions: Array<{ value: TableSortBy; labelKey: string }> = [
 const serverSortValues: TableSortBy[] = ['current_score', 'deducted', 'transaction_count', 'latest', 'name'];
 const PAGE_SIZE = 25;
 
+interface StudentRankingReportData {
+  academic_year: string;
+  academic_year_id: string;
+  base_score: number;
+  summary: {
+    total_students: number;
+    average_score: number;
+    min_score: number;
+    max_score: number;
+    total_deducted: number;
+    total_added: number;
+    at_risk_count: number;
+  };
+  rows: StudentRankingRow[];
+}
+
 function formatDateTime(value?: string) {
-  if (!value) return '-';
+  if (!value) return '';
   return new Date(value).toLocaleString('th-TH', {
     dateStyle: 'short',
     timeStyle: 'short',
@@ -132,10 +148,13 @@ export default function IndividualReportPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [rankMode, setRankMode] = useState<RankMode>('risk');
   const [loading, setLoading] = useState(true);
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<StudentRankingReportData | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentRankingRow | null>(null);
   const [page, setPage] = useState(1);
-  const sortLabel = (value: TableSortBy) => reportT(sortOptions.find((option) => option.value === value)?.labelKey || 'studentName');
+  const sortLabel = (value: TableSortBy) => {
+    const option = sortOptions.find((item) => item.value === value);
+    return option ? reportT(option.labelKey) : '';
+  };
 
   useEffect(() => {
     async function loadOptions() {
@@ -189,7 +208,7 @@ export default function IndividualReportPage() {
     return [...result].sort((a, b) => a.name.localeCompare(b.name));
   }, [classrooms, gradeId]);
 
-  async function loadReport() {
+  const loadReport = useCallback(async () => {
     setLoading(true);
     const result = await getStudentRankingReport({
       academic_year_id: academicYearId || undefined,
@@ -202,20 +221,22 @@ export default function IndividualReportPage() {
       rank_mode: rankMode,
     });
     if (result.success) {
-      setReportData(result.data);
+      setReportData(result.data as StudentRankingReportData);
       setSelectedStudent(null);
       setPage(1);
     }
     setLoading(false);
-  }
-
-  const autoLoadKey = `${academicYearId}:${rankMode}`;
+  }, [academicYearId, classroomName, fromDate, gradeId, rankMode, search, sortBy, toDate]);
 
   useEffect(() => {
     if (!academicYearId) return;
-    loadReport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLoadKey]);
+    const timeoutId = window.setTimeout(() => {
+      void loadReport();
+    }, 0);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [academicYearId, loadReport, rankMode]);
 
   function applyFilters() {
     loadReport();
@@ -256,29 +277,27 @@ export default function IndividualReportPage() {
       [reportT('totalDeducted')]: row.total_deducted,
       [reportT('totalAdded')]: row.total_added,
       [reportT('transactionCount')]: row.transaction_count,
-      [reportT('latestRecorded')]: row.latest_recorded_at ? formatDateTime(row.latest_recorded_at) : '',
-    })), `student_ranking_${reportData.academic_year || 'report'}`);
+      [reportT('latestRecorded')]: formatDateTime(row.latest_recorded_at),
+    })), `student_ranking_${reportData.academic_year}`);
   }
 
-  const rows = (reportData?.rows || []) as StudentRankingRow[];
+  const rows = useMemo(() => reportData?.rows ?? [], [reportData]);
   const summary = reportData?.summary;
-  const baseScore = reportData?.base_score || 100;
-  const displayedRows = useMemo(() => {
-    const multiplier = sortDirection === 'asc' ? 1 : -1;
-    return [...rows].sort((a, b) => {
-      let result = 0;
-      if (sortBy === 'rank') result = a.rank_overall - b.rank_overall;
-      else if (sortBy === 'name') result = a.full_name.localeCompare(b.full_name);
-      else if (sortBy === 'classroom') result = a.classroom_name.localeCompare(b.classroom_name) || a.full_name.localeCompare(b.full_name);
-      else if (sortBy === 'current_score') result = a.current_score - b.current_score || b.total_deducted - a.total_deducted;
-      else if (sortBy === 'deducted') result = a.total_deducted - b.total_deducted;
-      else if (sortBy === 'transaction_count') result = a.transaction_count - b.transaction_count;
-      else if (sortBy === 'latest') result = (a.latest_recorded_at || '').localeCompare(b.latest_recorded_at || '');
-      else if (sortBy === 'status') result = statusWeight(a, baseScore) - statusWeight(b, baseScore);
-      return result * multiplier || a.full_name.localeCompare(b.full_name);
-    });
-  }, [baseScore, rows, sortBy, sortDirection]);
-  const pagedRows = useMemo(() => displayedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [displayedRows, page]);
+  const baseScore = reportData?.base_score ?? 100;
+  const multiplier = sortDirection === 'asc' ? 1 : -1;
+  const displayedRows = [...rows].sort((a, b) => {
+    let result = 0;
+    if (sortBy === 'rank') result = a.rank_overall - b.rank_overall;
+    else if (sortBy === 'name') result = a.full_name.localeCompare(b.full_name);
+    else if (sortBy === 'classroom') result = a.classroom_name.localeCompare(b.classroom_name) || a.full_name.localeCompare(b.full_name);
+    else if (sortBy === 'current_score') result = a.current_score - b.current_score || b.total_deducted - a.total_deducted;
+    else if (sortBy === 'deducted') result = a.total_deducted - b.total_deducted;
+    else if (sortBy === 'transaction_count') result = a.transaction_count - b.transaction_count;
+    else if (sortBy === 'latest') result = (a.latest_recorded_at ?? '').localeCompare(b.latest_recorded_at ?? '');
+    else if (sortBy === 'status') result = statusWeight(a, baseScore) - statusWeight(b, baseScore);
+    return result * multiplier || a.full_name.localeCompare(b.full_name);
+  });
+  const pagedRows = displayedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="p-6 space-y-6">
@@ -289,7 +308,7 @@ export default function IndividualReportPage() {
         </div>
         <Button variant="outline" onClick={handleExport} disabled={displayedRows.length === 0}>
           <Download className="mr-2 h-4 w-4" />
-          CSV
+          {reportT('csv')}
         </Button>
       </div>
 
@@ -297,8 +316,8 @@ export default function IndividualReportPage() {
         <div className="grid gap-3 lg:grid-cols-[160px_150px_150px_minmax(200px,1fr)_140px_140px_150px_170px_auto_auto]">
           <Select
             value={academicYearId || null}
-            onValueChange={(value: string | null) => setAcademicYearId(value || '')}
-            itemToStringLabel={(value) => academicYears.find((year) => year.id === value)?.name || ''}
+            onValueChange={(value: string | null) => setAcademicYearId(value ?? '')}
+            itemToStringLabel={(value) => academicYears.find((year) => year.id === value)?.name ?? ''}
           >
             <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={commonT('academicYear')} />
@@ -315,10 +334,10 @@ export default function IndividualReportPage() {
           <Select
             value={gradeId || null}
             onValueChange={(value: string | null) => {
-              setGradeId(value || '');
+              setGradeId(value ?? '');
               setClassroomName('');
             }}
-            itemToStringLabel={(value) => gradeOptions.find((grade) => grade.id === value)?.label || ''}
+            itemToStringLabel={(value) => gradeOptions.find((grade) => grade.id === value)?.label ?? ''}
           >
             <SelectTrigger className="!h-10 w-full">
               <SelectValue placeholder={reportT('allGradeLevels')} />
@@ -334,12 +353,12 @@ export default function IndividualReportPage() {
 
           <Select
             value={classroomName || null}
-            onValueChange={(value: string | null) => setClassroomName(value || '')}
-            itemToStringLabel={(value) => classroomOptions.find((classroom) => classroom.name === value)?.name || ''}
+            onValueChange={(value: string | null) => setClassroomName(value ?? '')}
+            itemToStringLabel={(value) => classroomOptions.find((classroom) => classroom.name === value)?.name ?? ''}
           >
             <SelectTrigger className="!h-10 w-full min-w-0">
               <SelectValue placeholder={reportT('allClassrooms')}>
-                <span className="truncate">{classroomName || reportT('allClassrooms')}</span>
+                <span className="truncate">{classroomName ? classroomName : reportT('allClassrooms')}</span>
               </SelectValue>
             </SelectTrigger>
             <SelectContent className="max-h-[min(18rem,var(--available-height))]">
@@ -429,7 +448,7 @@ export default function IndividualReportPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-lg">{reportT('rankingTitle', { year: reportData?.academic_year || commonT('notAvailable') })}</CardTitle>
+            <CardTitle className="text-lg">{reportT('rankingTitle', { year: reportData?.academic_year ?? '' })}</CardTitle>
             <p className="text-sm text-muted-foreground">
               {rankMode === 'risk'
                 ? reportT('riskRankingNote')
@@ -513,7 +532,7 @@ export default function IndividualReportPage() {
                             variant="outline"
                             size="sm"
                             nativeButton={false}
-                            render={<Link href={`/students/${row.id}`} onClick={(event) => event.stopPropagation()} />}
+                            render={<Link href={`/students?studentId=${row.id}`} onClick={(event) => event.stopPropagation()} />}
                           >
                             {reportT('profile')}
                           </Button>
@@ -543,11 +562,11 @@ export default function IndividualReportPage() {
                       {reportT('studentYearDescription', {
                         studentId: selectedStudent.student_id_number,
                         classroom: selectedStudent.classroom_name,
-                        year: reportData?.academic_year || commonT('notAvailable'),
+                        year: reportData?.academic_year ?? '',
                       })}
                     </SheetDescription>
                   </div>
-                  <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/students/${selectedStudent.id}`} />}>
+                  <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/students?studentId=${selectedStudent.id}`} />}>
                     {reportT('profile')}
                   </Button>
                 </div>
@@ -595,7 +614,7 @@ export default function IndividualReportPage() {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="font-medium">{tx.category_name}</p>
-                              <p className="text-xs text-muted-foreground">{formatDateTime(tx.recorded_at)} · {tx.recorded_by_name || '-'}</p>
+                              <p className="text-xs text-muted-foreground">{formatDateTime(tx.recorded_at)} · {tx.recorded_by_name ?? ''}</p>
                             </div>
                             <span className={tx.points > 0 ? 'font-bold text-emerald-600' : 'font-bold text-destructive'}>
                               {tx.points > 0 ? `+${tx.points}` : tx.points}
