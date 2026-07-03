@@ -245,7 +245,7 @@ export async function updateGuardian(guardianId: string, data: {
     });
 
     revalidatePath('/students');
-    return { success: true };
+    return { success: true, data: null };
   });
 }
 
@@ -282,6 +282,6 @@ export async function deleteGuardian(linkId: string, studentId: string) {
     });
 
     revalidatePath(`/students/${studentId}`);
-    return { success: true };
+    return { success: true, data: null };
   });
 }
