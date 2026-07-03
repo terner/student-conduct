@@ -35,11 +35,11 @@ export function isSuperAdmin(profile: { role?: string | string[] | null }): bool
 }
 
 export function canManageSettings(profile: { role?: string | string[] | null }): boolean {
-  return isSuperAdmin(profile);
+  return hasAnyRole(profile, ['superadmin', 'admin']);
 }
 
 export function canManageSchoolData(profile: { role?: string | string[] | null }): boolean {
-  return isSuperAdmin(profile);
+  return hasAnyRole(profile, ['superadmin', 'admin']);
 }
 
 export function canApproveScores(profile: { role?: string | string[] | null }): boolean {

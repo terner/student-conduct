@@ -14,7 +14,7 @@ function decodeSessionCookie(value: string): { user_id?: string } | null {
   }
 }
 
-const publicRoutes = ['/login', '/pdpa-consent', '/pdpa-rejected', '/change-password'];
+const publicRoutes = ['/login', '/pdpa-consent', '/pdpa-rejected', '/first-password', '/change-password'];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

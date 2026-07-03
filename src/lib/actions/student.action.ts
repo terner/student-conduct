@@ -8,8 +8,9 @@ import { validateXSS } from '@/lib/security/validate-input';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
 import { logAudit } from '@/lib/audit/log';
-import { buildGuardianFullName, parseGuardianFullName } from '@/lib/guardian';
+import { buildGuardianFullName } from '@/lib/guardian';
 import { normalizePhoneInput } from '@/lib/phone';
+import { normalizeEnrollmentStatus, studentCurrentStatusFromEnrollment } from '@/lib/students/import-status';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
@@ -55,6 +56,9 @@ interface StudentExportRow {
   class_number: number | '';
   education_stage: string;
   status: string;
+  guardian_prefix: string;
+  guardian_first_name: string;
+  guardian_last_name: string;
   guardian_full_name: string;
   guardian_relation: string;
   guardian_phone: string;
@@ -367,7 +371,7 @@ export async function getStudentsForCsvExport(params: {
       } => Boolean(row));
 
     const studentIds = rows.map((row) => row.student.id as string);
-    const guardianByStudentId = new Map<string, { full_name: string; relation: string; phone: string }>();
+    const guardianByStudentId = new Map<string, { prefix: string; first_name: string; last_name: string; full_name: string; relation: string; phone: string }>();
     if (studentIds.length > 0) {
       const { data: guardians } = await adminClient
         .from('student_guardians')
@@ -380,14 +384,19 @@ export async function getStudentsForCsvExport(params: {
         if (guardianByStudentId.has(studentId)) continue;
         const guardianValue = guardianRow.guardians as unknown;
         const guardian = (Array.isArray(guardianValue) ? guardianValue[0] : guardianValue) as Record<string, unknown> | null;
-        const parsed = parseGuardianFullName((guardian?.full_name as string) || '');
+        const guardianPrefix = (guardian?.prefix as string) || '';
+        const guardianFirstName = (guardian?.first_name as string) || '';
+        const guardianLastName = (guardian?.last_name as string) || '';
         const fullName = buildGuardianFullName({
-          guardian_prefix: (guardian?.prefix as string) || parsed.guardian_prefix,
-          guardian_first_name: (guardian?.first_name as string) || parsed.guardian_first_name,
-          guardian_last_name: (guardian?.last_name as string) || parsed.guardian_last_name,
+          guardian_prefix: guardianPrefix,
+          guardian_first_name: guardianFirstName,
+          guardian_last_name: guardianLastName,
           guardian_full_name: (guardian?.full_name as string) || '',
         });
         guardianByStudentId.set(studentId, {
+          prefix: guardianPrefix,
+          first_name: guardianFirstName,
+          last_name: guardianLastName,
           full_name: fullName,
           relation: (guardianRow.relation as string) || '',
           phone: (guardian?.phone as string) || '',
@@ -432,6 +441,9 @@ export async function getStudentsForCsvExport(params: {
           class_number: typeof classNumber === 'number' ? classNumber : '',
           education_stage: (stage?.code as string) || (stage?.name_th as string) || '',
           status: (enrollment.enrollment_status as string) || (student.current_status as string) || 'active',
+          guardian_prefix: guardian?.prefix || '',
+          guardian_first_name: guardian?.first_name || '',
+          guardian_last_name: guardian?.last_name || '',
           guardian_full_name: guardian?.full_name || '',
           guardian_relation: guardian?.relation || '',
           guardian_phone: guardian?.phone || '',
@@ -543,25 +555,6 @@ export async function addStudent(data: {
       return { success: false, error: { code: 'INVALID_CLASSROOM_YEAR', message: 'ห้องเรียนนี้ไม่อยู่ในปีการศึกษาปัจจุบัน' } };
     }
 
-    // Check class_number uniqueness within classroom + academic year
-    if (validated.class_number) {
-      const adminClient = await createAdminClient();
-      const { data: existingNumber } = await adminClient
-        .from('student_enrollments')
-        .select('id')
-        .eq('classroom_id', validated.classroom_id)
-        .eq('academic_year_id', currentAcademicYear.id)
-        .eq('class_number', validated.class_number)
-        .maybeSingle();
-
-      if (existingNumber) {
-        return {
-          success: false,
-          error: { code: 'DUPLICATE_CLASS_NUMBER', message: 'เลขที่นี้มีคนใช้แล้วในห้องนี้' },
-        };
-      }
-    }
-
     const result = await createStudent({
       prefix: validated.prefix,
       first_name: validated.first_name,
@@ -633,25 +626,6 @@ export async function editStudent(id: string, data: {
     const editableYear = await ensureStudentEditableInOpenAcademicYear(id, validated.classroom_id);
     if (!editableYear.success) {
       return { success: false, error: { code: 'ACADEMIC_YEAR_CLOSED', message: editableYear.message } };
-    }
-
-    // Check class_number uniqueness (exclude current student)
-    if (validated.class_number && validated.classroom_id) {
-      const adminClient = await createAdminClient();
-      const { data: existingNumber } = await adminClient
-        .from('student_enrollments')
-        .select('id')
-        .eq('classroom_id', validated.classroom_id)
-        .neq('student_id', id)
-        .eq('class_number', validated.class_number)
-        .maybeSingle();
-
-      if (existingNumber) {
-        return {
-          success: false,
-          error: { code: 'DUPLICATE_CLASS_NUMBER', message: 'เลขที่นี้มีคนใช้แล้วในห้องนี้' },
-        };
-      }
     }
 
     const before = await getStudentById(id);
@@ -740,7 +714,7 @@ export async function getAcademicYears() {
     const cached = await getTtlCache<AcademicYearForSelect[]>('academic-years:all');
     if (cached) return { success: true, data: cached };
 
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
     const { data } = await supabase
       .from('academic_years')
       .select('id, name, is_current, base_score')
@@ -944,7 +918,6 @@ export async function getStudentListForSelect(academicYearId?: string) {
       grade_level: (s.classrooms as Record<string, unknown>)?.grade_level as number || 0,
       education_stage_id: (s.classrooms as Record<string, unknown>)?.education_stage_id as string || '',
     }));
-    const found = students.find(s => s.student_id_number === '2569000001');
     await setTtlCache(cacheKey, students, SHORT_LIST_TTL_MS);
     return { success: true, data: students };
   });
@@ -967,69 +940,64 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
     for (let i = 0; i < rows.length; i++) {
       try {
         const row = rows[i];
-        const academicYearName = String(row['ปีการศึกษา'] || row['academic_year'] || '').trim();
         const studentId = String(row['รหัสนักเรียน'] || row['student_id'] || row['student_id_number'] || '');
         const prefix = String(row['คำนำหน้า'] || row['prefix'] || '');
         const firstName = String(row['ชื่อ'] || row['first_name'] || '');
         const lastName = String(row['นามสกุล'] || row['last_name'] || '');
-        const gradeLevel = Number(row['ชั้นปี'] || row['grade_level'] || 1);
         const classroomName = String(row['ห้อง'] || row['classroom'] || '');
         const classNum = row['เลขที่ในห้อง'] || row['เลขที่'] || row['class_number'];
         const classNumber = classNum !== undefined && classNum !== '' ? Number(classNum) : undefined;
         const status = String(row['สถานะ'] || row['status'] || 'active');
-        const guardianFullName = String(row['ชื่อผู้ปกครอง'] || row['guardian_full_name'] || row['guardian_name'] || '');
+        const guardianPrefix = String(row['คำนำหน้าผู้ปกครอง'] || row['guardian_prefix'] || '').trim();
+        const guardianFirstName = String(row['ชื่อผู้ปกครอง'] || row['guardian_first_name'] || '').trim();
+        const guardianLastName = String(row['นามสกุลผู้ปกครอง'] || row['guardian_last_name'] || '').trim();
         const guardianRelation = String(row['ความสัมพันธ์'] || row['guardian_relation'] || 'guardian');
         const guardianPhone = normalizePhoneInput(String(row['เบอร์โทรผู้ปกครอง'] || row['guardian_phone'] || ''));
+        const csvGradeLevel = Number(row['ชั้นปี'] || row['grade_level'] || 0);
 
         if (!studentId || !firstName || !lastName || !classroomName) {
           errors.push({ row: i + 1, message: 'ข้อมูลไม่ครบ (รหัส, ชื่อ, นามสกุล, ห้อง)' });
           continue;
         }
 
-        const { data: acYear } = academicYearName
-          ? await adminClient
-            .from('academic_years')
-            .select('id, name, start_date, end_date, is_current')
-            .eq('name', academicYearName)
-            .maybeSingle()
-          : await adminClient
-            .from('academic_years')
-            .select('id, name, start_date, end_date, is_current')
-            .eq('is_current', true)
-            .maybeSingle();
+        const { data: acYear } = await adminClient
+          .from('academic_years')
+          .select('id, name, start_date, end_date, is_current')
+          .eq('is_current', true)
+          .maybeSingle();
 
         if (!acYear?.id) {
-          errors.push({ row: i + 1, message: academicYearName ? `ไม่พบปีการศึกษา "${academicYearName}"` : 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' });
-          continue;
-        }
-
-        if (!acYear.is_current) {
-          errors.push({ row: i + 1, message: `นำเข้าได้เฉพาะปีการศึกษาปัจจุบัน (${acYear.name || academicYearName} ไม่ใช่ปีปัจจุบัน)` });
+          errors.push({ row: i + 1, message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' });
           continue;
         }
 
         const closedReason = getAcademicYearClosedReason(acYear);
         if (closedReason) {
-          errors.push({ row: i + 1, message: `ไม่สามารถนำเข้านักเรียนของปี ${acYear.name || academicYearName} ได้ (${closedReason})` });
+          errors.push({ row: i + 1, message: `ไม่สามารถนำเข้านักเรียนของปี ${acYear.name} ได้ (${closedReason})` });
           continue;
         }
 
-        // Find classroom
-        const { data: classroom } = await adminClient
+        // Find classroom (grade_level from CSV is optional — if not provided, match by name only)
+        let classroomQuery = adminClient
           .from('classrooms')
-          .select('id')
+          .select('id, grade_level')
           .eq('name', classroomName)
-          .eq('grade_level', gradeLevel)
-          .eq('academic_year_id', acYear.id)
-          .maybeSingle();
+          .eq('academic_year_id', acYear.id);
+
+        if (csvGradeLevel > 0) {
+          classroomQuery = classroomQuery.eq('grade_level', csvGradeLevel);
+        }
+
+        const { data: classroom } = await classroomQuery.maybeSingle();
 
         if (!classroom) {
-          errors.push({ row: i + 1, message: `ไม่พบห้องเรียน "${classroomName}" ชั้นปี ${gradeLevel} ในปีการศึกษานี้` });
+          errors.push({ row: i + 1, message: `ไม่พบห้องเรียน "${classroomName}" ในปีการศึกษานี้` });
           continue;
         }
 
         const fullName = prefix ? `${prefix}${firstName} ${lastName}` : `${firstName} ${lastName}`;
-        const normalizedStatus = status === 'active' ? 'active' : 'inactive';
+        const normalizedStatus = normalizeEnrollmentStatus(status);
+        const studentCurrentStatus = studentCurrentStatusFromEnrollment(normalizedStatus);
         const normalizedGuardianRelation = normalizeGuardianRelation(guardianRelation);
 
         const { data: existingStudent } = await adminClient
@@ -1039,27 +1007,47 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
           .maybeSingle();
 
         if (existingStudent?.id) {
-          await adminClient
-            .from('profiles')
-            .update({
-              full_name: fullName,
-              prefix: prefix || null,
-              is_active: normalizedStatus === 'active',
-            })
-            .eq('id', existingStudent.profile_id);
+          const studentRecordId = existingStudent.id as string;
+          if (existingStudent.profile_id) {
+            const { error: profileUpdateError } = await adminClient
+              .from('profiles')
+              .update({
+                full_name: fullName,
+                prefix: prefix || null,
+                is_active: studentCurrentStatus === 'active',
+              })
+              .eq('id', existingStudent.profile_id);
+            if (profileUpdateError) {
+              errors.push({ row: i + 1, message: profileUpdateError.message });
+              continue;
+            }
+          }
 
-          await adminClient
+          const { error: studentUpdateError } = await adminClient
             .from('students')
             .update({
               classroom_id: classroom.id,
-              current_status: normalizedStatus,
+              current_status: studentCurrentStatus,
             })
-            .eq('id', existingStudent.id);
+            .eq('id', studentRecordId);
+          if (studentUpdateError) {
+            errors.push({ row: i + 1, message: studentUpdateError.message });
+            continue;
+          }
+
+          const { data: currentEnrollment, error: currentEnrollmentError } = await adminClient
+            .from('student_enrollments')
+            .select('id')
+            .eq('student_id', studentRecordId)
+            .eq('academic_year_id', acYear.id)
+            .maybeSingle();
+          if (currentEnrollmentError) {
+            errors.push({ row: i + 1, message: currentEnrollmentError.message });
+            continue;
+          }
 
           const enrollmentData: Record<string, unknown> = {
-            student_id: existingStudent.id,
             classroom_id: classroom.id,
-            academic_year_id: acYear.id,
             enrollment_status: normalizedStatus,
             source: 'annual_import',
           };
@@ -1067,24 +1055,46 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
             enrollmentData.class_number = classNumber;
           }
 
-          const { data: existingEnrollment } = await adminClient
-            .from('student_enrollments')
-            .select('id')
-            .eq('student_id', existingStudent.id)
-            .eq('academic_year_id', acYear.id)
-            .maybeSingle();
-
-          if (existingEnrollment?.id) {
-            await adminClient
+          if (currentEnrollment?.id) {
+            const { error: enrollmentUpdateError } = await adminClient
               .from('student_enrollments')
               .update(enrollmentData)
-              .eq('id', existingEnrollment.id);
+              .eq('id', currentEnrollment.id);
+            if (enrollmentUpdateError) {
+              errors.push({ row: i + 1, message: enrollmentUpdateError.message });
+              continue;
+            }
           } else {
-            await adminClient.from('student_enrollments').insert(enrollmentData);
+            const { data: previousEnrollment } = await adminClient
+              .from('student_enrollments')
+              .select('id')
+              .eq('student_id', studentRecordId)
+              .neq('academic_year_id', acYear.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            const { error: enrollmentInsertError } = await adminClient
+              .from('student_enrollments')
+              .insert({
+                student_id: studentRecordId,
+                classroom_id: classroom.id,
+                academic_year_id: acYear.id,
+                class_number: classNumber,
+                enrollment_status: normalizedStatus,
+                source: 'annual_import',
+                previous_enrollment_id: previousEnrollment?.id || null,
+              });
+            if (enrollmentInsertError) {
+              errors.push({ row: i + 1, message: enrollmentInsertError.message });
+              continue;
+            }
           }
 
-          await upsertPrimaryGuardian(adminClient, existingStudent.id, {
-            full_name: guardianFullName,
+          await upsertPrimaryGuardian(adminClient, studentRecordId, {
+            prefix: guardianPrefix || undefined,
+            first_name: guardianFirstName || undefined,
+            last_name: guardianLastName || undefined,
             relation: normalizedGuardianRelation,
             phone: guardianPhone,
           });
@@ -1095,7 +1105,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
 
         // Create auth user
         const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
-          email: buildStudentLoginEmail(studentId, String(acYear.name || academicYearName)),
+          email: buildStudentLoginEmail(studentId, acYear.name),
           password: 'Student@123',
           email_confirm: true,
           user_metadata: { full_name: `${firstName} ${lastName}`, role: 'student' },
@@ -1114,7 +1124,8 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
             role: ['student'],
             full_name: fullName,
             prefix: prefix || null,
-            is_active: normalizedStatus === 'active',
+            is_active: studentCurrentStatus === 'active',
+            must_change_password: true,
           })
           .select('id')
           .single();
@@ -1132,7 +1143,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
             profile_id: profile.id,
             student_id_number: studentId,
             classroom_id: classroom.id,
-            current_status: normalizedStatus,
+            current_status: studentCurrentStatus,
           })
           .select('id')
           .single();
@@ -1154,10 +1165,17 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         if (classNumber !== undefined) {
           enrollmentData.class_number = classNumber;
         }
-        await adminClient.from('student_enrollments').insert(enrollmentData);
+        const { error: enrollmentError } = await adminClient.from('student_enrollments').insert(enrollmentData);
+        if (enrollmentError) {
+          await adminClient.auth.admin.deleteUser(authUser.user.id);
+          errors.push({ row: i + 1, message: enrollmentError.message });
+          continue;
+        }
 
         await upsertPrimaryGuardian(adminClient, studentRecord.id, {
-          full_name: guardianFullName,
+          prefix: guardianPrefix || undefined,
+          first_name: guardianFirstName || undefined,
+          last_name: guardianLastName || undefined,
           relation: normalizedGuardianRelation,
           phone: guardianPhone,
         });
@@ -1266,7 +1284,7 @@ export async function resetStudentPassword(studentId: string) {
 
     const { data: profile } = await adminClient
       .from('profiles')
-      .select('user_id')
+      .select('id, user_id')
       .eq('id', student.profile_id)
       .single();
 

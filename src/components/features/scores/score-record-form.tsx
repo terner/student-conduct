@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { scoreRecordSchema, type ScoreRecordInput } from '@/lib/validation/schemas';
 import type { ScoreCategory } from '@/types';
-import { EvidenceUploader } from './evidence-uploader';
+import { EvidenceUploader, type EvidenceFile } from './evidence-uploader';
 import { useTranslations } from 'next-intl';
 
 interface ScoreRecordFormProps {
@@ -26,7 +26,7 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
   const studentT = useTranslations('student');
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ScoreCategory | null>(null);
-  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
+  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
   const [evidenceError, setEvidenceError] = useState('');
 
   const {
@@ -69,7 +69,8 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
       return;
     }
     setEvidenceError('');
-    onSubmit(formData, evidenceFiles);
+    const files = evidenceFiles.map(e => e.file);
+    onSubmit(formData, files);
   };
 
   return (

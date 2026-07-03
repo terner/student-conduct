@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -9,6 +10,7 @@ import {
   ClipboardPlus, FileText, Settings, School, AlertTriangle,
   LogOut, Tags, CheckCircle2,
   CalendarDays, History, Upload,
+  type LucideIcon,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -21,7 +23,7 @@ import { useSelectedAcademicYearId } from '@/lib/academic-year-selection'
 
 interface NavItem {
   label: string
-  icon: any
+  icon: LucideIcon
   href: string
   group: 'main' | 'alert'
   roles?: ('superadmin' | 'admin' | 'teacher' | 'student')[]
@@ -85,6 +87,7 @@ export function AppSidebar({ schoolName, schoolLogo, role }: AppSidebarProps) {
     { label: t('classroomReport'), icon: FileText, href: '/reports/classroom', roles: ['teacher'], group: 'main' },
     { label: t('teachers'), icon: BookOpen, href: '/teachers', roles: ['superadmin'], group: 'main' },
     { label: t('settings'), icon: Settings, href: '/settings', roles: ['superadmin', 'admin'], group: 'main' },
+    { label: 'คู่มือ', icon: BookOpen, href: '/docs', roles: ['superadmin', 'admin'], group: 'main' },
     // Student
     { label: t('myScore'), icon: ClipboardPlus, href: '/student/dashboard', roles: ['student'], group: 'main' },
     // Alert group
@@ -102,7 +105,7 @@ export function AppSidebar({ schoolName, schoolLogo, role }: AppSidebarProps) {
         <Link href="/dashboard" onClick={closeMobileSidebar} className="flex flex-col items-center gap-3 group-data-[collapsible=icon]:gap-0">
           <div className="flex aspect-square size-24 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-md group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:shadow-none">
             {schoolLogo ? (
-              <img src={schoolLogo} alt="" className="size-20 rounded-lg object-contain group-data-[collapsible=icon]:size-6" />
+              <Image src={schoolLogo} alt="" width={80} height={80} unoptimized className="size-20 rounded-lg object-contain group-data-[collapsible=icon]:size-6" />
             ) : (
               <School className="size-12 group-data-[collapsible=icon]:size-4" />
             )}

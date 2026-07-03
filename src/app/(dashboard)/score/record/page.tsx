@@ -216,7 +216,9 @@ export default function ScoreRecordPage() {
 
   // Reset to page 1 when filters change
   const prevFilterKey = useMemo(() => `${search}|${filterStageId}|${filterGrade}|${filterClassroom}`, [search, filterStageId, filterGrade, filterClassroom]);
-  useEffect(() => { setPage(1); }, [prevFilterKey]);
+  useEffect(() => {
+    void Promise.resolve().then(() => setPage(1));
+  }, [prevFilterKey]);
 
   const hasFilters = filterStageId || filterGrade || filterClassroom;
 
@@ -224,8 +226,10 @@ export default function ScoreRecordPage() {
     if (!filterGrade) return;
     const isValidGrade = gradeOptions.some(g => g.id === filterGrade);
     if (!isValidGrade) {
-      setFilterGrade('');
-      setFilterClassroom('');
+      void Promise.resolve().then(() => {
+        setFilterGrade('');
+        setFilterClassroom('');
+      });
     }
   }, [filterGrade, gradeOptions]);
 
@@ -246,7 +250,9 @@ export default function ScoreRecordPage() {
   useEffect(() => {
     if (!filterClassroom) return;
     const isValidClassroom = classroomOptions.some(c => c.id === filterClassroom);
-    if (!isValidClassroom) setFilterClassroom('');
+    if (!isValidClassroom) {
+      void Promise.resolve().then(() => setFilterClassroom(''));
+    }
   }, [filterClassroom, classroomOptions]);
 
   return (

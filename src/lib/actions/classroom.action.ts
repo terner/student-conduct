@@ -168,7 +168,7 @@ export async function getClassrooms(params?: {
     const result = canViewAll
       ? await listClassrooms(params)
       : (await listAssignedClassrooms(assignedClassroomIds)).filter((classroom) => {
-        if (params?.academic_year_id && (classroom as any).academic_year_id !== params.academic_year_id) return false;
+        if (params?.academic_year_id && classroom.academic_year_id !== params.academic_year_id) return false;
         if (params?.education_stage_id && classroom.education_stage_id !== params.education_stage_id) return false;
         if (params?.grade_level_id && classroom.grade_level_id !== params.grade_level_id) return false;
         if (params?.grade_level && classroom.grade_level !== params.grade_level) return false;
@@ -337,7 +337,7 @@ export async function editClassroom(id: string, data: {
     if (!editableYear.success) return editableYear;
 
     const before = await getClassroomById(id);
-    await updateClassroom(id, data as any);
+    await updateClassroom(id, data);
     const after = await getClassroomById(id);
     await clearTtlCacheByPrefix('classrooms:');
     await clearTtlCacheByPrefix('classrooms-for-select:');

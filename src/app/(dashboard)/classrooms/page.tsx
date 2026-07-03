@@ -41,6 +41,7 @@ export default function ClassroomsPage() {
   const [filterGrade, setFilterGrade] = useState<string>('');
   const [filterClassroom, setFilterClassroom] = useState<string>('');
   const [stages, setStages] = useState<StageOption[]>([]);
+  const [allGradeOptions, setAllGradeOptions] = useState<{ id: string; grade_level: number }[]>([]);
 
   const getStageLabel = (stage: StageOption) => {
     if (stage.code === 'secondary') return 'มัธยมต้น';
@@ -67,7 +68,7 @@ export default function ClassroomsPage() {
       // Collect all grade options (only when no filter is applied, to keep options stable)
       if (!filterStageId && !filterGrade) {
         const seen = new Map<string, { id: string; grade_level: number }>();
-        result.data.forEach((c: any) => {
+        result.data.forEach((c: ClassroomWithDetails) => {
           const key = c.grade_level_id || String(c.grade_level);
           if (!seen.has(key)) seen.set(key, { id: c.grade_level_id || String(c.grade_level), grade_level: c.grade_level });
         });
@@ -82,7 +83,9 @@ export default function ClassroomsPage() {
     setLoading(false);
   }, [selectedAcademicYearId, filterStageId, filterGrade]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    void Promise.resolve().then(fetchData);
+  }, [fetchData]);
 
   // Client-side search filter
   const filteredData = useMemo(() => {
@@ -98,10 +101,9 @@ export default function ClassroomsPage() {
 
   const pagedData = useMemo(() => filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredData, page]);
 
-  useEffect(() => { setPage(1); }, [search]);
-
-  // Grade options — keep all options even when filtered
-  const [allGradeOptions, setAllGradeOptions] = useState<{ id: string; grade_level: number }[]>([]);
+  useEffect(() => {
+    void Promise.resolve().then(() => setPage(1));
+  }, [search]);
 
   const gradeOptions = useMemo(() => {
     // Use unfiltered options so dropdown doesn't collapse when filtering

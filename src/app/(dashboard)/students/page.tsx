@@ -224,7 +224,7 @@ export default function StudentsPage() {
 
     // BOM for Thai characters in Excel
     const BOM = '﻿';
-    const headers = ['ปีการศึกษา', 'รหัสนักเรียน', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'ชั้นปี', 'ห้อง', 'เลขที่ในห้อง', 'ระดับ', 'สถานะ', 'ชื่อผู้ปกครอง', 'ความสัมพันธ์', 'เบอร์โทรผู้ปกครอง'];
+    const headers = ['ปีการศึกษา', 'รหัสนักเรียน', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'ชั้นปี', 'ห้อง', 'เลขที่ในห้อง', 'ระดับ', 'สถานะ', 'คำนำหน้าผู้ปกครอง', 'ชื่อผู้ปกครอง', 'นามสกุลผู้ปกครอง', 'ความสัมพันธ์', 'เบอร์โทรผู้ปกครอง'];
     const rows = exportRows.map((s) => [
       s.academic_year,
       s.student_id,
@@ -236,7 +236,9 @@ export default function StudentsPage() {
       String(s.class_number),
       s.education_stage,
       s.status,
-      s.guardian_full_name,
+      s.guardian_prefix,
+      s.guardian_first_name,
+      s.guardian_last_name,
       s.guardian_relation,
       s.guardian_phone,
     ]);
@@ -289,13 +291,13 @@ export default function StudentsPage() {
     if (visibleIds.length === 0 || !selectedAcademicYearId) return;
 
     let cancelled = false;
-    setScoresLoading(true);
-    getStudentScores(visibleIds, selectedAcademicYearId).then((result) => {
+    void Promise.resolve().then(() => setScoresLoading(true));
+    void getStudentScores(visibleIds, selectedAcademicYearId).then((result) => {
       if (cancelled) return;
       if (result.success && result.data) {
         setScores((prev) => ({ ...prev, ...result.data }));
       }
-      setScoresLoading(false);
+      void Promise.resolve().then(() => setScoresLoading(false));
     });
 
     return () => { cancelled = true; };
@@ -320,7 +322,7 @@ export default function StudentsPage() {
 
   useEffect(() => {
     if (page > totalPages) {
-      setPage(1);
+      void Promise.resolve().then(() => setPage(1));
     }
   }, [page, totalPages]);
 

@@ -54,6 +54,15 @@ export const changePasswordSchema = z.object({
   path: ['confirm_password'],
 });
 
+// For forced password change (first-time login, no current password required)
+export const forceChangePasswordSchema = z.object({
+  new_password: passwordSchema,
+  confirm_password: z.string().min(1, errorMessages.required),
+}).refine(data => data.new_password === data.confirm_password, {
+  message: errorMessages.passwordMismatch,
+  path: ['confirm_password'],
+});
+
 export const staffPasswordSchema = z
   .string()
   .min(8, errorMessages.passwordMin)
@@ -234,11 +243,9 @@ export const teacherSchema = z.object({
   prefix: z.enum(teacherPrefixEnum).default('นาย'),
   first_name: z
     .string()
-    .min(2, errorMessages.tooShort(2))
     .max(50, errorMessages.tooLong(50)),
   last_name: z
     .string()
-    .min(2, errorMessages.tooShort(2))
     .max(50, errorMessages.tooLong(50)),
   email: z
     .string()
@@ -246,6 +253,7 @@ export const teacherSchema = z.object({
   phone: z
     .string()
     .regex(THAI_PHONE_REGEX, errorMessages.invalidPhone)
+    .max(20)
     .optional()
     .or(z.literal('')),
   employee_id: z

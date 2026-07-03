@@ -68,6 +68,8 @@ export async function saveSystemSettings(input: {
       ['google_drive_private_key', input.settings.google_drive_private_key],
       ['google_drive_profile_folder_id', input.settings.google_drive_profile_folder_id],
       ['google_drive_evidence_folder_id', input.settings.google_drive_evidence_folder_id],
+      ['resend_api_key', input.settings.resend_api_key],
+      ['resend_from', input.settings.resend_from],
     ].map(([key, value]) => ({
       key,
       value: value ?? null,

@@ -2,7 +2,7 @@
 
 ## ระบบคะแนนความประพฤตินักเรียน
 
-> Actual project status — updated 2026-05-11
+> Actual project status — updated 2026-06-04
 > ระบบทำงานแล้วบน production (Vercel + Supabase)
 
 ---
@@ -12,32 +12,43 @@
 ### Database Schema (Supabase) — ✅ เสร็จสมบูรณ์
 | ตาราง | สถานะ | ข้อมูล |
 |-------|--------|--------|
-| `profiles` | ✅ | 331 records |
+| `profiles` | ✅ | 724 records |
 | `academic_years` | ✅ | 1 record |
 | `education_stages` | ✅ | 5 records |
 | `grade_levels` | ✅ | 12 records |
 | `classrooms` | ✅ | 24 records |
-| `students` | ✅ | 300 records |
-| `student_enrollments` | ✅ | 300 records |
-| `guardians` | ✅ | 300 records |
-| `student_guardians` | ✅ | 300 records |
-| `teachers` | ✅ | 30 records |
+| `students` | ✅ | 689 records |
+| `student_enrollments` | ✅ | 689 records |
+| `guardians` | ✅ | 0 records |
+| `student_guardians` | ✅ | 0 records |
+| `teachers` | ✅ | 32 records |
 | `teacher_positions` | ✅ | 7 records |
-| `teacher_classrooms` | ✅ | 25 records |
-| `score_categories` | ✅ | 13 records |
-| `score_transactions` | ✅ | 103 records |
+| `teacher_classrooms` | ✅ | 31 records |
+| `score_categories` | ✅ | 82 records |
+| `score_transactions` | ✅ | 2 records |
 | `score_transaction_evidence` | ✅ | Empty |
 | `permissions` | ✅ | 33 records |
 | `role_permissions` | ✅ | 48 records |
 | `profile_permission_overrides` | ✅ | Empty |
-| `settings` | ✅ | 15 records |
-| `audit_logs` | ✅ | Empty |
-| `action_logs` | ✅ | Empty |
-| `notifications` | ✅ | Empty |
+| `settings` | ✅ | 22 records |
+| `audit_logs` | ✅ | 171 records |
+| `action_logs` | ✅ | 217 records |
+| `notifications` | ✅ | 18 records |
 | `bond_documents` | ✅ | Empty |
 | `monthly_reports` | ✅ | Empty |
 | `intervention_logs` | ✅ | Empty |
-| `pdpa_consents` | ✅ | Empty |
+| `pdpa_consents` | ✅ | 34 records |
+
+### Import / Migration Snapshot — 2026-06-04
+- Target project ref: `yiejvcmpulyervsehdzj`
+- Source dump: `supabase/backups/khaowang-2026-06-04/{roles.sql,schema.sql,data.sql}`
+- Working path ที่ใช้ได้จริง: `supabase link --project-ref yiejvcmpulyervsehdzj --password "$SUPABASE_DB_PASSWORD" --workdir supabase` แล้ว apply/query ผ่าน `supabase db query --linked`
+- `schema.sql` apply ได้ตรง
+- `data.sql` จาก pg_dump แบบ `COPY` ต้องแปลงเป็น `INSERT` ก่อน replay ใน linked mode
+- ไฟล์ช่วยสำหรับ rerun:
+  - `supabase/reset-target-for-import.sql`
+  - `scripts/generate-import-sql.mjs`
+- ข้อจำกัดที่ยังเหลือ: `storage.buckets` และ `storage.objects` ของ target ไม่ได้ถูก reset ทับทั้งหมด และ binary files ของ Storage ไม่ได้อยู่ใน SQL dump
 
 ### API Routes — ✅ เสร็จสมบูรณ์ (พื้นฐาน)
 | Route | สถานะ |
@@ -108,9 +119,8 @@
 ### Auth System — ✅ เสร็จสมบูรณ์ (พื้นฐาน)
 | Feature | สถานะ |
 |---------|--------|
-| Login (email/password) | ✅ Staff login — admin, teacher, superadmin |
-| Login (student_id/password) | ✅ Student login — ใช้รหัสนักเรียน (ไม่ใช้อีเมล) |
-| Login (email for student) | ❌ นักเรียน login ด้วย email ไม่ได้ — ใช้รหัสนักเรียนเท่านั้น |
+| Login (email/password) | ✅ |
+| Login (student_id/password) | ✅ newly added |
 | Role-based redirect | ✅ admin/teacher → /dashboard, student → /student/dashboard |
 | must_change_password check | ✅ redirect to /change-password |
 | PDPA consent check | ✅ redirect to /pdpa-consent |
@@ -166,30 +176,7 @@
 
 ---
 
-## ✅ งานล่าสุดที่ทำแล้ว (2026-05-13)
-
-- [x] **Education Structure Tree View** — `/settings/education-stages` เป็น tree view (ระดับ → ชั้นปี → ห้องเรียน) ในหน้าเดียว
-- [x] สร้างห้องอัตโนมัติ: `{ชั้นปี}/{เลขถัดไป}` — ไม่ต้องกรอก form, กด `+` ปุ๊บสร้างปั๊บ
-- [x] ลบห้องได้เฉพาะห้องสุดท้ายในชั้นปี, ลบชั้นปีได้เมื่อไม่มีห้อง, ลบระดับได้เมื่อไม่มีชั้นปี
-- [x] **Teacher CSV Import** — `importTeachersCsv` server action + ปุ่มบนหน้ารายชื่อครู, headers ไทย/อังกฤษ
-- [x] **Teacher Detail Redesign** — แยกครูประจำชั้น/ครูผู้ช่วย, avatar, contact tiles, สิทธิ์ badge
-- [x] **Teacher Form Redesign** — avatar กลาง, ปุ่มแนวตั้งเต็มกว้าง `h-11`, สิทธิ์มีคำอธิบาย, ช่องสูงเท่ากัน
-- [x] **Responsive Filter Grids** — ทุกหน้าใช้ `sm:grid-cols-2 lg:grid-cols-[...]` ไม่ต้องกำหนดทีละ breakpoint
-- [x] **UUID Display Fix** — `itemToStringLabel` บนทุก filter Select ป้องกัน UUID แสดงใน UI
-- [x] **SelectTrigger `!h-10` Fix** — ทุก filter Select สูง 40px เท่ากับ Input
-- [x] **N+1 Query Fix** — `listClassrooms` batch student/teacher counts (49 queries → 3 queries)
-- [x] **Dashboard Layout Swap** — นักเรียนถึงเกณฑ์คู่กับแจกแจงคะแนน, รายการล่าสุดด้านล่าง
-- [x] **TopBar Sticky** — `sticky top-0 z-10` + `overflow-hidden h-dvh`
-- [x] **Phone Format Display** — `formatPhoneDisplay()` → `XXX-XXX-XXXX` ทั่วระบบ (teacher table, student detail)
-- [x] **Classroom Table Clickable** — กด row ไป `/classrooms/[id]`, dropdown action มี stopPropagation
-- [x] **Classroom Filter** — เพิ่ม dropdown "ชื่อห้อง" ในหน้า `/classrooms`
-- [x] **Avatar Upload Fix** — `studentSchema` เพิ่ม `avatar_url`, `teacherSchema` แก้ `.url()` → `.string()`
-- [x] **Login Form Fix** — `handleQuickLogin` ใช้ `finally` แทน `catch` สำหรับ `setLoading(false)`
-- [x] **Score History Filters** — หน้า `/score/history` มี filter: ค้นหา, ระดับ, ชั้นปี, ห้อง, ประเภท
-- [x] **Teacher Page Filters** — ค้นหา, สิทธิ์, สถานะ, แผนก + click row → detail
-- [x] **Classroom Table** — เอาคอลัมน์ชั้นปีออก, เพิ่ม filter ชื่อห้อง, responsive grid
-
-## ✅ งานก่อนหน้า (2026-05-10)
+## ✅ งานล่าสุดที่ทำแล้ว (2026-05-10)
 
 - [x] เพิ่ม global academic year selector และให้มีผลกับ dashboard/students/classrooms/score record
 - [x] เพิ่ม master data `grade_levels` และ migration `supabase/migrations/20260510120000_add_grade_levels_master_data.sql`
@@ -233,14 +220,14 @@
   - [ ] Server action errors และ API routes อื่นที่ยังเหลือ
   - [ ] ตรวจ hardcoded ที่เหลือใน reports/score/settings/teacher/student profile/PDF ให้ครบแบบ strict
   - [ ] แยก domain data ที่ไม่ควร i18n เช่น CSV Thai headers, คำนำหน้า, sample import data ออกจาก UI copy ที่ต้อง i18n
-- [ ] **รายงานนักเรียนถึงเกณฑ์ + การแจ้งเตือน**
+- [x] **รายงานนักเรียนถึงเกณฑ์ + การแจ้งเตือน**
   - [x] แปลง `/reports/threshold` เป็น i18n สำหรับ UI/filters หลักแล้ว
   - [x] เพิ่ม filter/search/pagination และ export filename ที่มีปีการศึกษา
   - [x] สร้าง notification เมื่อ student reached threshold จาก record/approve score event ของปีปัจจุบัน
   - [x] แจ้ง admin/superadmin และครูประจำห้อง/ครูที่ปรึกษาตาม `teacher_classrooms`
   - [x] ป้องกัน duplicate notification ต่อ threshold/ปีการศึกษา/recipient ผ่าน metadata
   - [x] Notification bell แสดง type/link target และ mark read เฉพาะ notification ของตัวเอง
-- [ ] **Storage production hardening**
+- [x] **Storage production hardening**
   - [x] เพิ่มปุ่ม test connection ใน Settings
   - [x] ตรวจ Vercel Blob token หรือ Google Drive service account/folder permission ตาม provider ที่เลือกผ่าน `/api/storage/test`
   - [x] แก้ evidence fallback จาก bucket `school-logos` เป็น bucket `evidence`
@@ -253,10 +240,10 @@
   - [x] backend import match นักเรียนเดิมด้วย `student_id_number` แล้วสร้าง/อัปเดต `student_enrollments` ของปีใหม่แทนการสร้างบัญชีซ้ำ
   - [x] นักเรียนที่ไม่ถูก import ในปีใหม่จะไม่มี enrollment ปีใหม่ และประวัติปีเก่ายังคงอยู่
 - [x] **Role assignment UI** — จัดการ role `teacher/admin/superadmin` ผ่านฟอร์มรายชื่อครูแล้ว
+- [ ] **Storage migration completeness** — ถ้าต้องการทับ target ให้ครบทั้งระบบ ยังต้องมีแผน cleanup/import ฝั่ง `storage` metadata และ binary objects แยกจาก SQL dump
 
 ### Medium Priority
-- [ ] **Password Reset Email** — ส่งอีเมล reset password สำหรับครู/admin ผ่าน Supabase Auth (มี `resetPasswordForEmail` ในตัว) — ตอนนี้ Supabase ส่ง email reset link ให้เองอัตโนมัติที่ `/login` กด "ลืมรหัสผ่าน?" แต่ต้องเช็ค configuration ให้ถูกต้อง
-- [ ] **Student status management** — change status (active/inactive/transferred/graduated) พร้อม enrollment history
+- [x] **Student status management** — import/rollover รองรับสถานะ `active`, `repeated`, `transferred`, `inactive`, `graduated` และเก็บ enrollment history แล้ว; เหลือแค่ review UX หากจะขยายเพิ่ม
 - [x] **Audit/action logs coverage ระดับ MVP** — มี helper กลาง, login action logs, viewer audit/action logs และบันทึก action สำคัญแล้ว
 - [x] **Audit/action logs hardening** — เพิ่ม coverage viewer/action logs, login/upload rate-limit events, score view audit, และ before/after สำหรับ approve/void/import ที่สำคัญ
 - [x] **Academic year backend hardening** — edit student/import/score/approval จำกัดเฉพาะปีปัจจุบันที่เปิดอยู่ และ action ขึ้นปีใหม่ block เมื่อปีเดิมยังไม่สิ้นสุด
@@ -264,18 +251,12 @@
 - [x] **School statistics page** — charts/histograms ในเมนู Reports (`/reports/statistics`) สำหรับสรุปภาพรวมคะแนนพฤติกรรมของโรงเรียน
 - [x] **Notifications realtime** — notification bell refresh จาก Supabase realtime channel พร้อม fallback polling/focus refresh
 - [x] **Score approval realtime + notifications** — หน้าอนุมัติคะแนน refresh จาก Supabase realtime สำหรับ pending queue, dashboard/threshold refresh เฉพาะคะแนนที่ approved/เคย approved, และส่ง notification ไปยัง admin/superadmin เมื่อมีคะแนนรออนุมัติ
+- [ ] **Export/report completeness** — monthly snapshot, school statistics export, PDF/Excel export ยังต้องเก็บงานปลายทางให้ครบ
+- [ ] **Permission editor รายละเอียด** — role assignment ระดับครูมีแล้ว แต่ editor สำหรับ `role_permissions` / `profile_permission_overrides` ยังไม่ครบ production policy
+- [ ] **RLS/permission production review** — ยังต้องทบทวน policy เชิงละเอียดก่อนใช้งานจริง
 
 ### Low Priority / Nice to Have
 - [x] **Production rate limiting + shared cache** — ใช้ Upstash Redis ผ่าน Vercel Marketplace สำหรับ login/upload/storage test และ cache master data/select list โดย fallback เป็น in-memory เมื่อไม่มี env
-- [x] **Teacher CSV Import** — `importTeachersCsv` server action + ปุ่ม Import บนหน้ารายชื่อครู, headers ไทย/อังกฤษ
-- [x] **Education Structure Tree View** — `/settings/education-stages` tree view พร้อม auto-create/delete classrooms
-- [x] **Responsive Filter Grids** — ทุกหน้า filter ใช้ responsive grid, `!h-10` fix, `itemToStringLabel` UUID fix
-- [x] **Phone Format Display** — `formatPhoneDisplay()` → `XXX-XXX-XXXX` ทั่วระบบ
-- [x] **N+1 Query Fix** — `listClassrooms` batch student/teacher counts (49→3)
-- [x] **TopBar Sticky** — `sticky top-0` + `overflow-hidden h-dvh`
-- [x] **Dashboard Layout Swap** — นักเรียนถึงเกณฑ์คู่กับแจกแจงคะแนน, รายการล่าสุดด้านล่าง
-- [x] **Avatar Upload Fix** — `studentSchema` + `avatar_url`, `teacherSchema` แก้ `.url()` → `.string()`
-- [x] **Classroom Table Clickable** — กด row ไปหน้ารายละเอียด
 - [ ] **ScoreTimeline chart** — recharts line chart component
 - [ ] **PDPA version management** — admin publish new version
 - [x] **School branding in login page** — show logo + school name from Settings on login page
@@ -289,16 +270,16 @@
 |------|--------|-----------|
 | Database Schema (25+ tables) | ✅ 100% | All tables with data, including education_stages + grade_levels |
 | API Routes | ✅ 85% | Core auth + upload + evidence |
-| Backend Actions | ✅ 95% | All CRUD + dashboard + auth + teacher CSV import |
-| Validation | ✅ 100% | 25+ Zod schemas, avatar_url fixed |
-| Security | ✅ 70% | Sanitization + headers, limited rate limiting |
-| UI Components | ✅ 90% | Teacher form redesign, tree view, responsive filters, phone format |
-| Pages | ✅ 95% | 30+ routes, all pages with responsive filters, clickable rows |
+| Backend Actions | ✅ 90% | All CRUD + dashboard + auth |
+| Validation | ✅ 100% | 25+ Zod schemas |
+| Security | ✅ 70% | Sanitization + headers, no rate limiting |
+| UI Components | ✅ 85% | Evidence uploader, notification bell |
+| Pages | ✅ 95% | 30 routes including approval, bonds, interventions, academic years |
 | Auth Flow | ✅ 95% | Login, student login, role redirect, PDPA fix, must_change_password |
-| Academic Structure | ✅ 98% | Tree view manage years/stages/grade levels/classrooms; auto-create classrooms; N+1 fixed |
-| i18n | ⏳ 65% | Config + switcher done; TH/EN messages ~730 strings each; main UI partially translated |
-| Reports | ✅ 85% | Individual, classroom, threshold, bond, statistics, score history with filters |
-| Advanced Features | ✅ 70% | Evidence, bonds, interventions, notifications, approval, teacher CSV import |
-| Testing | ✅ Playwright | Playwright installed for e2e testing |
-| Infrastructure | ✅ 95% | school.config.ts, loading/error states, nav links, sticky topbar, Supabase max-rows configured |
-| **Overall** | **~92%** | Production-ready; tree view, teacher import, responsive filters, phone format, N+1 fix, avatar fix done |
+| Academic Structure | ✅ 95% | Manage years/stages/grade levels/classrooms; annual rollover still pending |
+| i18n | ⏳ 65% | Config + switcher done; TH/EN messages ~722 strings each; main UI partially translated; strict coverage still pending for auth, validation, API/server errors, notification, and remaining hardcoded copy |
+| Reports | ✅ 80% | Individual, classroom, threshold, bond |
+| Advanced Features | ✅ 60% | Evidence, bonds, interventions, notifications, approval, academic years |
+| Testing | ✅ 新增 | 219 tests across 6 files (vitest) |
+| Infrastructure | ✅ 90% | school.config.ts, loading/error states, nav links |
+| **Overall** | **~88%** | Production-ready test data + academic structure done; upload/rollover/permissions remain |

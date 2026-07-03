@@ -4,7 +4,7 @@
 
 Multi-School Ready · Config-Driven Design · Clone & Deploy
 
-**Updated: 2026-05-13 — Tree view, teacher CSV import, responsive filters, N+1 fix, phone format, avatar fix**
+**Updated: 2026-06-04 — ระบบทำงานบน Production แล้ว และเอกสารถูก sync หลัง import target database**
 
 ---
 
@@ -22,11 +22,10 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 | **Student Management** | ✅ | List + search/filter + create/edit + detail page + guardian fields + current score column |
 | **Score Recording** | ✅ | Add/deduct form + category management |
 | **Classroom Management** | ✅ | List + create/edit + detail page + create by ระดับชั้น → ชั้นปี → จำนวนห้อง |
-| **Academic Structure** | ✅ | Tree view: manage stages → grade levels → classrooms in one page; auto-create classrooms |
-| **Teacher Management** | ✅ | List + filters + create/edit + detail page + CSV import + classroom assignment + teacher positions |
-| **Reports** | ✅ | Individual, classroom, threshold, statistics reports; score history with filters |
-| **Settings** | ✅ | School info + logo upload + CSV import + audit log viewer + academic structure tree view |
-| **Responsive UI** | ✅ | All filter grids responsive (sm:grid-cols-2 lg:grid-cols-[...]), sticky topbar, phone format |
+| **Academic Structure** | ✅ | Manage academic years, education stages, grade levels, classrooms |
+| **Teacher Management** | ✅ | List + create/edit + detail page + classroom assignment + teacher positions |
+| **Reports** | ✅ | Individual, classroom, threshold reports |
+| **Settings** | ✅ | School info + logo upload + CSV import + audit log viewer + Google Drive config + academic structure hub |
 | **PDPA Consent** | ✅ | Consent page + rejected page + check on login |
 | **Change Password** | ✅ | Page + must_change_password enforcement |
 | **Auth Middleware** | ✅ | proxy.ts — auth guard + locale cookie |
@@ -38,29 +37,25 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 
 | ข้อมูล | จำนวน |
 |--------|-------|
-| นักเรียน | ~1,000+ |
-| ครู | 30 |
+| นักเรียน | 689 |
+| ครู | 32 |
 | ห้องเรียน | 24 |
 | ระดับชั้นการศึกษา | 5 |
 | ชั้นปี | 12 |
-| ผู้ปกครอง | 300 |
-| ธุรกรรมคะแนน | 103 |
+| ผู้ปกครอง | 0 |
+| ธุรกรรมคะแนน | 2 |
 
 ### 🔶 ฟีเจอร์ที่ยังต้องทำต่อ
 
 | ฟีเจอร์ | Priority | Notes |
 |---------|----------|-------|
-| Google Drive upload | High | Settings มี field แล้ว ต้องต่อ upload จริงสำหรับ profile/evidence |
-| Annual rollover/import | High | ต้องทำ flow ขึ้นปีใหม่, สร้าง/เลือกห้องรายปี, ย้าย enrollment, preview import |
-| i18n in pages | High | Config + switcher done, แต่ยังมี hardcoded Thai หลายหน้า |
-| Permission/Admin UI | High | ต้องมี UI กำหนด role/เพิ่ม admin ให้ครูบางคน และ permission editor |
-| Audit/action logs | Medium | ต้องบันทึก action สำคัญให้ครบ production policy |
-| Score approval hardening | Medium | ตรวจ flow requires_approval, pending queue, reject/void audit |
-| Guardian management UI | Medium | มี guardian fields แล้ว แต่ยังไม่มีหน้าจัดการผู้ปกครองหลายคนแบบเต็ม |
-| Monthly reports/statistics | Medium | ทำ monthly snapshot, school statistics, chart/export |
-| Bond documents | Medium | Tables/page บางส่วนมีแล้ว ต้องทำ generation/print flow ให้ครบ |
-| Notifications | Medium | Bell มีแล้ว ต้องต่อ realtime/threshold/approval events |
-| Rate limiting | Low | No @upstash/ratelimit implementation |
+| i18n in pages | High | เหลือ hardcoded strings ใน server actions, reports, score, settings, profile, PDF และต้องแยก domain data ออกจาก UI copy |
+| Permission editor | High | role assignment ระดับครูทำแล้ว แต่ editor สำหรับ `role_permissions` / `profile_permission_overrides` ยังไม่ครบ |
+| Export/report completeness | Medium | monthly snapshot, school statistics export, PDF/Excel export ยังต้องเก็บงาน |
+| Guardian management UI | Medium | ตาราง/flow ผู้ปกครองจริงยังไม่มีข้อมูลหลัง import และยังไม่มี UI เต็ม |
+| Bond documents | Medium | tables/page บางส่วนมีแล้ว แต่ flow generation/print ยังไม่ครบ |
+| RLS/permission review | Medium | ต้อง review policy ก่อน production use จริง |
+| Storage migration completeness | Medium | SQL import รอบนี้ไม่รวม storage binary files และไม่ได้ reset metadata ทั้งหมด |
 | school.config.ts feature flags | Low | Config-driven feature flags ยังไม่ enforce ครบ |
 
 ---
@@ -93,25 +88,19 @@ Phase 2: Advanced Features (ทำตาม priority)
 
 ```
 📦 High Priority
-├── i18n: แปลง hardcoded Thai → useTranslations() ทุกหน้า
+├── i18n: ปิดงาน hardcoded strings และ server action/API messages ให้ครบ
 ├── Guardian UI: เพิ่ม/แก้ไข/ลบ ผู้ปกครองในหน้ารายละเอียดนักเรียน
-└── Evidence Upload: bucket + uploader + gallery สำหรับ score transactions
+└── Permission editor: จัดการ role permission overrides แบบละเอียด
 
 📦 Medium Priority
-├── Score Approval: pending queue, approve/reject UI
-├── Score Void Dialog: void transactions with reason
 ├── Bond Documents: generate, sign, print (ใช้ตาราง bond_documents)
 ├── Interventions: CRUD UI + student history
-├── Notifications: in-app bell icon + realtime subscriptions
-└── Academic Year Management: create/switch years
+├── Export/Reports: monthly snapshot, PDF/Excel, school stats export
+└── Storage migration cleanup: metadata/binary import strategy
 
 📦 Low Priority
-├── At-Risk Report Page
-├── School Statistics Page (charts/histograms)
-├── Annual Classroom Import Wizard
-├── CSV Export
-├── Rate Limiting (@upstash/ratelimit)
 ├── school.config.ts (feature flags)
+├── Guardian data seed/import backfill if required
 └── Loading Skeleton Components
 ```
 
@@ -174,9 +163,9 @@ school-conduct/
 │   │   │   ├── students/page.tsx + [id]/page.tsx
 │   │   │   ├── classrooms/page.tsx + [id]/page.tsx
 │   │   │   ├── teachers/page.tsx + [id]/page.tsx
-│   │   │   ├── score/record/page.tsx + history/page.tsx + categories/page.tsx
-│   │   │   ├── reports/page.tsx + individual/ + classroom/ + threshold/ + statistics/
-│   │   │   └── settings/page.tsx + academic-years/ + education-stages/ + teacher-positions/ + import/ + logs/
+│   │   │   ├── score/record/page.tsx + categories/page.tsx
+│   │   │   ├── reports/page.tsx + individual/ + classroom/ + threshold/
+│   │   │   └── settings/page.tsx + academic-years/ + education-stages/ + grade-levels/ + teacher-positions/ + import/ + logs/
 │   │   ├── student/dashboard/page.tsx
 │   │   └── api/
 │   │       ├── auth/login/route.ts + logout/route.ts + debug/route.ts

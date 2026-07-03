@@ -1,4 +1,4 @@
-import { createServerClient, combineChunks } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
@@ -18,6 +18,38 @@ function decodeBase64URL(value: string): string | null {
   }
 }
 
+interface DecodedSession {
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number;
+}
+
+type ManualDecodeResult =
+  | {
+      valid: boolean;
+      hasAccessToken: boolean;
+      tokenPreview?: string;
+      expiresAt: string | null;
+    }
+  | { valid: false; error: string }
+  | null;
+
+interface AuthProbeResult {
+  user?: string | null;
+  found?: boolean;
+  error: string | null;
+}
+
+interface SetSessionProbeResult {
+  success: boolean;
+  error: string | null;
+  sessionUser?: string | null;
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export async function GET(request: Request) {
   const cookieHeader = request.headers.get('cookie') || '';
 
@@ -32,18 +64,19 @@ export async function GET(request: Request) {
   // ============================================
   // TEST 1: Manual decode
   // ============================================
-  let manualDecode: any = null;
-  let session: any = null;
+  let manualDecode: ManualDecodeResult = null;
+  let session: DecodedSession | null = null;
   if (authCookie) {
     const decoded = decodeBase64URL(authCookie.value);
     if (decoded) {
       try {
-        session = JSON.parse(decoded);
+        const parsedSession = JSON.parse(decoded) as DecodedSession;
+        session = parsedSession;
         manualDecode = {
-          valid: !!(session.access_token && session.refresh_token && session.expires_at),
-          hasAccessToken: !!session.access_token,
-          tokenPreview: session.access_token?.substring(0, 20),
-          expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
+          valid: !!(parsedSession.access_token && parsedSession.refresh_token && parsedSession.expires_at),
+          hasAccessToken: !!parsedSession.access_token,
+          tokenPreview: parsedSession.access_token?.substring(0, 20),
+          expiresAt: parsedSession.expires_at ? new Date(parsedSession.expires_at * 1000).toISOString() : null,
         };
       } catch {
         manualDecode = { valid: false, error: 'JSON parse failed' };
@@ -71,20 +104,20 @@ export async function GET(request: Request) {
     }
   );
 
-  const ssrGetUser = await ssrSupabase.auth.getUser()
+  const ssrGetUser: AuthProbeResult = await ssrSupabase.auth.getUser()
     .then(r => ({ user: r.data?.user?.id || null, error: r.error?.message || null }))
-    .catch(e => ({ user: null, error: e.message }));
+    .catch(e => ({ user: null, error: errorMessage(e) }));
 
-  const ssrGetSession = await ssrSupabase.auth.getSession()
+  const ssrGetSession: AuthProbeResult = await ssrSupabase.auth.getSession()
     .then(r => ({ found: !!r.data?.session, error: r.error?.message || null }))
-    .catch(e => ({ found: false, error: e.message }));
+    .catch(e => ({ found: false, error: errorMessage(e) }));
 
   // ============================================
   // TEST 3: NEW approach — @supabase/supabase-js + setSession
   // ============================================
-  let customGetUser: any = null;
-  let customGetSession: any = null;
-  let setSessionResult: any = null;
+  let customGetUser: AuthProbeResult | null = null;
+  let customGetSession: AuthProbeResult | null = null;
+  let setSessionResult: SetSessionProbeResult | null = null;
 
   try {
     const customSupabase = createSupabaseClient(
@@ -103,7 +136,7 @@ export async function GET(request: Request) {
     if (session?.access_token) {
       const { data: ssData, error: ssError } = await customSupabase.auth.setSession({
         access_token: session.access_token,
-        refresh_token: session.refresh_token,
+        refresh_token: session.refresh_token || '',
       });
       setSessionResult = {
         success: !!ssData?.session,
@@ -116,15 +149,16 @@ export async function GET(request: Request) {
 
     customGetUser = await customSupabase.auth.getUser()
       .then(r => ({ user: r.data?.user?.id || null, error: r.error?.message || null }))
-      .catch(e => ({ user: null, error: e.message }));
+      .catch(e => ({ user: null, error: errorMessage(e) }));
 
     customGetSession = await customSupabase.auth.getSession()
       .then(r => ({ found: !!r.data?.session, error: r.error?.message || null }))
-      .catch(e => ({ found: false, error: e.message }));
-  } catch (e: any) {
-    customGetUser = { user: null, error: e.message };
-    customGetSession = { found: false, error: e.message };
-    if (!setSessionResult) setSessionResult = { success: false, error: e.message };
+      .catch(e => ({ found: false, error: errorMessage(e) }));
+  } catch (e) {
+    const message = errorMessage(e);
+    customGetUser = { user: null, error: message };
+    customGetSession = { found: false, error: message };
+    if (!setSessionResult) setSessionResult = { success: false, error: message };
   }
 
   // ============================================

@@ -14,15 +14,58 @@ import { getDashboard, checkPDPAConsent, checkMustChangePassword } from '@/lib/a
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 import { createClient } from '@/lib/supabase/client';
 
+interface DashboardStats {
+  total_students: number;
+  active_students: number;
+  total_classrooms: number;
+  total_teachers: number;
+  average_score: number;
+  at_risk_count: number;
+  academic_year_name?: string | null;
+  score_distribution?: {
+    excellent: number;
+    good: number;
+    fair: number;
+    poor: number;
+  };
+}
+
+interface DashboardTransaction {
+  id: string;
+  student_name?: string | null;
+  student_id_number: string;
+  category_name: string;
+  points: number;
+  created_at?: string | null;
+  recorded_at?: string | null;
+}
+
+interface AtRiskStudent {
+  student_id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  student_id_number: string;
+  classroom_name?: string | null;
+  current_score: number;
+  threshold_action?: string | null;
+}
+
+interface AcademicYearEnding {
+  name: string;
+  days_remaining: number;
+  end_date: string;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const t = useTranslations('dashboard');
   const common = useTranslations('common');
   const locale = useLocale();
   const selectedAcademicYearId = useSelectedAcademicYearId();
-  const [stats, setStats] = useState<any>(null);
-  const [recentTx, setRecentTx] = useState<any[]>([]);
-  const [atRisk, setAtRisk] = useState<any[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentTx, setRecentTx] = useState<DashboardTransaction[]>([]);
+  const [atRisk, setAtRisk] = useState<AtRiskStudent[]>([]);
+  const [academicYearEnding, setAcademicYearEnding] = useState<AcademicYearEnding | null>(null);
   const [loading, setLoading] = useState(true);
   const realtimeRefreshRef = useRef<number | null>(null);
 
@@ -30,9 +73,10 @@ export default function DashboardPage() {
     if (showSpinner) setLoading(true);
     const res = await getDashboard({ academic_year_id: selectedAcademicYearId || undefined });
     if (res.success) {
-      setStats(res.data.stats);
-      setRecentTx(res.data.recentTransactions || []);
-      setAtRisk(res.data.atRiskStudents?.slice(0, 5) || []);
+      setStats(res.data.stats as DashboardStats);
+      setRecentTx((res.data.recentTransactions || []) as unknown as DashboardTransaction[]);
+      setAtRisk(((res.data.atRiskStudents || []) as unknown as AtRiskStudent[]).slice(0, 5));
+      setAcademicYearEnding((res.data.academicYearEnding || null) as AcademicYearEnding | null);
     }
     setLoading(false);
   }, [selectedAcademicYearId]);
@@ -51,7 +95,7 @@ export default function DashboardPage() {
       // Check must_change_password first
       const passwordRes = await checkMustChangePassword();
       if (passwordRes.success && passwordRes.data?.must_change_password) {
-        router.replace('/change-password');
+        router.replace('/first-password');
         return;
       }
 
@@ -139,6 +183,17 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {academicYearEnding && (
+        <div className={`rounded-md border px-4 py-3 text-sm ${academicYearEnding.days_remaining <= 7 ? 'bg-red-50 border-red-300 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-300' : 'bg-yellow-50 border-yellow-300 text-yellow-800 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-300'}`}>
+          <p className="font-medium">
+            {academicYearEnding.days_remaining === 0
+              ? `⚠️ วันนี้เป็นวันสุดท้ายของปีการศึกษา ${academicYearEnding.name}`
+              : `⚠️ ปีการศึกษา ${academicYearEnding.name} จะสิ้นสุดในอีก ${academicYearEnding.days_remaining} วัน (${new Date(academicYearEnding.end_date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })})`}
+          </p>
+          <p className="mt-1 opacity-80">กรุณาเตรียมตั้งปีการศึกษาใหม่ที่หน้า การตั้งค่า → ปีการศึกษา</p>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         {statCards.map((s) => {
           const Icon = s.icon;
@@ -210,7 +265,7 @@ export default function DashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {atRisk.map((s: any) => (
+                  {atRisk.map((s) => (
                     <TableRow key={s.student_id}>
                       <TableCell>
                         <div className="font-medium">{s.first_name} {s.last_name}</div>
@@ -256,7 +311,7 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground text-center py-4">{t('noRecentTransactions')}</p>
           ) : (
             <div className="space-y-2">
-              {recentTx.map((tx: any) => (
+              {recentTx.map((tx) => (
                 <div key={tx.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
                   <div className="flex min-w-0 items-center gap-2">
                     {tx.points > 0 ? (
@@ -270,7 +325,7 @@ export default function DashboardPage() {
                         {tx.student_id_number} · {tx.category_name}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatDateTime(tx.created_at || tx.recorded_at)}
+                        {formatDateTime(tx.created_at || tx.recorded_at || undefined)}
                       </div>
                     </div>
                   </div>

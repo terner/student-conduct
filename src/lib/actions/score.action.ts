@@ -15,7 +15,7 @@ import {
 } from '@/lib/db';
 import { scoreRecordSchema, scoreCategorySchema, scoreVoidSchema } from '@/lib/validation/schemas';
 import { validateXSS } from '@/lib/security/validate-input';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { canApproveScores, canRecordScores } from '@/lib/security/roles';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
 import { logAudit } from '@/lib/audit/log';
@@ -51,22 +51,32 @@ function getAcademicYearClosedReason(year: {
 }
 
 async function resolveAcademicYearForScoring(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
   academicYearId?: string,
 ) {
-  let query = supabase
+  if (academicYearId) {
+    const { data, error } = await supabase
+      .from('academic_years')
+      .select('id, name, start_date, end_date, is_current')
+      .eq('id', academicYearId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data?.id) return data;
+  }
+
+  const { data, error } = await supabase
     .from('academic_years')
-    .select('id, name, start_date, end_date, is_current');
+    .select('id, name, start_date, end_date, is_current')
+    .eq('is_current', true)
+    .maybeSingle();
 
-  query = academicYearId ? query.eq('id', academicYearId) : query.eq('is_current', true);
-
-  const { data, error } = await query.maybeSingle();
   if (error) throw error;
   return data;
 }
 
 async function ensureAcademicYearOpenForScoring(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
   academicYearId?: string,
 ) {
   const academicYear = await resolveAcademicYearForScoring(supabase, academicYearId);
@@ -103,7 +113,7 @@ export async function getScoreRecordingAvailability(academicYearId?: string) {
       return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์บันทึกคะแนน' } };
     }
 
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
     const academicYear = await resolveAcademicYearForScoring(supabase, academicYearId);
     if (!academicYear?.id) {
       return { success: false, error: { code: 'NO_CURRENT_YEAR', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' } };
@@ -189,7 +199,7 @@ export async function recordScore(data: {
       return { success: false, error: { code: 'XSS_DETECTED', message: 'ตรวจพบ XSS ในข้อมูล' } };
     }
 
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
 
     let academicYearId = data.academic_year_id;
     const openYearResult = await ensureAcademicYearOpenForScoring(supabase, academicYearId);

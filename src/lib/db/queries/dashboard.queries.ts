@@ -29,9 +29,14 @@ export interface DashboardStats {
 
 export interface DashboardData {
   stats: DashboardStats;
-  academic_years: Array<{ id: string; name: string; is_current: boolean }>;
+  academic_years: Array<{ id: string; name: string; is_current: boolean; start_date?: string | null; end_date?: string | null }>;
   recent_transactions: Record<string, unknown>[];
   at_risk_students: Record<string, unknown>[];
+  academic_year_ending?: {
+    name: string;
+    end_date: string;
+    days_remaining: number;
+  } | null;
 }
 
 interface AcademicYearRow {
@@ -39,6 +44,8 @@ interface AcademicYearRow {
   name: string;
   is_current: boolean;
   base_score?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
 }
 
 interface DashboardStudent {
@@ -87,7 +94,7 @@ export async function getDashboardData(params: { academic_year_id?: string } = {
   ] = await Promise.all([
     supabase
       .from('academic_years')
-      .select('id, base_score, name, is_current')
+      .select('id, base_score, name, is_current, start_date, end_date')
       .order('name', { ascending: false }),
     supabase
       .from('classrooms')
@@ -292,6 +299,21 @@ export async function getDashboardData(params: { academic_year_id?: string } = {
     };
   });
 
+  // Check if current academic year is ending soon (within 30 days)
+  let academic_year_ending = null;
+  if (acYear?.is_current && acYear?.end_date) {
+    const endDate = new Date(acYear.end_date);
+    const now = new Date();
+    const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysRemaining >= 0 && daysRemaining <= 30) {
+      academic_year_ending = {
+        name: acYear.name,
+        end_date: acYear.end_date,
+        days_remaining: daysRemaining,
+      };
+    }
+  }
+
   return {
     stats: {
       academic_year_name: acYear?.name || '',
@@ -312,8 +334,11 @@ export async function getDashboardData(params: { academic_year_id?: string } = {
       id: year.id,
       name: year.name,
       is_current: Boolean(year.is_current),
+      start_date: year.start_date,
+      end_date: year.end_date,
     })),
     recent_transactions: recentTransactions,
     at_risk_students: atRiskStudents,
+    academic_year_ending,
   };
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Phone, MessageSquare, Home, AlertTriangle, FileText } from 'lucide-react';
+import { useCallback, useEffect, useState, type ComponentType } from 'react';
+import { Phone, MessageSquare, Home, AlertTriangle, FileText, type LucideProps } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
@@ -10,7 +10,23 @@ import { SimplePagination } from '@/components/ui/simple-pagination';
 import { createClient } from '@/lib/supabase/client';
 import { useTranslations } from 'next-intl';
 
-function formatProfileFullName(profile: any) {
+interface InterventionProfile {
+  prefix?: string | null;
+  full_name?: string | null;
+}
+
+interface InterventionRow {
+  id: string;
+  occurred_at: string;
+  intervention_type: string;
+  summary: string;
+  outcome?: string | null;
+  students?: {
+    profiles?: InterventionProfile | null;
+  } | null;
+}
+
+function formatProfileFullName(profile?: InterventionProfile | null) {
   const prefix = (profile?.prefix || '').trim();
   const fullName = (profile?.full_name || '').trim();
   if (!prefix) return fullName;
@@ -24,7 +40,7 @@ function formatDateTime(value: string) {
   });
 }
 
-const typeIcon: Record<string, any> = {
+const typeIcon: Record<string, ComponentType<LucideProps>> = {
   phone_call: Phone, parent_meeting: MessageSquare, warning: AlertTriangle,
   home_visit: Home, counseling: MessageSquare, bond: FileText,
 };
@@ -34,7 +50,7 @@ export default function InterventionsPage() {
   const interventionT = useTranslations('intervention');
   const studentT = useTranslations('student');
   const commonT = useTranslations('common');
-  const [interventions, setInterventions] = useState<any[]>([]);
+  const [interventions, setInterventions] = useState<InterventionRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -48,9 +64,7 @@ export default function InterventionsPage() {
     other: interventionT('other'),
   };
 
-  useEffect(() => { load(page); }, [page]);
-
-  async function load(nextPage = page) {
+  const load = useCallback(async (nextPage = page) => {
     setLoading(true);
     const supabase = createClient();
     const from = (nextPage - 1) * PAGE_SIZE;
@@ -59,10 +73,14 @@ export default function InterventionsPage() {
       .select('*, students(student_id_number, profiles!inner(full_name, prefix))', { count: 'exact' })
       .order('occurred_at', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
-    if (data) setInterventions(data);
+    if (data) setInterventions(data as InterventionRow[]);
     setTotal(count || 0);
     setLoading(false);
-  }
+  }, [page]);
+
+  useEffect(() => {
+    void Promise.resolve().then(() => load(page));
+  }, [load, page]);
 
   if (loading) return <div className="flex justify-center py-12"><Spinner className="size-8" /></div>;
 
@@ -94,7 +112,7 @@ export default function InterventionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {interventions.map((iv: any) => {
+                {interventions.map((iv) => {
                   const Icon = typeIcon[iv.intervention_type] || FileText;
                   return (
                     <TableRow key={iv.id}>

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { getCategories, removeCategory, saveCategory } from '@/lib/actions/score.action';
 import { ScoreCategoryForm } from '@/components/features/scores/score-category-form';
 import type { ScoreCategory } from '@/types';
+import type { ScoreCategoryInput } from '@/components/features/scores/score-category-form';
 
 export default function ScoreCategoryPage() {
   const t = useTranslations('score');
@@ -21,7 +22,7 @@ export default function ScoreCategoryPage() {
   const [editCategory, setEditCategory] = useState<ScoreCategory | null>(null);
 
   useEffect(() => {
-    loadCategories();
+    void Promise.resolve().then(loadCategories);
   }, []);
 
   async function loadCategories() {
@@ -33,7 +34,7 @@ export default function ScoreCategoryPage() {
     setLoading(false);
   }
 
-  async function handleSave(data: any) {
+  async function handleSave(data: ScoreCategoryInput) {
     const result = await saveCategory(data);
     if (!result.success) {
       toast(commonT('error'), { description: result.error?.message });

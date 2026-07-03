@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import NextImage from 'next/image';
 import { Save, Plus, Trash2, Download, ListChecks, Upload, Image as ImageIcon, X, CalendarDays, UserCog, HardDrive, School, Users, BookOpen, Tags } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { getSettingsPageData, saveSystemSettings } from '@/lib/actions/settings.action';
@@ -16,6 +18,13 @@ import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
+type SettingValue = string | number | boolean | null;
+
+function inputSetting(settings: Record<string, SettingValue>, key: string, fallback: string | number = '') {
+  const value = settings[key];
+  return typeof value === 'string' || typeof value === 'number' ? value : fallback;
+}
+
 export default function SettingsPage() {
   const settingsT = useTranslations('settings');
   const commonT = useTranslations('common');
@@ -23,10 +32,11 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [roles, setRoles] = useState<string[]>([]);
-  const [settings, setSettings] = useState<Record<string, any>>({});
+  const [settings, setSettings] = useState<Record<string, SettingValue>>({});
   const [thresholds, setThresholds] = useState<Array<{ deducted: number; action: string; color: string }>>([]);
   const [selectedYearOpen, setSelectedYearOpen] = useState(false);
   const [testingStorage, setTestingStorage] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
 
   useEffect(() => {
     loadAccessAndSettings();
@@ -58,7 +68,7 @@ export default function SettingsPage() {
     const result = await getSettingsPageData();
     if (result.success && result.data) {
       setRoles(result.data.roles);
-      setSettings(result.data.settings as Record<string, any>);
+      setSettings(result.data.settings as Record<string, SettingValue>);
       setThresholds(result.data.thresholds as Array<{ deducted: number; action: string; color: string }>);
     } else if (!result.success) {
       alert(result.error.message);
@@ -181,18 +191,18 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>{settingsT('schoolNameTh')}</Label>
-                <Input value={settings.school_name || ''} onChange={e => setSettings({...settings, school_name: e.target.value})} />
+                <Input value={inputSetting(settings, 'school_name')} onChange={e => setSettings({...settings, school_name: e.target.value})} />
               </div>
               <div className="space-y-2">
                 <Label>{settingsT('schoolNameEn')}</Label>
-                <Input value={settings.school_name_en || ''} onChange={e => setSettings({...settings, school_name_en: e.target.value})} />
+                <Input value={inputSetting(settings, 'school_name_en')} onChange={e => setSettings({...settings, school_name_en: e.target.value})} />
               </div>
               <div className="space-y-2">
                 <Label>{settingsT('schoolLogo')}</Label>
                 <div className="flex items-center gap-4">
                   {settings.school_logo ? (
                     <div className="relative">
-                      <img src={settings.school_logo} alt="Logo" className="size-24 rounded-xl object-cover border shadow-sm" />
+                      <NextImage src={String(settings.school_logo)} alt="Logo" width={96} height={96} unoptimized className="size-24 rounded-xl object-cover border shadow-sm" />
                       <button
                         type="button"
                         className="absolute -top-1.5 -right-1.5 rounded-full bg-destructive text-destructive-foreground p-1"
@@ -217,10 +227,12 @@ export default function SettingsPage() {
                       className="hidden"
                       disabled={saving}
                       onChange={async (e) => {
+                        const input = e.currentTarget;
                         const file = e.target.files?.[0];
                         if (!file) return;
                         if (file.size > 2 * 1024 * 1024) {
                           alert(settingsT('logoFileTooLarge'));
+                          input.value = '';
                           return;
                         }
                         // Validate dimensions
@@ -237,7 +249,7 @@ export default function SettingsPage() {
                           if (ratio > 1.1) {
                             if (!confirm(settingsT('logoNotSquareConfirm'))) {
                               URL.revokeObjectURL(url);
-                              e.currentTarget.value = '';
+                              input.value = '';
                               return;
                             }
                           }
@@ -269,7 +281,7 @@ export default function SettingsPage() {
                           alert(settingsT('logoUploadError'));
                         } finally {
                           setSaving(false);
-                          e.currentTarget.value = '';
+                          input.value = '';
                         }
                       }}
                     />
@@ -294,7 +306,7 @@ export default function SettingsPage() {
                 <Label>{settingsT('baseScore')}</Label>
                 <Input
                   type="number"
-                  value={settings.base_score || 100}
+                  value={inputSetting(settings, 'base_score', 100)}
                   onChange={e => setSettings({...settings, base_score: parseInt(e.target.value) || 100})}
                   className="w-32"
                 />
@@ -303,7 +315,7 @@ export default function SettingsPage() {
                 <Label>{settingsT('scoreFloor')}</Label>
                 <Input
                   type="number"
-                  value={settings.score_floor || 0}
+                  value={inputSetting(settings, 'score_floor', 0)}
                   onChange={e => setSettings({...settings, score_floor: parseInt(e.target.value) || 0})}
                   className="w-32"
                 />
@@ -342,13 +354,19 @@ export default function SettingsPage() {
                       setThresholds(n);
                     }} placeholder={settingsT('thresholdActionPlaceholder')} />
                   </div>
-                  <div className="space-y-1 w-20">
+                  <div className="space-y-1">
                     <Label className="text-xs">{settingsT('color')}</Label>
-                    <Input type="color" value={t.color || '#FEF3C7'} onChange={e => {
-                      const n = [...thresholds];
-                      n[i].color = e.target.value;
-                      setThresholds(n);
-                    }} />
+                    <div className="flex gap-1.5 flex-wrap">
+                      {['#EF4444','#F97316','#EAB308','#22C55E','#3B82F6','#8B5CF6','#EC4899','#78716C'].map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => { const n = [...thresholds]; n[i].color = c; setThresholds(n); }}
+                          className={`size-7 rounded-full border-2 transition-all ${t.color === c ? 'border-foreground scale-110' : 'border-transparent hover:scale-105'}`}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
                   </div>
                   <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeThreshold(i)}>
                     <Trash2 className="h-4 w-4" />
@@ -446,7 +464,7 @@ export default function SettingsPage() {
                   <Label htmlFor="google_drive_client_email">{settingsT('googleDriveServiceAccountEmail')}</Label>
                   <Input
                     id="google_drive_client_email"
-                    value={settings.google_drive_client_email || ''}
+                    value={inputSetting(settings, 'google_drive_client_email')}
                     onChange={(e) => setSettings({ ...settings, google_drive_client_email: e.target.value })}
                     placeholder={settingsT('googleDriveServiceAccountEmailPlaceholder')}
                   />
@@ -455,7 +473,7 @@ export default function SettingsPage() {
                   <Label htmlFor="google_drive_profile_folder_id">{settingsT('googleDriveProfileFolderId')}</Label>
                   <Input
                     id="google_drive_profile_folder_id"
-                    value={settings.google_drive_profile_folder_id || ''}
+                    value={inputSetting(settings, 'google_drive_profile_folder_id')}
                     onChange={(e) => setSettings({ ...settings, google_drive_profile_folder_id: e.target.value })}
                     placeholder={settingsT('googleDriveFolderIdPlaceholder')}
                   />
@@ -466,7 +484,7 @@ export default function SettingsPage() {
                 <Label htmlFor="google_drive_evidence_folder_id">{settingsT('googleDriveEvidenceFolderId')}</Label>
                 <Input
                   id="google_drive_evidence_folder_id"
-                  value={settings.google_drive_evidence_folder_id || ''}
+                  value={inputSetting(settings, 'google_drive_evidence_folder_id')}
                   onChange={(e) => setSettings({ ...settings, google_drive_evidence_folder_id: e.target.value })}
                   placeholder={settingsT('googleDriveFolderIdPlaceholder')}
                 />
@@ -476,7 +494,7 @@ export default function SettingsPage() {
                 <Label htmlFor="google_drive_private_key">{settingsT('googleDrivePrivateKey')}</Label>
                 <Textarea
                   id="google_drive_private_key"
-                  value={settings.google_drive_private_key || ''}
+                  value={inputSetting(settings, 'google_drive_private_key')}
                   onChange={(e) => setSettings({ ...settings, google_drive_private_key: e.target.value })}
                   placeholder={settingsT('googleDrivePrivateKeyPlaceholder')}
                   rows={5}
@@ -485,6 +503,57 @@ export default function SettingsPage() {
                 <p className="text-xs text-muted-foreground">
                   {settingsT('privateKeySecretHelp')}
                 </p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-base">📧 อีเมล (Resend)</Label>
+                  <p className="text-xs text-muted-foreground">ส่งอีเมลแจ้งเตือน, รีเซ็ตรหัสผ่าน, รายงาน</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="resend_api_key">Resend API Key</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="resend_api_key"
+                      type="password"
+                      value={inputSetting(settings, 'resend_api_key')}
+                      onChange={(e) => setSettings({ ...settings, resend_api_key: e.target.value })}
+                      placeholder="re_xxxxxxxxxxxx"
+                      className="font-mono text-xs flex-1"
+                    />
+                    <Button type="button" variant="outline" onClick={async () => {
+                      setTestingEmail(true);
+                      try {
+                        const res = await fetch('/api/email/test', { method: 'POST' });
+                        const result = await res.json();
+                        if (res.ok && result.success) {
+                          toast('✅ ส่งอีเมลทดสอบสำเร็จ');
+                        } else {
+                          toast('❌ ส่งไม่สำเร็จ', { description: result.error || 'Unknown error' });
+                        }
+                      } catch {
+                        toast('❌ ส่งไม่สำเร็จ');
+                      } finally {
+                        setTestingEmail(false);
+                      }
+                    }} disabled={testingEmail}>
+                      {testingEmail ? 'กำลังส่ง...' : 'ทดสอบส่ง'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">API key จาก resend.com → API Keys</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="resend_from">อีเมลผู้ส่ง (From)</Label>
+                  <Input
+                    id="resend_from"
+                    value={inputSetting(settings, 'resend_from')}
+                    onChange={(e) => setSettings({ ...settings, resend_from: e.target.value })}
+                    placeholder="ระบบคะแนน <noreply@school.ac.th>"
+                  />
+                  <p className="text-xs text-muted-foreground">ต้อง verify domain ที่ Resend ก่อนส่งจริง</p>
+                </div>
               </div>
             </CardContent>
           </Card>

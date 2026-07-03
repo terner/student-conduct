@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Sarabun } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,11 +17,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const sarabun = Sarabun({
-  variable: "--font-sarabun",
+const notoSansThai = Noto_Sans_Thai({
+  variable: "--font-noto-sans-thai",
   subsets: ["thai", "latin"],
   weight: ["300", "400", "500", "600", "700"],
   display: "swap",
+  preload: true,
 });
 
 export const metadata: Metadata = {
@@ -42,7 +44,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${sarabun.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${notoSansThai.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
@@ -55,6 +57,7 @@ export default async function RootLayout({
           >
             <TooltipProvider delay={0}>
               {children}
+              <SpeedInsights />
             </TooltipProvider>
           </ThemeProvider>
         </NextIntlClientProvider>

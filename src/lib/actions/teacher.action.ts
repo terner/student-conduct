@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { withAuth } from '@/lib/server-action';
 import { canManageSchoolData, canImportData } from '@/lib/security/roles';
 import { createAdminClient } from '@/lib/supabase/server';
@@ -107,6 +108,7 @@ export async function updateMyTeacherProfile(data: {
       metadata: { changed_fields: Object.keys(updateData).filter((key) => updateData[key as keyof typeof updateData] !== undefined) },
     });
 
+    revalidatePath("/teachers");
     return { success: true, data: after };
   });
 }
@@ -195,6 +197,7 @@ export async function editTeacher(id: string, data: {
       afterData: after,
       metadata: { changed_fields: Object.keys(validated) },
     });
+    revalidatePath("/teachers");
     return { success: true, data: { id } };
   });
 }
@@ -215,6 +218,7 @@ export async function setTeacherActive(id: string, isActive: boolean) {
       beforeData: before ? { is_active: before.is_active } : null,
       afterData: { is_active: isActive },
     });
+    revalidatePath("/teachers");
     return { success: true, data: { id, is_active: isActive } };
   });
 }
@@ -242,6 +246,7 @@ export async function assignClassroom(data: {
       afterData: validated,
     });
 
+    revalidatePath("/teachers");
     return { success: true, data: null };
   });
 }
@@ -260,6 +265,7 @@ export async function unassignClassroom(teacherId: string, classroomId: string) 
       targetId: classroomId,
       metadata: { teacher_id: teacherId },
     });
+    revalidatePath("/teachers");
     return { success: true, data: null };
   });
 }
@@ -276,6 +282,15 @@ export async function importTeachersCsv(rows: Record<string, unknown>[]) {
     const errors: { row: number; message: string }[] = [];
     let imported = 0;
 
+    // Get current academic year once for classroom assignment
+    const supabase = await createAdminClient();
+    const { data: currentYear } = await supabase
+      .from('academic_years')
+      .select('id')
+      .eq('is_current', true)
+      .maybeSingle();
+    const currentAcademicYearId = currentYear?.id as string | undefined;
+
     for (let i = 0; i < rows.length; i++) {
       try {
         const row = rows[i];
@@ -288,9 +303,10 @@ export async function importTeachersCsv(rows: Record<string, unknown>[]) {
         const department = String(row['แผนก'] || row['department'] || '').trim();
         const position = String(row['ตำแหน่ง'] || row['position'] || 'ครู').trim();
         const systemRole = String(row['สิทธิ์ในระบบ'] || row['system_role'] || row['systemRole'] || 'teacher').trim();
+        const classroomName = String(row['ห้องที่ปรึกษา'] || row['classroom'] || row['homeroom'] || '').trim();
 
-        if (!prefix || !firstName || !lastName || !email || !employeeId) {
-          errors.push({ row: i + 1, message: 'ข้อมูลไม่ครบ (คำนำหน้า, ชื่อ, นามสกุล, อีเมล, รหัสเจ้าหน้าที่)' });
+        if (!prefix || !firstName || !lastName || !email) {
+          errors.push({ row: i + 1, message: 'ข้อมูลไม่ครบ (คำนำหน้า, ชื่อ, นามสกุล, อีเมล)' });
           continue;
         }
 
@@ -311,6 +327,29 @@ export async function importTeachersCsv(rows: Record<string, unknown>[]) {
 
         if (result.success) {
           imported++;
+
+          // Assign homeroom classroom if specified
+          if (classroomName && result.data && currentAcademicYearId) {
+            try {
+              const { data: classroom } = await supabase
+                .from('classrooms')
+                .select('id')
+                .eq('name', classroomName)
+                .eq('academic_year_id', currentAcademicYearId)
+                .maybeSingle();
+
+              if (classroom?.id) {
+                await assignTeacherToClassroom({
+                  teacher_id: (result.data as { id: string }).id,
+                  classroom_id: classroom.id,
+                  assignment_role: 'homeroom',
+                  assigned_by: profile.id,
+                });
+              }
+            } catch {
+              // Classroom assignment failure shouldn't fail the whole import
+            }
+          }
         } else {
           errors.push({ row: i + 1, message: result.error?.message || 'บันทึกไม่สำเร็จ' });
         }
@@ -319,6 +358,58 @@ export async function importTeachersCsv(rows: Record<string, unknown>[]) {
       }
     }
 
+    revalidatePath("/teachers");
     return { success: true, data: { imported, errors } };
+  });
+}
+
+export async function resetTeacherPassword(teacherId: string) {
+  return withAuth(async (profile) => {
+    if (!canManageSchoolData(profile)) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+    }
+
+    const supabase = await createAdminClient();
+
+    // Get teacher with profile
+    const teacher = await getTeacherById(teacherId, supabase);
+    if (!teacher) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลครู' } };
+    }
+
+    // Get profile to find user_id
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('id', teacher.profile_id)
+      .single();
+
+    if (profileError || !profileData?.user_id) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบบัญชีผู้ใช้ของครู' } };
+    }
+
+    // Send password reset email via Supabase Auth
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      teacher.email || '',
+      { redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || ''}/reset-password` }
+    );
+
+    if (resetError) {
+      const msg = resetError.status === 429
+        ? 'ส่งอีเมลเกินจำนวน (4 อีเมล/ชั่วโมง) กรุณาลองใหม่ใน 1 ชั่วโมง'
+        : resetError.message;
+      return { success: false, error: { code: 'RESET_FAILED', message: msg } };
+    }
+
+    await logAudit({
+      actorId: profile.id,
+      action: 'teacher_password_reset',
+      targetType: 'teacher',
+      targetId: teacherId,
+      metadata: { teacher_name: teacher.full_name },
+    });
+
+    revalidatePath("/teachers");
+    return { success: true, data: { message: `ส่งลิงก์ตั้งรหัสผ่านไปที่ ${teacher.email} แล้ว` } };
   });
 }

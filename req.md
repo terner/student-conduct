@@ -6,11 +6,11 @@ Multi-School Ready · Config-Driven Design · Clone & Deploy
 
 Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai Font
 
-## Current Implementation Snapshot — 2026-05-13
+## Current Implementation Snapshot — 2026-06-04
 
 สถานะล่าสุดของระบบใน repo นี้:
 
-- ใช้ Next.js 16 App Router + TypeScript + Supabase + Turbopack
+- ใช้ Next.js 16 App Router + TypeScript + Supabase
 - มี global academic year selector ใน top bar สำหรับเลือกดูข้อมูลย้อนหลังตามปีการศึกษา เช่น dashboard, รายชื่อนักเรียน, ห้องเรียน, รายงาน และประวัติคะแนน
 - Workflow ที่ต้องอิงปีปัจจุบันจริงของระบบ เช่น login นักเรียนและข้อมูลชุดปัจจุบัน ต้องตรวจจาก `academic_years.is_current = true` ไม่ใช่ค่าที่ผู้ใช้เลือกเอง
 - หน้า Settings → ปีการศึกษา ใช้ดูสถานะปีการศึกษา แจ้งเตือนเมื่อใกล้หมดปีหรือยังไม่มีปีปัจจุบัน และมี action เฉพาะสำหรับขึ้นปีการศึกษาถัดไปหลังปีเดิมสิ้นสุดแล้ว
@@ -19,31 +19,25 @@ Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
   2. ระดับชั้นการศึกษา (`education_stages`) เช่น อนุบาล, ประถมศึกษา, มัธยมศึกษา, มัธยมปลาย
   3. ชั้นปี (`grade_levels`) เช่น ป.1-ป.6, ม.1-ม.6
   4. ห้องเรียน (`classrooms`) เช่น ป.1/1, ป.1/2 โดยผูกกับ `academic_year_id`, `education_stage_id`, `grade_level_id`
-- หน้า Settings → โครงสร้างชั้นเรียน (`/settings/education-stages`) เป็น **Tree View**: จัดการระดับการศึกษา → ชั้นปี → ห้องเรียนในหน้าเดียว
-  - สร้างห้องเรียนอัตโนมัติจากชื่อชั้นปี + เลขลำดับถัดไป (ป.1/1, ป.1/2, ...)
-  - ลบได้เฉพาะห้องสุดท้ายในชั้นปี, ลบชั้นปีได้เมื่อไม่มีห้อง, ลบระดับได้เมื่อไม่มีชั้นปี
-- หน้าห้องเรียน (`/classrooms`) มี filter: ค้นหา, ระดับ, ชั้นปี, ชื่อห้อง — responsive ทุกขนาดจอ
-- หน้ารายชื่อครู (`/teachers`) มี filter: ค้นหา, สิทธิ์, สถานะ, แผนก — responsive ทุกขนาดจอ
-- หน้ารายละเอียดครู (`/teachers/[id]`) แยกครูประจำชั้น/ครูผู้ช่วยชัดเจน พร้อม avatar, contact, สิทธิ์
-- ฟอร์มเพิ่ม/แก้ไขครู ออกแบบใหม่ — avatar ตรงกลาง, ปุ่มแนวตั้งเต็มกว้าง, แต่ละสิทธิ์มีคำอธิบาย
-- ครูรองรับ **นำเข้าจาก CSV** (ปุ่ม Import บนหน้ารายชื่อครู) — headers รองรับทั้งไทย/อังกฤษ
+- มีหน้า Settings → โครงสร้างชั้นเรียน สำหรับไปจัดการ:
+  - `/settings/academic-years`
+  - `/settings/education-stages`
+  - `/settings/grade-levels`
+  - `/classrooms`
+- การเพิ่มห้องเรียนใช้ flow: เลือกระดับชั้น → เลือกชั้นปี → ใส่จำนวนห้อง → ระบบสร้างชื่อห้องจาก master data
 - หน้าเพิ่มนักเรียนและหน้าบันทึกคะแนนใช้ filter ที่สัมพันธ์กันจากข้อมูลห้องจริง ไม่ fix ชั้นปีใน code
-- ข้อมูลทดสอบปัจจุบันใน Supabase: นักเรียน ~1,000+, ครู 30, ห้องเรียน 24, ชั้นปี 12, ผู้ปกครอง 300
-- เพิ่มข้อมูลนักเรียน: คำนำหน้า, ผู้ปกครอง, ความสัมพันธ์, เบอร์โทรผู้ปกครอง, รูปโปรไฟล์ และรองรับ CSV
-- เพิ่มข้อมูลครู: คำนำหน้า, เบอร์โทร, e-mail, ตำแหน่งครู, รูปโปรไฟล์ และมีหน้ากำหนดตำแหน่งครู
+- ข้อมูลปัจจุบันหลัง import target Supabase (`yiejvcmpulyervsehdzj`): `auth.users` 726, `profiles` 724, นักเรียน 689, ครู 32, การลงทะเบียนนักเรียน 689, หมวดคะแนน 82, รายการคะแนน 2
+- migration/import ล่าสุดทำโดย apply `schema.sql` และ replay `data.sql` ผ่าน Supabase CLI linked mode; import ได้ครบใน `auth` และ `public` ตามตารางหลักที่ verify แล้ว
+- `storage` metadata/binary files ยังไม่ได้ถูกทับทั้งหมดจาก dump นี้; SQL path นี้ไม่ครอบคลุม storage binary objects
+- เพิ่มข้อมูลนักเรียน: คำนำหน้า, ผู้ปกครอง, ความสัมพันธ์, เบอร์โทรผู้ปกครอง และรองรับ CSV
+- เพิ่มข้อมูลครู: คำนำหน้า, เบอร์โทร, e-mail, ตำแหน่งครู และมีหน้ากำหนดตำแหน่งครู
 - ห้องเรียนรองรับทั้งครูประจำชั้นและครูที่ปรึกษา โดยเป็นคนเดียวกันได้
 - ตารางรายชื่อนักเรียนแสดงคะแนนปัจจุบัน และกด row เพื่อเข้าหน้า profile ได้
-- ตารางห้องเรียนและตารางครู กด row เพื่อเข้าหน้ารายละเอียดได้
 - ประวัติคะแนนรองรับ evidence metadata และ modal แสดงรูปหลักฐานถ้ามี
-- หน้าประวัติคะแนน (`/score/history`) มี filter: ค้นหา, ระดับ, ชั้นปี, ห้อง, ประเภท
-- หน้า dashboard สลับการ์ด — นักเรียนถึงเกณฑ์อยู่คู่กับแจกแจงคะแนน, รายการล่าสุดอยู่ด้านล่างเต็มกว้าง
-- เบอร์โทรแสดงผลในรูปแบบ `XXX-XXX-XXXX` ทั่วทั้งระบบ (`formatPhoneDisplay`)
-- TopBar sticky ติดด้านบนตลอดเวลา scroll — ทั้ง desktop และ mobile
 - Storage provider เลือกได้ผ่าน Settings/config ระหว่าง Vercel Blob, Google Drive และ Supabase Storage; Vercel Blob ใช้ `BLOB_READ_WRITE_TOKEN`/`STORAGE_PROVIDER` และ evidence รองรับ private blob ผ่าน `/api/blob/...` ส่วน Google Drive ยังเป็น optional provider ที่ใช้ service account/folder id ได้
 - Vercel Blob ผ่านการทดสอบด้วย token จริงแล้วสำหรับ upload/read/delete ของ logo, profile และ evidence บน private store; ระบบจึงคืนไฟล์ private ผ่าน `/api/blob/...` แทน URL ตรงเมื่อ provider เป็น Vercel Blob private
-- Fixed: studentSchema/teacherSchema รองรับ avatar_url (Zod validation), N+1 query ใน listClassrooms (49→3 queries), SelectTrigger height ทุก filter (`!h-10`), itemToStringLabel ป้องกัน UUID แสดงใน filter
 
-## Academic Year Policy — 2026-05-11
+## Academic Year Policy — 2026-06-04
 
 - ปีปัจจุบันของระบบมีแหล่งอ้างอิงเดียวคือ `academic_years.is_current = true`
 - ผู้ใช้ไม่ควรเปลี่ยน "ปีปัจจุบันของระบบ" เองจากการใช้งานทั่วไป เพราะจะทำให้ login, คะแนน, รายชื่อนักเรียน และข้อมูลทดสอบอ้างอิงคนละชุด
@@ -57,37 +51,150 @@ Next.js 16 \| TypeScript \| Supabase \| Vercel \| i18n (TH/EN) \| Sarabun Thai F
 
 ## Open Work — ต้องทำต่อ
 
-### ✅ Done (2026-05-13)
-
-- ✅ **Education Structure Tree View** — หน้า `/settings/education-stages` เป็น tree view: สร้าง/แก้ไข/ลบ ระดับการศึกษา → ชั้นปี → ห้องเรียนในหน้าเดียว สร้างห้องอัตโนมัติจากชื่อชั้นปี + เลขถัดไป ลบได้เฉพาะห้องสุดท้าย
-- ✅ **Teacher CSV Import** — ปุ่ม Import บนหน้ารายชื่อครู, headers รองรับไทย/อังกฤษ, parse + import ทันที
-- ✅ **Teacher Detail Redesign** — แยกครูประจำชั้น/ครูผู้ช่วย, avatar, contact, สิทธิ์
-- ✅ **Teacher Form Redesign** — avatar ตรงกลาง, ปุ่มแนวตั้งเต็มกว้าง (mobile-friendly), สิทธิ์มีคำอธิบาย, ทุกช่องสูงเท่ากัน
-- ✅ **Responsive Filter Grids** — ทุกหน้า filter ใช้ `sm:grid-cols-2 lg:grid-cols-[...]` ตอบสนองทุกขนาดจอโดยไม่ต้องกำหนดทีละ breakpoint
-- ✅ **UUID Display Fix** — ทุก filter Select มี `itemToStringLabel` ป้องกัน UUID แสดงใน UI
-- ✅ **SelectTrigger `!h-10` Fix** — ทุก filter Select สูงเท่ากับ Input (40px) โดย override `data-[size=default]:h-8`
-- ✅ **N+1 Query Fix** — `listClassrooms` batch student/teacher counts (49 queries → 3 queries)
-- ✅ **Dashboard Layout Swap** — นักเรียนถึงเกณฑ์อยู่คู่กับแจกแจงคะแนน, รายการล่าสุดด้านล่างเต็มกว้าง
-- ✅ **TopBar Sticky** — `sticky top-0` + `overflow-hidden h-dvh` ให้ topbar ติดด้านบนตลอด
-- ✅ **Phone Format Display** — `formatPhoneDisplay()` → `XXX-XXX-XXXX` ทั่วระบบ
-- ✅ **Classroom Table Clickable** — กด row ไปหน้ารายละเอียดห้อง
-- ✅ **Avatar Upload Fix** — `studentSchema` เพิ่ม `avatar_url`, `teacherSchema` แก้ `.url()` → `.string()`
-- ✅ **Login Form Fix** — `handleQuickLogin` เปลี่ยน `catch` → `finally` ให้ `setLoading(false)` ทำงานเสมอ
-- ✅ **Score History Filters** — เพิ่ม filter: ค้นหา, ระดับ, ชั้นปี, ห้อง, ประเภท — responsive
-
-### 🔶 ยังต้องทำต่อ
-
-- Storage upload hardening: Settings มีปุ่ม test connection ตาม provider, upload routes ใช้ API error messages ตาม locale, จำกัด image/evidence type/size/count, เพิ่ม in-memory rate limit ระดับ route/user, audit log บันทึก IP/user-agent, และ Supabase fallback ของ evidence เปลี่ยนไปใช้ bucket `evidence` แล้ว
-- ทำ permission/admin UI ให้กำหนด role หรือเพิ่ม admin ให้ครูบางคนจากหน้า UI ได้ครบ
+- Storage upload hardening ทำเพิ่มแล้ว: Settings มีปุ่ม test connection ตาม provider, upload routes ใช้ API error messages ตาม locale, จำกัด image/evidence type/size/count, เพิ่ม in-memory rate limit ระดับ route/user, audit log บันทึก IP/user-agent, และ Supabase fallback ของ evidence เปลี่ยนไปใช้ bucket `evidence`
+- Permission/admin UI ระดับ MVP ทำผ่านหน้า Teachers แล้ว: เพิ่ม/แก้ไขครูพร้อมกำหนด `teacher`, `admin`, `superadmin` ได้จาก UI และแสดง role ในตารางครู; เหลืองาน Phase 1 hardening คือ PermissionEditor แบบละเอียดสำหรับ `role_permissions` และ `profile_permission_overrides`
 - Audit/action logs ระดับ MVP ต่อใช้งานแล้ว: มี helper กลางแบบ best-effort, บันทึก settings, teacher role/status/assignment, student add/edit/status/archive/import, score record/bulk/approve/void/category, classroom create/edit/delete/teacher assignment, upload logo/avatar/evidence, storage test และ login success/failure; upload/storage/login audit/action logs เก็บ IP/user-agent แล้ว; `/reports/threshold` บันทึก view_report และ export_csv แล้ว; หน้า `/settings/logs` แสดง Audit logs และ Action logs แยก tab แล้ว เหลือ hardening เช่น report coverage หน้าอื่น, before/after ที่ละเอียดขึ้น และ automated tests เพิ่ม
-- ทำ i18n ให้ครบทุกหน้าแบบ strict production-grade: มี ~722 strings/ภาษา แต่ยังเหลือ hardcoded ในบางหน้า
-- แยกข้อความที่เป็น domain/import format ออกจากงาน i18n ให้ชัด เช่น CSV Thai headers, คำนำหน้า, sample import data
-- รายงานนักเรียนถึงเกณฑ์และการแจ้งเตือน: notification generation ทำแล้วเมื่อ record/approve คะแนนปีปัจจุบันถึง threshold
-- Pagination รอบล่าสุดทำแล้วในหน้า list/report หลัก
-- ทำ annual promotion/rollover: สร้างปีใหม่, copy/create ห้องตามโครงสร้าง, ย้าย enrollment นักเรียนรายปี
+- ทำ i18n ให้ครบทุกหน้าแบบ strict production-grade: ตอนนี้มี config, switcher และ `messages/th.json` + `messages/en.json` แล้ว และแปลง UI หลักไปหลายส่วนแล้ว รวมถึง validation/Zod messages หลัก, auth pages, auth login API, upload/storage API errors, notification bell type label, sidebar disabled tooltip, dashboard error page, Settings Google Drive labels และ `/students/me` state แล้ว แต่ยังเหลือ hardcoded Thai/English ที่ต้องไล่ต่อใน server action errors และ hardcoded copy ที่เหลือใน reports/score/settings/teacher/student profile/PDF
+- แยกข้อความที่เป็น domain/import format ออกจากงาน i18n ให้ชัด เช่น CSV Thai headers, คำนำหน้า, sample import data และ grade abbreviations อาจต้องคงไว้เป็นข้อมูลระบบ ไม่ใช่ UI copy
+- รายงานนักเรียนถึงเกณฑ์และการแจ้งเตือน: notification generation ทำแล้วเมื่อ record/approve คะแนนปีปัจจุบันถึง threshold, ส่งให้ admin/superadmin และครู homeroom/assistant ของห้อง, กัน duplicate ต่อ student/year/threshold/recipient ผ่าน metadata, mark-read ตรวจ ownership แล้ว และ `/reports/threshold` มี search/filter/pagination/export filename ตามปีการศึกษาแล้ว
+- Pagination รอบล่าสุดทำแล้วในหน้า list/report หลัก: `/teachers`, `/classrooms`, `/classrooms/[id]`, `/reports/individual`, `/reports/threshold`, `/reports/bond`, `/settings/logs`, `/interventions` และ notification bell มี load more แล้ว; หน้า score/student หลักมี pagination อยู่ก่อนแล้ว
+- Annual rollover ทำแล้ว: สร้าง/ตรวจปีใหม่, copy/create ห้อง, copy ครูประจำห้อง/ครูที่ปรึกษา, สร้าง enrollment ปีใหม่สำหรับนักเรียนสถานะ `active`/`repeated`, ผูก `previous_enrollment_id`, กัน duplicate student และหลบเลขที่ซ้ำในห้อง
+- Import wizard สำหรับปีการศึกษาใหม่ทำแล้ว: preview ก่อนนำเข้า, match นักเรียนเดิมด้วย `student_id_number`, update profile/current classroom/status, create/update `student_enrollments`, รองรับสถานะ active/repeated/transferred/inactive/graduated และบันทึก audit log
 - ทำรายงาน/สถิติเพิ่มเติม เช่น monthly snapshot, school statistics, export PDF/Excel
 - ปรับ RLS/permission ให้ละเอียดตาม production policy ก่อนใช้งานจริง
 - เพิ่ม automated tests สำหรับ classroom structure, grade-level filters, score record, import CSV
+
+## Phase 2 — LINE Parent Notification, Attendance, Reports
+
+Phase 2 เป็นงานต่อยอดหลัง MVP เพื่อให้ผู้ปกครองลงทะเบียนผ่าน LINE และรับแจ้งเตือนเมื่อมีเหตุการณ์สำคัญของนักเรียน โดยใช้ **LINE Official Account + Messaging API + LIFF** เท่านั้น ไม่ใช้ LINE Notify เพราะ LINE Notify ยุติบริการแล้ว
+
+### Phase 2 Goals
+
+- ผู้ปกครอง add LINE OA ของโรงเรียน แล้วกด Rich Menu เพื่อเปิดหน้า LIFF ลงทะเบียน
+- ระบบผูก LINE `userId` ของผู้ปกครองกับนักเรียนใน Supabase หลังยืนยันข้อมูลนักเรียนสำเร็จ
+- ครูมีหน้าเช็คชื่อเพื่อบันทึกสถานะ `present`, `late`, `absent`, `leave`
+- ระบบส่ง LINE แจ้งผู้ปกครองเมื่อ:
+  - นักเรียนถูกหักคะแนนความประพฤติ
+  - นักเรียนขาดเรียน
+  - นักเรียนเข้าเรียนช้า
+- Admin/ครูดูรายงาน attendance, LINE registration coverage และ notification delivery status ได้
+- ทุกข้อความที่ส่งต้องมี log, dedupe และสถานะ `sent`, `failed`, `skipped`, `not_linked`
+
+### Phase 2 User Workflow
+
+```text
+ผู้ปกครอง add LINE OA
+-> กด Rich Menu "ลงทะเบียนผู้ปกครอง"
+-> เปิด LIFF /line/register
+-> LIFF อ่าน LINE userId/profile
+-> ผู้ปกครองกรอกรหัสนักเรียน + ข้อมูลยืนยัน
+-> Supabase ผูก guardian/student/line_user_id
+-> ครูบันทึกหักคะแนนหรือเช็คชื่อ
+-> ระบบสร้าง notification event
+-> ส่ง LINE Messaging API
+-> เก็บ line_message_logs
+-> ครู/Admin ดูรายงาน sent/failed/not linked
+```
+
+### Phase 2 Feature Scope
+
+| Feature | Scope | Notes / Limit |
+|---------|-------|---------------|
+| LINE OA setup | สร้าง OA, Messaging API channel, webhook URL, Rich Menu | ต้องมี HTTPS production URL จาก Vercel |
+| LIFF registration | หน้า `/line/register` ให้ผู้ปกครองลงทะเบียน | ต้องได้ LINE `userId` จาก LIFF ไม่ใช้ LINE ID ที่พิมพ์เอง |
+| Guardian linking | ผูกผู้ปกครองกับนักเรียน | ต้องรองรับ 1 guardian หลาย student และ 1 student หลาย guardian |
+| Student verification | ตรวจรหัสนักเรียน + วันเกิด/เบอร์ผู้ปกครอง | ต้องกันผูกผิดคน |
+| Attendance check-in | หน้าให้ครูเช็คชื่อรายห้อง/วัน/คาบ | สร้าง attendance source สำหรับขาด/สาย |
+| Attendance notifications | แจ้ง `absent` และ `late` | แนะนำส่งหลัง cutoff หรือหลัง submit เพื่อลดส่งผิด |
+| Conduct notifications | แจ้งเมื่อมีรายการหักคะแนน | ต้องกันส่งซ้ำ event เดิม |
+| Notification logs | บันทึกทุก push message | ใช้ตรวจสอบ quota และ debug ผู้ปกครองบอกไม่ได้รับ |
+| Reports | attendance, guardian linked, LINE sent/failed | MVP ของ Phase 2 ควรมีตาราง + filter ก่อน export |
+
+### Phase 2 Suggested Routes
+
+```text
+/line/register
+/line/students
+/line/settings
+/attendance
+/attendance/[classroomId]
+/attendance/history
+/reports/attendance
+/reports/notifications
+/reports/guardian-links
+/api/line/webhook
+/api/line/register
+```
+
+### Phase 2 Suggested Schema Additions
+
+```text
+guardians
+- line_user_id
+- line_display_name
+- line_picture_url
+- line_linked_at
+- line_notification_enabled
+
+attendance_sessions
+- id
+- classroom_id
+- academic_year_id
+- date
+- period
+- teacher_id
+- status: draft/submitted
+- submitted_at
+
+attendance_records
+- id
+- session_id
+- student_id
+- status: present/late/absent/leave
+- check_in_time
+- note
+- created_by
+- updated_at
+
+line_message_logs
+- id
+- student_id
+- guardian_id
+- event_type
+- event_id
+- status
+- message
+- error
+- sent_at
+
+line_webhook_events
+- id
+- event_id
+- event_type
+- payload
+- created_at
+```
+
+### Phase 2 Environment Variables
+
+```env
+LINE_CHANNEL_ID=
+LINE_CHANNEL_SECRET=
+LINE_CHANNEL_ACCESS_TOKEN=
+NEXT_PUBLIC_LINE_LIFF_ID=
+```
+
+### Phase 2 Delivery Order
+
+1. LINE OA/Messaging API/LIFF setup + webhook signature verification
+2. LIFF registration + guardian/student linking
+3. Admin/teacher linked/not linked status
+4. Send test LINE message to linked guardian
+5. Attendance check-in page and attendance schema
+6. Notification engine with log + dedupe
+7. Conduct deduction notification
+8. Absent/late notification
+9. Reports: attendance, guardian links, notification delivery
 
 ## 1. Tech Stack & Dependencies
 
@@ -158,7 +265,10 @@ export const schoolConfig = {
 
   // ─── Feature Flags (ปิด/เปิดฟีเจอร์) ───
   features: {
-    lineNotify: false,           // 🔴 ปิด (ไม่ใช่ MVP)
+    lineMessaging: false,        // 🔴 Phase 2: LINE OA + Messaging API
+    parentLiff: false,           // 🔴 Phase 2: LIFF registration for guardians
+    attendance: false,           // 🔴 Phase 2: teacher attendance check-in
+    attendanceReports: false,    // 🔴 Phase 2: attendance + notification reports
     emailSummary: false,         // 🔴 ปิด (ไม่ใช่ MVP)
     pwa: false,                  // 🔴 ปิด (ไม่ใช่ MVP)
     monthlyReportSnapshot: true, // ✅ เปิด
@@ -227,7 +337,10 @@ export const schoolConfig = {
 | Role-based permissions | ✅ MVP | — |
 | PDPA consent flow | ✅ MVP | — |
 | Bilingual UI (TH/EN) | ✅ MVP | — |
-| **Line Notify** | ❌ | `features.lineNotify` |
+| **LINE Parent Messaging** | Phase 2 | `features.lineMessaging` |
+| **Parent LIFF Registration** | Phase 2 | `features.parentLiff` |
+| **Attendance Check-in** | Phase 2 | `features.attendance` |
+| **Attendance & LINE Reports** | Phase 2 | `features.attendanceReports` |
 | **Email Summary** | ❌ | `features.emailSummary` |
 | **PWA Support** | ❌ | `features.pwa` |
 
@@ -1309,7 +1422,8 @@ export const schoolConfig = {
 
   | Endpoint | Limit | Window | Action |
   |----------|-------|--------|--------|
-  | `POST /api/auth/login` | 5 ครั้ง | 15 นาที | block + log action_log |
+  | `POST /api/auth/login` request throttle | 600 ครั้ง/IP | 1 นาที | block + log action_log |
+  | `POST /api/auth/login` invalid password | 5 ครั้ง/IP + email หรือ student_id | 10 นาที | block เฉพาะ identity นั้น + log action_log |
   | `POST /api/auth/forgot-password` | 3 ครั้ง | 1 ชั่วโมง | block + log |
   | `POST /api/score/record` | 100 ครั้ง | 1 ชั่วโมง | alert admin |
   | `POST /api/import/*` | 5 ครั้ง | 1 ชั่วโมง | block + audit log |
@@ -1404,6 +1518,125 @@ export const schoolConfig = {
 | | `notification.manage` | ✅ | ❌ | ❌ |
 
 > ⚙️ config = Admin สามารถเปิด/ปิดได้ที่หน้า Settings → Permissions
+
+#### Implemented: `src/lib/security/roles.ts` — 2026-05-14
+
+| ฟังก์ชัน | superadmin | admin | teacher | student | ใช้ที่ไหน |
+|----------|:---------:|:-----:|:------:|:------:|-----------|
+| `canManageSettings` | ✅ | ✅ | ❌ | ❌ | หน้าตั้งค่า, แก้ไข school info, thresholds |
+| `canManageSchoolData` | ✅ | ✅ | ❌ | ❌ | รายชื่อครู, รายชื่อนักเรียน, ห้องเรียน, นำเข้าข้อมูล |
+| `canApproveScores` | ✅ | ✅ | ❌ | ❌ | อนุมัติคะแนน, void คะแนน |
+| `canImportData` | ✅ | ✅ | ❌ | ❌ | CSV import นร./ครู, annual import |
+| `canRecordScores` | ✅ | ✅ | ✅ | ❌ | บันทึกคะแนน, bulk record |
+
+**หลักการ:**
+- `superadmin` — ทุกสิทธิ์ (รวมจัดการ settings, audit log)
+- `admin` — จัดการข้อมูลโรงเรียน, อนุมัติ, นำเข้า, จัดการ settings ได้
+- `teacher` — บันทึกคะแนนอย่างเดียว + ดูข้อมูลใน scope ที่ได้รับมอบหมาย
+- `student` — ดูข้อมูลตัวเองเท่านั้น (เช็คผ่าน RLS)
+- `isSuperAdmin()` — เช็คเฉพาะ superadmin (ใช้ภายใน)
+- `hasAnyRole(profile, roles)` — เช็คหลาย role พร้อมกัน
+- `hasRole(profile, role)` — เช็ค role เดียว
+- `getRoles(profile)` — normalize role จาก string/array
+
+#### Permission Checks Breakdown (ละเอียด) — 2026-05-14
+
+**1. Server Actions — ใครทำอะไรได้บ้าง:**
+
+| หมวด | Action | ใครทำได้ | ฟังก์ชันที่เช็ค |
+|------|--------|---------|---------------|
+| นักเรียน | ดูรายชื่อ | superadmin, admin | `canManageSchoolData` |
+| | แก้ไขข้อมูล | superadmin, admin, ครูประจำชั้น | `canEditStudentProfile()` → `canManageSchoolData \|\| canApproveScores` หรือเป็น homeroom/assistant |
+| | รีเซ็ตรหัสผ่าน | superadmin, admin, ครูประจำชั้น | `canEditStudentProfile()` |
+| | เปลี่ยนสถานะ | superadmin, admin | `canApproveScores && canManageSchoolData` |
+| | สร้างใหม่ | superadmin, admin | `canManageSchoolData` |
+| | Bulk สร้าง | superadmin, admin, teacher | `canRecordScores \|\| canImportData` |
+| | CSV Import | superadmin, admin | `canImportData` |
+| | Export CSV | superadmin, admin | `canManageSchoolData && canApproveScores` |
+| ครู | ดูรายชื่อ | superadmin, admin | `canManageSchoolData` |
+| | เพิ่ม/แก้ไข/ลบ | superadmin, admin | `canManageSchoolData` |
+| | รีเซ็ตรหัสผ่าน | superadmin, admin | `canManageSchoolData` |
+| | CSV Import | superadmin, admin | `canImportData` |
+| คะแนน | บันทึก | superadmin, admin, teacher | `canRecordScores` |
+| | Bulk บันทึก | superadmin, admin, teacher | `canRecordScores` |
+| | อนุมัติ | superadmin, admin | `canApproveScores` |
+| | Void | superadmin, admin | `canApproveScores` |
+| | จัดการ categories | superadmin, admin | `canApproveScores` |
+| ห้องเรียน | ดูทั้งหมด | superadmin, admin | `canManageSchoolData \|\| canApproveScores` |
+| | เพิ่ม/แก้ไข/ลบ | superadmin, admin | `canManageSchoolData` |
+| รายงาน | สถิติโรงเรียน | superadmin, admin | `canApproveScores` |
+| | Threshold report | superadmin, admin | `canApproveScores` |
+| | Classroom report | superadmin, admin, teacher (เฉพาะห้องตัวเอง) | `canApproveScores` |
+| ตั้งค่า | ดู + แก้ไข | superadmin, admin | `canManageSettings` |
+| | อัปโหลด logo | superadmin เท่านั้น | `hasRole('superadmin')` |
+| | test storage | superadmin เท่านั้น | `hasRole('superadmin')` |
+| | อัปโหลด avatar | superadmin, admin | `hasAnyRole(['admin','superadmin'])` |
+| โครงสร้าง | จัดการปีการศึกษา | superadmin, admin | `canManageSchoolData` |
+| | จัดการระดับชั้น | superadmin, admin | `canManageSchoolData` |
+| | จัดการชั้นปี | superadmin, admin | `canManageSchoolData` |
+| | จัดการตำแหน่งครู | superadmin, admin | `canManageSchoolData` |
+
+**2. Route Access Guard (`route-access-guard.tsx`):**
+
+| Role | เข้าได้ |
+|------|--------|
+| superadmin | ทุกหน้า |
+| admin | `/settings`, `/dashboard`, `/score/*`, `/settings/import`, `/reports`, `/interventions` |
+| teacher | `/score/record`, `/reports/classroom`, student profiles |
+| student | `/students/me`, `/student/dashboard`, student profile ตัวเอง |
+
+**3. Sidebar Menu (`app-sidebar.tsx`):**
+
+| เมนู | ใครเห็น |
+|------|---------|
+| แดชบอร์ด | superadmin, admin |
+| รายชื่อนักเรียน | superadmin |
+| ห้องเรียน | superadmin, admin |
+| บันทึกคะแนน | superadmin, admin, teacher |
+| ประวัติคะแนน | superadmin, admin |
+| หมวดหมู่คะแนน | superadmin, admin |
+| รออนุมัติ | superadmin, admin |
+| นำเข้าข้อมูล | superadmin, admin |
+| รายงาน | superadmin, admin |
+| รายงานห้องเรียน | teacher |
+| รายชื่อครู | superadmin |
+| ตั้งค่า | superadmin, admin |
+| คะแนนของฉัน | student |
+
+**4. Student Profile Page (`students/[id]`) — state flags:**
+
+| Flag | ใครได้ true |
+|------|------------|
+| `canManage` | superadmin, admin + ability to manage students |
+| `canEditProfile` | superadmin, admin, หรือเป็น homeroom/assistant teacher |
+| `canResetPassword` | เหมือน `canEditProfile` |
+| `canChangeStatus` | superadmin, admin |
+| `canRecordScoreInSelectedYear` | `canManage && selectedYearOpen` |
+
+**5. API Routes:**
+
+| Route | Permission |
+|-------|-----------|
+| `POST /api/auth/login` | Public (request throttle 600/min/IP; invalid password 5/10min/IP+identity) |
+| `POST /api/upload/evidence` | `canRecordScores` |
+| `POST /api/upload/avatar` | `hasAnyRole(['admin','superadmin'])` |
+| `POST /api/upload/logo` | `hasRole('superadmin')` |
+| `POST /api/storage/test` | `hasRole('superadmin')` |
+
+**6. Rate Limiting:**
+
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| Login | 20 ครั้ง | 1 นาที |
+| Upload evidence | 30 ครั้ง | 1 นาที |
+| Upload logo | 10 ครั้ง | 1 นาที |
+| Upload avatar | 10 ครั้ง | 1 นาที |
+
+**7. Auth Guards (`auth-guards.tsx`):**
+- ไม่มี session → redirect `/login`
+- `must_change_password=true` → redirect `/first-password`
+- PDPA ยังไม่ consent → redirect `/pdpa-consent`
+- `is_active=false` → 403
 
 #### Feature: "ครูเห็นนักเรียนทั้งหมด"
 
@@ -1736,16 +1969,35 @@ type ErrorResponse = {
 
 - รายงาน `/reports/threshold` ต้องสัมพันธ์กับระบบ notification: ใช้ปีที่เลือกจาก topbar เพื่อดูย้อนหลังได้ แต่การสร้าง notification จริงต้องเกิดจาก event ของปีปัจจุบันเท่านั้น
 
-### 7.2 Line Notify (Optional)
+### 7.2 LINE Parent Messaging — Phase 2
 
-- ส่ง Line message ไปหาผู้ปกครองเมื่อคะแนนถึง threshold
+- ใช้ LINE Official Account + Messaging API + LIFF เท่านั้น ไม่ใช้ LINE Notify
 
-- Message template: 'นักเรียน \[ชื่อ\] คะแนนความประพฤติเหลือ \[X\] คะแนน
-  กรุณาติดต่อครูประจำชั้น'
+- ผู้ปกครองต้อง add LINE OA และลงทะเบียนผ่าน Rich Menu/LIFF ก่อน ระบบจึงจะได้ LINE `userId` สำหรับส่ง push message แบบเจาะจงรายคน
 
-- เพิ่ม LINE_NOTIFY_TOKEN ใน settings และ .env
+- Trigger แจ้งเตือน Phase 2:
+  - นักเรียนถูกหักคะแนนความประพฤติ
+  - นักเรียนขาดเรียน (`attendance_records.status = 'absent'`)
+  - นักเรียนเข้าเรียนช้า (`attendance_records.status = 'late'`)
 
-- API call ผ่าน Next.js server action
+- Message template ต้องมีข้อมูลขั้นต่ำ:
+  - ชื่อนักเรียน
+  - วันที่/เวลา
+  - ประเภทเหตุการณ์
+  - รายละเอียดเหตุการณ์ เช่น คะแนนที่ถูกหัก, เหตุผล, เวลาเข้าเรียน
+  - ช่องทางติดต่อโรงเรียนหรือครูประจำชั้น
+
+- ต้องมี `line_message_logs` เพื่อบันทึกสถานะการส่งทุกครั้ง: `sent`, `failed`, `skipped`, `not_linked`
+
+- ต้องมี idempotency/dedupe ต่อ `event_type + event_id + guardian_id` เพื่อป้องกันส่งซ้ำจาก retry หรือ deploy ซ้ำ
+
+- Environment variables:
+  - `LINE_CHANNEL_ID`
+  - `LINE_CHANNEL_SECRET`
+  - `LINE_CHANNEL_ACCESS_TOKEN`
+  - `NEXT_PUBLIC_LINE_LIFF_ID`
+
+- LINE quota นับตามจำนวนข้อความ push/multicast ต่อผู้รับ จึงควรรองรับ policy แบบส่งทันทีสำหรับเหตุการณ์สำคัญ หรือรวมส่งท้ายวันสำหรับเหตุการณ์ย่อย
 
 ### 7.3 Email Summary (Optional)
 
@@ -2372,7 +2624,10 @@ const securityHeaders = [
 | `NEXT_PUBLIC_SUPABASE_URL` | `.env.local` | Client-side | เมื่อเปลี่ยน project |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `.env.local` | Client-side | เมื่อเปลี่ยน project |
 | `SUPABASE_SERVICE_ROLE_KEY` | `.env.local` | **Server-only** | 90 วัน |
-| `LINE_NOTIFY_TOKEN` | `.env.local` | Server-only | เมื่อถูก revoke |
+| `LINE_CHANNEL_ID` | `.env.local` | Server-only | เมื่อเปลี่ยน LINE channel |
+| `LINE_CHANNEL_SECRET` | `.env.local` | Server-only | เมื่อ rotate secret |
+| `LINE_CHANNEL_ACCESS_TOKEN` | `.env.local` | Server-only | เมื่อถูก revoke หรือ rotate |
+| `NEXT_PUBLIC_LINE_LIFF_ID` | `.env.local` | Client-side | เมื่อเปลี่ยน LIFF app |
 | `RESEND_API_KEY` | `.env.local` | Server-only | 90 วัน |
 
 **กฎ:**
@@ -3129,7 +3384,7 @@ export async function POST(req: Request) { ... }
   [ ] Supabase RLS เปิดทุกตาราง
   [ ] RLS policies ทำงานถูกต้อง (test ด้วย anon key)
   [ ] Service Role Key ใช้เฉพาะ server-side
-  [ ] Rate limiting ทำงาน (test 5 ครั้งติด)
+  [ ] Rate limiting ทำงาน (request throttle + invalid password lockout แยก IP+identity)
   [ ] Password policy ใช้ได้จริง (min 8, max 128, special chars)
   [ ] must_change_password = true → redirect จริง
 
@@ -3170,7 +3425,8 @@ export async function POST(req: Request) { ... }
   [ ] ไม่มี key hardcode ใน code
   [ ] .env.local ไม่ commit ใน git
   [ ] Vercel env vars ตั้งค่าแล้ว
-  [ ] LINE_NOTIFY_TOKEN, RESEND_API_KEY ปลอดภัย
+  [ ] LINE_CHANNEL_SECRET, LINE_CHANNEL_ACCESS_TOKEN, RESEND_API_KEY ปลอดภัย
+  [ ] NEXT_PUBLIC_LINE_LIFF_ID เป็น public id เท่านั้น ไม่มี secret ปน
 
 [ ] ⚡ Performance & Reliability
   [ ] Cold start protection (Edge Functions / keep-alive)
@@ -3290,7 +3546,7 @@ export async function POST(req: Request) { ... }
 - Audit logs include actor, target, before_data, after_data, ip_address, user_agent, metadata, and timestamp.
 
 - Login success/failure, student detail views, report views, and exports create action_logs.
-  - Implemented: login rate-limit event ถูกบันทึกเป็น action log พร้อม IP/user-agent
+  - Implemented: login rate-limit event ถูกบันทึกเป็น action log พร้อม IP/user-agent; login request throttle เป็น 600/min/IP และ invalid password lockout เป็น 5 ครั้ง/10 นาทีต่อ IP+email/student_id
   - Implemented: production rate limit และ server-side shared TTL cache สำหรับ master data/select list ใช้ Upstash Redis REST (`KV_REST_API_URL`, `KV_REST_API_TOKEN`) และ fallback เป็น in-memory เฉพาะกรณี local/dev ไม่มี env
 
 - PDPA consent is recorded with notice version and can be reviewed by admin.
@@ -3319,7 +3575,8 @@ export async function POST(req: Request) { ... }
 
 ### 12.8 Permission System
 
-- Admin can configure teacher permissions via Settings → Permissions page.
+- Admin can configure teacher system roles via Teachers add/edit form (`teacher`, `admin`, `superadmin`).
+- A full Settings → Permissions editor for granular role permissions/profile overrides remains Phase 1 hardening.
 - Permission changes take effect immediately on next action (no re-login required).
 - Default permission sets are seeded for admin, teacher, and student roles.
 - Profile permission overrides (individual exceptions) override role defaults.
@@ -3327,7 +3584,7 @@ export async function POST(req: Request) { ... }
 - Teacher can be configured to view all reports or classroom-only reports.
 - Permission check is performed server-side on every protected action (not just UI hide).
 - UI components hide/show based on current user's permissions.
-- PermissionEditor component shows all permissions in a grouped, searchable table.
+- PermissionEditor component target: grouped, searchable permission matrix for granular overrides.
 
 ### 12.9 PDPA Consent
 

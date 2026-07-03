@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { TopBar } from '@/components/layout/top-bar'
 import { RouteAccessGuard } from '@/components/layout/route-access-guard'
+import { AuthGuard } from '@/components/layout/auth-guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +65,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <SidebarInset className="flex flex-1 flex-col overflow-hidden h-dvh">
         <TopBar firstName={firstName} lastName={lastName} role={role} email={email} avatarUrl={avatarUrl} />
         <main className="flex-1 overflow-y-auto">
-          <RouteAccessGuard role={role}>{children}</RouteAccessGuard>
+          <AuthGuard>
+            <RouteAccessGuard role={role}>{children}</RouteAccessGuard>
+          </AuthGuard>
         </main>
       </SidebarInset>
     </SidebarProvider>

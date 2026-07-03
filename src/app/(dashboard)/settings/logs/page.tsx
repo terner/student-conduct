@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
@@ -12,20 +12,26 @@ import { useLocale, useTranslations } from 'next-intl';
 
 const PAGE_SIZE = 25;
 
+interface LogRow {
+  id: string;
+  created_at: string;
+  profiles?: { full_name?: string | null } | null;
+  [key: string]: unknown;
+}
+
 export default function AuditLogPage() {
   const settingsT = useTranslations('settings');
   const commonT = useTranslations('common');
   const locale = useLocale();
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [actionLogs, setActionLogs] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<LogRow[]>([]);
+  const [actionLogs, setActionLogs] = useState<LogRow[]>([]);
   const [auditTotal, setAuditTotal] = useState(0);
   const [actionTotal, setActionTotal] = useState(0);
   const [auditPage, setAuditPage] = useState(1);
   const [actionPage, setActionPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function load() {
+  const load = useCallback(async () => {
       setLoading(true);
       const supabase = createClient();
       const auditFrom = (auditPage - 1) * PAGE_SIZE;
@@ -41,16 +47,18 @@ export default function AuditLogPage() {
         .order('created_at', { ascending: false })
         .range(actionFrom, actionFrom + PAGE_SIZE - 1);
 
-      if (auditData) setAuditLogs(auditData);
-      if (actionData) setActionLogs(actionData);
+      if (auditData) setAuditLogs(auditData as LogRow[]);
+      if (actionData) setActionLogs(actionData as LogRow[]);
       const { count: auditCount } = await supabase.from('audit_logs').select('id', { count: 'exact', head: true });
       const { count: actionCount } = await supabase.from('action_logs').select('id', { count: 'exact', head: true });
       setAuditTotal(auditCount || 0);
       setActionTotal(actionCount || 0);
       setLoading(false);
-    }
-    load();
   }, [auditPage, actionPage]);
+
+  useEffect(() => {
+    void Promise.resolve().then(load);
+  }, [load]);
 
   if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div></div>;
 
@@ -114,7 +122,7 @@ function LogTable({
   total,
   onPageChange,
 }: {
-  rows: any[];
+  rows: LogRow[];
   emptyTitle: string;
   emptyDescription: string;
   eventKey: string;
@@ -158,9 +166,9 @@ function LogTable({
                   {new Date(log.created_at).toLocaleString(locale)}
                 </TableCell>
                 <TableCell className="text-sm">{log.profiles?.full_name || '-'}</TableCell>
-                <TableCell className="text-sm">{log[eventKey]}</TableCell>
+                <TableCell className="text-sm">{String(log[eventKey] || '')}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {log[targetTypeKey] || '-'}{log[targetIdKey] ? `: ${String(log[targetIdKey]).slice(0, 8)}...` : ''}
+                  {String(log[targetTypeKey] || '-')}{log[targetIdKey] ? `: ${String(log[targetIdKey]).slice(0, 8)}...` : ''}
                 </TableCell>
               </TableRow>
             ))}

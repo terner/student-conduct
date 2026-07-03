@@ -105,7 +105,7 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
                 <TableCell>{student.classroom_name}</TableCell>
                 <TableCell>{student.class_number ?? '-'}</TableCell>
                 <TableCell>{student.education_stage_name || '-'}</TableCell>
-                <TableCell className="font-medium">{student.current_score ?? '-'}</TableCell>
+                <TableCell className="font-medium">{student.current_score != null ? (student.current_score > 100 ? '100+' : student.current_score) : '-'}</TableCell>
                 <TableCell>
                   <Badge className={statusColors[student.current_status] || ''} variant="outline">
                     {statusLabels[student.current_status] || student.current_status}

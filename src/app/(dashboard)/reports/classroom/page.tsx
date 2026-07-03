@@ -274,7 +274,7 @@ export default function ClassroomReportPage() {
                       <TableCell className="font-medium">{s.full_name}</TableCell>
                       <TableCell className="text-destructive">{s.total_deducted}</TableCell>
                       <TableCell className="text-green-600">+{s.total_added}</TableCell>
-                      <TableCell className="font-bold">{s.current_score}</TableCell>
+                      <TableCell className="font-bold">{s.current_score > 100 ? '100+' : s.current_score}</TableCell>
                       <TableCell><ScoreBadge score={s.current_score} baseScore={reportData.base_score} /></TableCell>
                     </TableRow>
                   ))}

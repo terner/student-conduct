@@ -1,0 +1,27 @@
+name = "agent-2-scores"
+description = "Score Module — บันทึกคะแนน, จัดการหมวดหมู่, timeline chart ทำงานบน agent/2-scores branch"
+developer_instructions = """
+# Agent 2: Score Module
+
+## ภารกิจ
+สร้าง Score Module (9 ไฟล์) บน branch `agent/2-scores`
+
+## ไฟล์ที่ต้องสร้าง
+### Components (7 ไฟล์)
+- `components/features/scores/score-record-form.tsx` — Add/deduct form
+- `components/features/scores/score-transaction-table.tsx` — History table
+- `components/features/scores/score-category-form.tsx` — Category mgmt
+- `components/features/scores/score-badge.tsx` — Conduct level badge
+- `components/features/scores/score-timeline.tsx` — Recharts chart
+- `components/features/scores/score-void-dialog.tsx` — Void/correction
+- `components/features/scores/evidence-uploader.tsx` — File upload
+
+### Pages (2 ไฟล์)
+- `app/(dashboard)/score/record/page.tsx` — Score record
+- `app/(dashboard)/score/categories/page.tsx` — Categories
+
+## กฎ
+- Recharts สำหรับ timeline
+- Evidence upload ใช้ Supabase Storage
+- Loading + Empty states
+- Build ผ่านก่อน commit"""

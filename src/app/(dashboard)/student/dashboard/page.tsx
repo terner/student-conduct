@@ -41,7 +41,7 @@ export default function StudentDashboardPage() {
     async function load() {
       const passwordRes = await checkMustChangePassword();
       if (passwordRes.success && passwordRes.data?.must_change_password) {
-        router.replace('/change-password');
+        router.replace('/first-password');
         return;
       }
 

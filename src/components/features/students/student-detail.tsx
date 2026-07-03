@@ -162,7 +162,7 @@ export function StudentDetail({ student, scoreSummary }: StudentDetailProps) {
         </CardHeader>
         <CardContent className="space-y-4 print:space-y-1.5 print:px-3 print:py-2">
           <div className="rounded-md border bg-muted/30 px-4 py-5 text-center print:border-neutral-300 print:bg-neutral-50 print:px-2 print:py-2">
-            <div className="text-4xl font-bold leading-none print:text-2xl">{scoreSummary?.current_score ?? commonT('notAvailable')}</div>
+            <div className="text-4xl font-bold leading-none print:text-2xl">{scoreSummary ? (scoreSummary.current_score > 100 ? '100+' : scoreSummary.current_score) : commonT('notAvailable')}</div>
             <p className="mt-1 text-xs text-muted-foreground print:text-[10px]">{studentT('score')}</p>
           </div>
           <Separator className="print:bg-neutral-300" />

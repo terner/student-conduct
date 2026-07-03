@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -65,6 +66,11 @@ const GUARDIAN_PREFIX_LABELS: Record<string, string> = {
 };
 
 const EMPTY_GUARDIAN_PREFIX = '__none__';
+type GuardianPrefix = (typeof guardianPrefixEnum)[number];
+
+function isGuardianPrefix(value: string | undefined): value is GuardianPrefix {
+  return Boolean(value) && guardianPrefixEnum.includes(value as GuardianPrefix);
+}
 
 export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmit, onCancel, loading }: StudentFormProps) {
   const t = useTranslations('student');
@@ -170,14 +176,15 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     : null;
 
   // Safe value for Base UI Select: null when no valid option is selected
-  const prefixValue = studentPrefixEnum.includes(watch('prefix') as any)
+  const prefixValue = studentPrefixEnum.includes(watch('prefix') as StudentInput['prefix'])
     ? watch('prefix')
     : null;
   const statusValue = (['active', 'inactive', 'transferred', 'graduated', 'suspended'] as string[]).includes(watch('current_status') || '')
     ? watch('current_status')
     : null;
-  const guardianPrefixValue = guardianPrefixEnum.includes(watch('guardian_prefix') as any)
-    ? watch('guardian_prefix')
+  const watchedGuardianPrefix = watch('guardian_prefix');
+  const guardianPrefixValue = isGuardianPrefix(watchedGuardianPrefix)
+    ? watchedGuardianPrefix
     : null;
   const guardianPhoneValue = watch('guardian_phone') || '';
   const guardianRelationValue = (['father', 'mother', 'guardian', 'relative', 'other'] as string[]).includes(watch('guardian_relation') || '')
@@ -286,7 +293,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
         <div className="flex items-center gap-4">
           {avatarUrl ? (
             <div className="relative">
-              <img src={avatarUrl} alt={t('photo')} className="size-16 rounded-full object-cover border" />
+              <Image src={avatarUrl} alt={t('photo')} width={64} height={64} unoptimized className="size-16 rounded-full object-cover border" />
               <button
                 type="button"
                 className="absolute -top-1 -right-1 rounded-full bg-destructive text-destructive-foreground p-0.5"

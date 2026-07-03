@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Pencil, Trash2, Save, ChevronRight, ChevronDown, Search, Hash, School, BookOpen, GraduationCap, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,8 +21,8 @@ import { useTranslations } from 'next-intl';
 // ─── Types ──────────────────────────────────────
 
 interface StageItem { id: string; code: string; name_th: string; name_en?: string; sort_order: number; is_active: boolean; }
-interface LevelItem extends GradeLevelItem {}
-interface ClassroomItem extends ClassroomWithDetails {}
+type LevelItem = GradeLevelItem;
+type ClassroomItem = ClassroomWithDetails;
 
 type TreeNodeType = 'stage' | 'grade_level' | 'classroom';
 
@@ -30,6 +30,11 @@ interface SelectedNode {
   type: TreeNodeType;
   id: string;
 }
+
+type StageFormData = { name_th: string; name_en: string };
+type LevelFormData = { education_stage_id: string; name: string; is_active?: boolean };
+type ClassroomFormData = { name: string; grade_level_id: string; education_stage_id: string; grade_level: number };
+type OpenChangeHandler = Dispatch<SetStateAction<boolean>>;
 
 // ─── Labels ────────────────────────────────────
 
@@ -84,11 +89,15 @@ export default function EducationStagesPage() {
     setLoading(false);
   }
 
-  useEffect(() => { void load(); }, [academicYearId]);
+  useEffect(() => {
+    void Promise.resolve().then(load);
+  }, [academicYearId]);
 
   // Expand all on first load
   useEffect(() => {
-    if (stages.length) setExpanded(new Set(stages.map(s => s.id)));
+    if (stages.length) {
+      void Promise.resolve().then(() => setExpanded(new Set(stages.map(s => s.id))));
+    }
   }, [stages.length]);
 
   // ─── Toggle ──────────────────────────────
@@ -533,8 +542,6 @@ export default function EducationStagesPage() {
         editing={editingStage}
         saving={saving}
         onSave={handleSaveStage}
-        settingsT={settingsT}
-        commonT={commonT}
       />
 
       {/* ─── Level Form Dialog ──────────────────── */}
@@ -546,8 +553,6 @@ export default function EducationStagesPage() {
         stages={stages}
         defaultStageId={selected?.type === 'stage' ? selected.id : editingLevel?.education_stage_id}
         onSave={handleSaveLevel}
-        settingsT={settingsT}
-        commonT={commonT}
         stageLabel={stageLabel}
       />
 
@@ -562,8 +567,6 @@ export default function EducationStagesPage() {
         defaultLevelId={selected?.type === 'grade_level' ? selected.id : editingClassroom?.grade_level_id}
         defaultStageId={editingClassroom?.education_stage_id}
         onSave={handleSaveClassroom}
-        classroomT={classroomT}
-        commonT={commonT}
         stageLabel={stageLabel}
       />
 
@@ -572,7 +575,7 @@ export default function EducationStagesPage() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>ยืนยันการลบ</DialogTitle>
-            <DialogDescription>คุณแน่ใจที่จะลบ "{deleteLabel()}" หรือไม่? การดำเนินการนี้ไม่สามารถยกเลิกได้</DialogDescription>
+            <DialogDescription>คุณแน่ใจที่จะลบ &quot;{deleteLabel()}&quot; หรือไม่? การดำเนินการนี้ไม่สามารถยกเลิกได้</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>ยกเลิก</Button>
@@ -597,11 +600,25 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
 
 // ─── Stage Form Dialog ─────────────────────────
 
-function StageFormDialog({ open, onOpenChange, editing, saving, onSave, settingsT, commonT }: any) {
+function StageFormDialog({
+  open,
+  onOpenChange,
+  editing,
+  saving,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: OpenChangeHandler;
+  editing: StageItem | null;
+  saving: boolean;
+  onSave: (data: StageFormData) => Promise<void>;
+}) {
   const [data, setData] = useState({ name_th: '', name_en: '' });
   useEffect(() => {
-    if (editing) setData({ name_th: editing.name_th, name_en: editing.name_en || '' });
-    else setData({ name_th: '', name_en: '' });
+    void Promise.resolve().then(() => {
+      if (editing) setData({ name_th: editing.name_th, name_en: editing.name_en || '' });
+      else setData({ name_th: '', name_en: '' });
+    });
   }, [editing, open]);
 
   return (
@@ -632,11 +649,31 @@ function StageFormDialog({ open, onOpenChange, editing, saving, onSave, settings
 
 // ─── Level Form Dialog ─────────────────────────
 
-function LevelFormDialog({ open, onOpenChange, editing, saving, stages, defaultStageId, onSave, settingsT, commonT, stageLabel }: any) {
-  const [data, setData] = useState({ education_stage_id: '', name: '', is_active: true });
+function LevelFormDialog({
+  open,
+  onOpenChange,
+  editing,
+  saving,
+  stages,
+  defaultStageId,
+  onSave,
+  stageLabel,
+}: {
+  open: boolean;
+  onOpenChange: OpenChangeHandler;
+  editing: LevelItem | null;
+  saving: boolean;
+  stages: StageItem[];
+  defaultStageId?: string;
+  onSave: (data: LevelFormData) => Promise<void>;
+  stageLabel: (stage: Pick<StageItem, 'code' | 'name_th'>) => string;
+}) {
+  const [data, setData] = useState<LevelFormData>({ education_stage_id: '', name: '', is_active: true });
   useEffect(() => {
-    if (editing) setData({ education_stage_id: editing.education_stage_id, name: editing.name, is_active: editing.is_active });
-    else setData({ education_stage_id: defaultStageId || stages[0]?.id || '', name: '', is_active: true });
+    void Promise.resolve().then(() => {
+      if (editing) setData({ education_stage_id: editing.education_stage_id, name: editing.name, is_active: editing.is_active });
+      else setData({ education_stage_id: defaultStageId || stages[0]?.id || '', name: '', is_active: true });
+    });
   }, [editing, open, defaultStageId, stages]);
 
   return (
@@ -649,7 +686,7 @@ function LevelFormDialog({ open, onOpenChange, editing, saving, stages, defaultS
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
             <Label>ระดับการศึกษา</Label>
-            <Input value={stageLabel(stages.find((s: any) => s.id === data.education_stage_id) || { code: '', name_th: '' })} disabled />
+            <Input value={stageLabel(stages.find((s) => s.id === data.education_stage_id) || { code: '', name_th: '' })} disabled />
           </div>
           <div className="space-y-1.5">
             <Label>ชื่อ <span className="text-destructive">*</span></Label>
@@ -673,26 +710,50 @@ function LevelFormDialog({ open, onOpenChange, editing, saving, stages, defaultS
 
 // ─── Classroom Form Dialog ─────────────────────
 
-function ClassroomFormDialog({ open, onOpenChange, editing, saving, levels, stages, defaultLevelId, defaultStageId, onSave, classroomT, commonT, stageLabel }: any) {
-  const [data, setData] = useState({ name: '', grade_level_id: '', education_stage_id: '', grade_level: 1 });
-  const selectedLevel = levels.find((l: any) => l.id === data.grade_level_id);
+function ClassroomFormDialog({
+  open,
+  onOpenChange,
+  editing,
+  saving,
+  levels,
+  stages,
+  defaultLevelId,
+  defaultStageId,
+  onSave,
+  stageLabel,
+}: {
+  open: boolean;
+  onOpenChange: OpenChangeHandler;
+  editing: ClassroomItem | null;
+  saving: boolean;
+  levels: LevelItem[];
+  stages: StageItem[];
+  defaultLevelId?: string;
+  defaultStageId?: string;
+  onSave: (data: ClassroomFormData) => Promise<void>;
+  stageLabel: (stage: Pick<StageItem, 'code' | 'name_th'>) => string;
+}) {
+  const [data, setData] = useState<ClassroomFormData>({ name: '', grade_level_id: '', education_stage_id: '', grade_level: 1 });
+  const selectedLevel = levels.find((l) => l.id === data.grade_level_id);
 
   useEffect(() => {
-    if (editing) {
-      setData({ name: editing.name, grade_level_id: editing.grade_level_id, education_stage_id: editing.education_stage_id, grade_level: editing.grade_level });
-    } else {
-      const defaultLevel = levels.find((l: any) => l.id === defaultLevelId);
-      setData({
-        name: '',
-        grade_level_id: defaultLevelId || '',
-        education_stage_id: defaultStageId || defaultLevel?.education_stage_id || '',
-        grade_level: defaultLevel?.level_no || 1,
+    void Promise.resolve().then(() => {
+      if (editing) {
+        setData({ name: editing.name, grade_level_id: editing.grade_level_id || '', education_stage_id: editing.education_stage_id, grade_level: editing.grade_level });
+      } else {
+        const defaultLevel = levels.find((l) => l.id === defaultLevelId);
+        setData({
+          name: '',
+          grade_level_id: defaultLevelId || '',
+          education_stage_id: defaultStageId || defaultLevel?.education_stage_id || '',
+          grade_level: defaultLevel?.level_no || 1,
+        });
+      }
       });
-    }
-  }, [editing, open, defaultLevelId, levels]);
+  }, [editing, open, defaultLevelId, defaultStageId, levels]);
 
   // Filter levels by stage
-  const filteredLevels = levels.filter((l: any) => !data.education_stage_id || l.education_stage_id === data.education_stage_id);
+  const filteredLevels = levels.filter((l) => !data.education_stage_id || l.education_stage_id === data.education_stage_id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -713,7 +774,7 @@ function ClassroomFormDialog({ open, onOpenChange, editing, saving, levels, stag
               }}
             >
               <option value="">เลือกระดับ</option>
-              {stages.map((s: any) => (
+              {stages.map((s) => (
                 <option key={s.id} value={s.id}>{stageLabel(s)}</option>
               ))}
             </select>
@@ -724,12 +785,12 @@ function ClassroomFormDialog({ open, onOpenChange, editing, saving, levels, stag
               className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
               value={data.grade_level_id}
               onChange={e => {
-                const level = levels.find((l: any) => l.id === e.target.value);
+                const level = levels.find((l) => l.id === e.target.value);
                 setData({ ...data, grade_level_id: e.target.value, grade_level: level?.level_no || 1 });
               }}
             >
               <option value="">เลือกชั้นปี</option>
-              {filteredLevels.map((l: any) => (
+              {filteredLevels.map((l) => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
             </select>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ export default function ClassroomDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  async function load(page = studentPage) {
+  const load = useCallback(async (page = studentPage) => {
     const id = params.id as string;
     const [classRes, studentRes, teacherRes] = await Promise.all([
       getClassroom(id),
@@ -47,11 +47,11 @@ export default function ClassroomDetailPage() {
     if (teacherRes.success && teacherRes.data) setTeachers(teacherRes.data);
 
     setLoading(false);
-  }
+  }, [classroomT, params.id, studentPage]);
 
   useEffect(() => {
-    load(studentPage);
-  }, [params.id, studentPage]);
+    void Promise.resolve().then(() => load(studentPage));
+  }, [load, studentPage]);
 
   async function handleAssignTeacher(role: 'homeroom' | 'assistant', teacherId: string) {
     const result = await setClassroomTeacherAssignment({

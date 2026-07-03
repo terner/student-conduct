@@ -20,7 +20,7 @@
     "threshold": "นักเรียนถึงเกณฑ์",
     "mainMenu": "เมนูหลัก",
     "alerts": "การแจ้งเตือน",
-    "subtitle": "ระบบความประพฤติ",
+    "subtitle": "ระบบคะแนนความประพฤติ",
     "currentYearOnly": "ใช้ได้เฉพาะปีการศึกษาปัจจุบัน",
     "schoolFallback": "โรงเรียน"
   },
@@ -72,15 +72,25 @@
     "notFound": "ไม่พบข้อมูลนักเรียน"
   },
   "authPages": {
+    "firstPassword": {
+      "title": "ตั้งรหัสผ่านใหม่",
+      "description": "เข้าใช้ระบบครั้งแรก กรุณาตั้งรหัสผ่านของคุณ",
+      "newPassword": "รหัสผ่านใหม่",
+      "confirmPassword": "ยืนยันรหัสผ่านใหม่",
+      "passwordHelp": "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร ประกอบด้วยตัวพิมพ์เล็ก ตัวพิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ",
+      "submit": "ตั้งรหัสผ่าน",
+      "genericError": "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง"
+    },
     "changePassword": {
       "title": "เปลี่ยนรหัสผ่าน",
-      "description": "คุณต้องเปลี่ยนรหัสผ่านก่อนเข้าใช้ระบบครั้งแรก",
-      "successRedirect": "เปลี่ยนรหัสผ่านสำเร็จ กำลังนำไปยังหน้าแดชบอร์ด...",
-      "currentPassword": "รหัสผ่านปัจจุบัน",
+      "description": "เปลี่ยนรหัสผ่านสำหรับเข้าใช้งานระบบ",
+      "oldPassword": "รหัสผ่านปัจจุบัน",
       "newPassword": "รหัสผ่านใหม่",
       "confirmPassword": "ยืนยันรหัสผ่านใหม่",
       "passwordHelp": "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร ประกอบด้วยตัวพิมพ์เล็ก ตัวพิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ",
       "submit": "เปลี่ยนรหัสผ่าน",
+      "successTitle": "เปลี่ยนรหัสผ่านสำเร็จ",
+      "successMessage": "รหัสผ่านของคุณถูกเปลี่ยนเรียบร้อยแล้ว",
       "genericError": "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง"
     },
     "pdpa": {
@@ -104,6 +114,15 @@
       "description": "คุณจำเป็นต้องยอมรับนโยบายความเป็นส่วนตัวก่อนเข้าใช้ระบบ",
       "body": "ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 โรงเรียนจำเป็นต้องขอความยินยอมในการเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคล หากคุณไม่ยอมรับ กรุณาติดต่อเจ้าหน้าที่โรงเรียนโดยตรง",
       "back": "กลับไปหน้ายินยอม"
+    },
+    "resetPassword": {
+      "title": "ตั้งรหัสผ่านใหม่",
+      "description": "กรุณาตั้งรหัสผ่านใหม่สำหรับเข้าใช้งานระบบ",
+      "newPassword": "รหัสผ่านใหม่",
+      "confirmPassword": "ยืนยันรหัสผ่านใหม่",
+      "passwordHelp": "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร ประกอบด้วยตัวพิมพ์เล็ก ตัวพิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ",
+      "submit": "ตั้งรหัสผ่าน",
+      "genericError": "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง"
     }
   },
   "validation": {
@@ -205,8 +224,7 @@
     "voidedAtBy": "เมื่อ {date}{by}",
     "byName": " โดย {name}",
     "reject": "ปฏิเสธ",
-    "close": "ปิด"
-    ,
+    "close": "ปิด",
     "categoryManageTitle": "จัดการประเภทคะแนน",
     "categoryManageDescription": "เพิ่ม แก้ไข และจัดการหมวดหมู่คะแนนความประพฤติ",
     "addCategory": "เพิ่มประเภท",
@@ -246,8 +264,7 @@
     "noStudents": "ยังไม่มีข้อมูลนักเรียน",
     "recordResultsSummary": "พบทั้งหมด {total} คน แสดง {from}–{to} จาก {filtered} คน",
     "recordResultsFilteredSuffix": " (กรอกจาก {total} คน)",
-    "gradeLevel": "ระดับชั้น"
-    ,
+    "gradeLevel": "ระดับชั้น",
     "maxEvidenceFiles": "อัปโหลดได้สูงสุด {maxFiles} รูป",
     "evidenceTypesOnly": "รองรับเฉพาะไฟล์ JPG, PNG, WebP เท่านั้น",
     "maxFileSize": "ไฟล์ต้องมีขนาดไม่เกิน {maxSizeMB} MB",
@@ -301,8 +318,7 @@
     "currentScore": "คะแนนปัจจุบัน",
     "level": "ระดับ",
     "csv": "CSV",
-    "pdf": "PDF"
-    ,
+    "pdf": "PDF",
     "individualTitle": "รายงานอันดับนักเรียน",
     "individualDescriptionFull": "ดูประวัติรายคน รายห้อง รายชั้นปี และจัดอันดับตามปีการศึกษา",
     "sortLowestScore": "คะแนนต่ำสุด",
@@ -325,7 +341,6 @@
     "allClassrooms": "ทุกห้อง",
     "searchStudentPlaceholder": "ค้นหาชื่อหรือรหัสนักเรียน",
     "rankModePlaceholder": "รูปแบบอันดับ",
-    "scoreBest": "คะแนนดีสุด",
     "sortBy": "เรียงตาม",
     "studentsLabel": "นักเรียน",
     "minScore": "ต่ำสุด",
@@ -380,8 +395,7 @@
     "deductedTotal": "หักสะสม",
     "action": "การดำเนินการ",
     "levelLabel": "ระดับ {level}",
-    "exportFileName": "threshold_report_{year}"
-    ,
+    "exportFileName": "threshold_report_{year}",
     "bondTitle": "หนังสือทัณฑ์บน",
     "bondDescription": "จัดการเอกสารทัณฑ์บนนักเรียน",
     "noBondDocuments": "ยังไม่มีเอกสารทัณฑ์บน",
@@ -428,6 +442,7 @@
     "recentTransactions": "รายการล่าสุด",
     "noRecentTransactions": "ยังไม่มีรายการบันทึกคะแนน",
     "atRiskStudents": "นักเรียนที่ถึงเกณฑ์แจ้งเตือน",
+    "noAtRiskStudents": "ไม่มีนักเรียนที่ถึงเกณฑ์",
     "student": "นักเรียน",
     "classroom": "ห้อง",
     "currentScore": "คะแนนปัจจุบัน",
@@ -471,9 +486,6 @@
     "notSpecified": "ไม่ระบุ",
     "viewDetail": "ดูรายละเอียด",
     "deleteConfirm": "ลบห้องเรียน \"{name}\" ใช่หรือไม่?",
-    "loadError": "โหลดข้อมูลห้องเรียนไม่สำเร็จ",
-    "addSuccess": "เพิ่มห้องเรียนสำเร็จ",
-    "editSuccess": "แก้ไขห้องเรียนสำเร็จ",
     "nameRequired": "ชื่อห้องเรียน *",
     "stageRequired": "ระดับ *",
     "gradeRequired": "ชั้นปี *",
@@ -705,7 +717,9 @@
     "quickLoginPrompt": "เลือกเพื่อเข้าสู่ระบบทันที:",
     "manualLoginDivider": "หรือกรอกด้วยตนเอง",
     "superadminRole": "ผู้ดูแลสูงสุด",
-    "adminRole": "ผู้ดูแลระบบ"
+    "adminRole": "ผู้ดูแลระบบ",
+    "emailOrStudentId": "รหัสนักเรียนหรืออีเมล",
+    "emailOrStudentIdPlaceholder": "กรอกรหัสนักเรียนหรืออีเมล"
   },
   "settings": {
     "title": "การตั้งค่า",
@@ -792,7 +806,7 @@
     "currentYearNotEndedReason": "ปีการศึกษา {year} ยังไม่สิ้นสุด",
     "loadAcademicYearsFailed": "โหลดปีการศึกษาไม่สำเร็จ",
     "rolloverSuccess": "ขึ้นปีการศึกษา {year} แล้ว",
-    "rolloverSuccessDescription": "สร้าง/ตรวจห้องเรียน {classrooms} ห้อง, ครูประจำห้อง {assignments} รายการ และตั้งเป็นปีปัจจุบันแล้ว",
+    "rolloverSuccessDescription": "สร้าง/ตรวจห้องเรียน {classrooms} ห้อง, ครูประจำห้อง {assignments} รายการ, enrollment นักเรียน {enrollments} รายการ และตั้งเป็นปีปัจจุบันแล้ว",
     "rolloverFailed": "ขึ้นปีการศึกษาใหม่ไม่สำเร็จ",
     "rolloverNextYear": "ขึ้นปีการศึกษาถัดไป",
     "noCurrentYearTitle": "ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน",
@@ -808,8 +822,7 @@
     "startDate": "วันที่เริ่ม",
     "endDate": "วันที่สิ้นสุด",
     "noAcademicYears": "ยังไม่มีปีการศึกษา",
-    "notActive": "ไม่ active"
-    ,
+    "notActive": "ไม่ active",
     "selectAcademicYearRequired": "กรุณาเลือกปีการศึกษา",
     "academicYearAvailabilityCheckFailed": "ไม่สามารถตรวจสอบช่วงปีการศึกษาได้",
     "genericError": "เกิดข้อผิดพลาด",

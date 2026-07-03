@@ -15,7 +15,7 @@ export function LanguageSwitcher() {
 
   useEffect(() => {
     const current = getCookie('NEXT_LOCALE') || 'th'
-    setLocale(current)
+    void Promise.resolve().then(() => setLocale(current))
     document.documentElement.lang = current
   }, [])
 

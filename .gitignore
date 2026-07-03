@@ -35,6 +35,7 @@ yarn-error.log*
 
 # Supabase local CLI state
 /supabase/.temp/
+/supabase/supabase/.temp/
 
 # vercel
 .vercel
@@ -44,3 +45,4 @@ yarn-error.log*
 next-env.d.ts
 .mcp.json
 .env*.local
+import data/

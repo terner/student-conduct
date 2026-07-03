@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Edit, Eye, MoreHorizontal, Power, PowerOff, Building, ShieldCheck } from 'lucide-react';
+import { Edit, Eye, MoreHorizontal, Power, PowerOff, Building, ShieldCheck, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatPhoneDisplay } from '@/lib/phone';
@@ -20,9 +20,10 @@ interface TeacherTableProps {
   loading?: boolean;
   onEdit?: (t: TeacherWithProfile) => void;
   onSetActive?: (teacher: TeacherWithProfile, isActive: boolean) => void;
+  onResetPassword?: (teacher: TeacherWithProfile) => void;
 }
 
-export function TeacherTable({ data, loading, onEdit, onSetActive }: TeacherTableProps) {
+export function TeacherTable({ data, loading, onEdit, onSetActive, onResetPassword }: TeacherTableProps) {
   const router = useRouter();
   const teacherT = useTranslations('teacher');
   const commonT = useTranslations('common');
@@ -51,7 +52,8 @@ export function TeacherTable({ data, loading, onEdit, onSetActive }: TeacherTabl
             <TableHead>{teacherT('department')}</TableHead>
             <TableHead>{teacherT('roles')}</TableHead>
             <TableHead>{studentT('status')}</TableHead>
-            <TableHead>{teacherT('advisorRooms')}</TableHead>
+            <TableHead>ครูประจำชั้น</TableHead>
+            <TableHead>ครูที่ปรึกษา</TableHead>
             <TableHead className="w-[80px]">{studentT('actions')}</TableHead>
           </TableRow>
         </TableHeader>
@@ -89,7 +91,10 @@ export function TeacherTable({ data, loading, onEdit, onSetActive }: TeacherTabl
                 )}
               </TableCell>
               <TableCell className="text-sm">
-                {t.assigned_classrooms?.map(c => c.classroom_name).join(', ') || commonT('notAvailable')}
+                {t.assigned_classrooms?.filter(c => c.assignment_role === 'homeroom').map(c => c.classroom_name).join(', ') || commonT('notAvailable')}
+              </TableCell>
+              <TableCell className="text-sm">
+                {t.assigned_classrooms?.filter(c => c.assignment_role === 'assistant').map(c => c.classroom_name).join(', ') || commonT('notAvailable')}
               </TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -99,6 +104,7 @@ export function TeacherTable({ data, loading, onEdit, onSetActive }: TeacherTabl
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem render={<Link href={`/teachers/${t.id}`} onClick={(e) => e.stopPropagation()} />}><Eye className="mr-2 h-4 w-4" />{teacherT('viewDetail')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}><Edit className="mr-2 h-4 w-4" />{commonT('edit')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onResetPassword?.(t); }}><KeyRound className="mr-2 h-4 w-4" />รีเซ็ตรหัสผ่าน</DropdownMenuItem>
                     {t.is_active === false ? (
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onSetActive?.(t, true); }}>
                         <Power className="mr-2 h-4 w-4" />{commonT('active')}

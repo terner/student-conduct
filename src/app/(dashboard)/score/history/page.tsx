@@ -62,7 +62,7 @@ export default function ScoreHistoryPage() {
 
   // Load filter options
   useEffect(() => {
-    Promise.all([
+    void Promise.all([
       getClassroomsForSelect(selectedAcademicYearId || undefined),
       getEducationStages(),
       getCategories(),
@@ -91,8 +91,10 @@ export default function ScoreHistoryPage() {
   }, [search, filterClassroom, filterCategory, selectedAcademicYearId]);
 
   useEffect(() => {
-    setPage(1);
-    fetchData(1, search);
+    void Promise.resolve().then(() => {
+      setPage(1);
+      fetchData(1, search);
+    });
   }, [filterClassroom, filterCategory, selectedAcademicYearId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derived: filter classrooms by stage
@@ -125,22 +127,33 @@ export default function ScoreHistoryPage() {
   }, [stageClassrooms, filterGrade]);
 
   // Reset downstream filters when upstream changes
-  useEffect(() => { setFilterGrade(''); setFilterClassroom(''); }, [filterStageId]);
-  useEffect(() => { setFilterClassroom(''); }, [filterGrade]);
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      setFilterGrade('');
+      setFilterClassroom('');
+    });
+  }, [filterStageId]);
+  useEffect(() => {
+    void Promise.resolve().then(() => setFilterClassroom(''));
+  }, [filterGrade]);
 
   // Validate grade is still in options
   useEffect(() => {
     if (!filterGrade) return;
     if (!gradeOptions.some(g => g.id === filterGrade)) {
-      setFilterGrade('');
-      setFilterClassroom('');
+      void Promise.resolve().then(() => {
+        setFilterGrade('');
+        setFilterClassroom('');
+      });
     }
   }, [filterGrade, gradeOptions]);
 
   // Validate classroom is still in options
   useEffect(() => {
     if (!filterClassroom) return;
-    if (!classroomOptions.some(c => c.id === filterClassroom)) setFilterClassroom('');
+    if (!classroomOptions.some(c => c.id === filterClassroom)) {
+      void Promise.resolve().then(() => setFilterClassroom(''));
+    }
   }, [filterClassroom, classroomOptions]);
 
   const hasFilters = filterStageId || filterGrade || filterClassroom || filterCategory;

@@ -1,18 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'crypto';
 import { NextResponse } from 'next/server';
 import { getRequestAuditInfo, logAction } from '@/lib/audit/log';
 import { apiMessage } from '@/lib/i18n/api';
-import { checkRateLimit } from '@/lib/security/rate-limit';
+import { clearRateLimit, checkRateLimit, isRateLimitExceeded, recordRateLimitAttempt } from '@/lib/security/rate-limit';
+
+const LOGIN_REQUEST_LIMIT = 600;
+const LOGIN_REQUEST_WINDOW_MS = 60_000;
+const FAILED_LOGIN_LIMIT = 5;
+const FAILED_LOGIN_WINDOW_MS = 600_000;
+
+function failedLoginKey(ipAddress: string | null | undefined, email?: string, studentId?: string) {
+  const identity = (email || studentId || 'unknown').trim().toLowerCase();
+  const identityHash = createHash('sha256').update(identity).digest('hex').slice(0, 32);
+  return `login-failed:${ipAddress || 'unknown'}:${identityHash}`;
+}
 
 export async function POST(request: Request) {
   const requestInfo = getRequestAuditInfo(request);
   try {
     const rateKey = `login:${requestInfo.ipAddress || 'unknown'}`;
-    if (!(await checkRateLimit(rateKey, 20, 60_000))) {
+    if (!(await checkRateLimit(rateKey, LOGIN_REQUEST_LIMIT, LOGIN_REQUEST_WINDOW_MS))) {
       await logAction({
         event: 'login_rate_limited',
         resourceType: 'auth',
-        metadata: { reason: 'rate_limited' },
+        metadata: { reason: 'request_rate_limited' },
         ...requestInfo,
       });
       return NextResponse.json({ error: apiMessage(request, 'rateLimited') }, { status: 429 });
@@ -20,6 +32,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { email, password, student_id } = body;
+    const failedKey = failedLoginKey(requestInfo.ipAddress, email, student_id);
 
     // Validate: must have either email+password or student_id+password
     if ((!email || !password) && (!student_id || !password)) {
@@ -35,6 +48,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (await isRateLimitExceeded(failedKey, FAILED_LOGIN_LIMIT, FAILED_LOGIN_WINDOW_MS)) {
+      await logAction({
+        event: 'login_rate_limited',
+        resourceType: student_id ? 'student' : 'user',
+        metadata: { reason: 'failed_login_rate_limited', login_type: student_id ? 'student' : 'staff' },
+        ...requestInfo,
+      });
+      return NextResponse.json({ error: apiMessage(request, 'rateLimited') }, { status: 429 });
+    }
+
     // Create admin client for user lookup (uses SERVICE_ROLE_KEY)
     const supabaseAdmin = createClient(
       process.env.SUPABASE_URL!,
@@ -48,11 +71,18 @@ export async function POST(request: Request) {
       }
     );
 
-    // Create anon client for sign-in
+    const authApiKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_ANON_KEY!;
+    const authHeaders = requestInfo.ipAddress
+      ? { 'sb-forwarded-for': requestInfo.ipAddress }
+      : undefined;
+
+    // Create auth client for sign-in. SUPABASE_SECRET_KEY enables Supabase
+    // Auth to rate-limit by the forwarded end-user IP instead of this server.
     const supabase = createClient(
       process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!,
+      authApiKey,
       {
+        global: authHeaders ? { headers: authHeaders } : undefined,
         auth: {
           autoRefreshToken: false,
           persistSession: false,
@@ -142,13 +172,23 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('[Login API] signInWithPassword error:', error.message, error.status);
+      const isInvalidCredentials = error.message === 'Invalid login credentials';
+      if (isInvalidCredentials && !(await recordRateLimitAttempt(failedKey, FAILED_LOGIN_LIMIT, FAILED_LOGIN_WINDOW_MS))) {
+        await logAction({
+          event: 'login_rate_limited',
+          resourceType: student_id ? 'student' : 'user',
+          metadata: { reason: 'failed_login_rate_limited', login_type: student_id ? 'student' : 'staff', status: error.status },
+          ...requestInfo,
+        });
+        return NextResponse.json({ error: apiMessage(request, 'rateLimited') }, { status: 429 });
+      }
       await logAction({
         event: 'login_failed',
         resourceType: student_id ? 'student' : 'user',
         metadata: { reason: 'invalid_credentials', login_type: student_id ? 'student' : 'staff', status: error.status },
         ...requestInfo,
       });
-      const message = error.message === 'Invalid login credentials'
+      const message = isInvalidCredentials
         ? apiMessage(request, 'invalidLoginCredentials')
         : error.message || apiMessage(request, 'genericTryAgain');
       return NextResponse.json({ error: message, details: error.message }, { status: 401 });
@@ -161,6 +201,8 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    await clearRateLimit(failedKey);
 
     // Look up the user's profile for role and must_change_password
     const { data: profileData } = await supabaseAdmin

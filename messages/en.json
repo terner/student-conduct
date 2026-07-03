@@ -72,15 +72,25 @@
     "notFound": "Student record not found"
   },
   "authPages": {
+    "firstPassword": {
+      "title": "Set new password",
+      "description": "First time sign in. Please set your password.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "passwordHelp": "Password must be at least 8 characters and include lowercase, uppercase, number, and special character",
+      "submit": "Set password",
+      "genericError": "Something went wrong. Try again."
+    },
     "changePassword": {
       "title": "Change password",
-      "description": "You need to change your password before using the system for the first time",
-      "successRedirect": "Password changed. Redirecting to the dashboard...",
-      "currentPassword": "Current password",
+      "description": "Change your password for system access",
+      "oldPassword": "Current password",
       "newPassword": "New password",
       "confirmPassword": "Confirm new password",
       "passwordHelp": "Password must be at least 8 characters and include lowercase, uppercase, number, and special character",
       "submit": "Change password",
+      "successTitle": "Password changed successfully",
+      "successMessage": "Your password has been updated",
       "genericError": "Something went wrong. Try again."
     },
     "pdpa": {
@@ -104,6 +114,15 @@
       "description": "You need to accept the privacy policy before using the system",
       "body": "Under the Personal Data Protection Act B.E. 2562, the school needs consent to collect, use, and disclose personal data. If you do not accept, contact school staff directly.",
       "back": "Back to consent"
+    },
+    "resetPassword": {
+      "title": "Reset Password",
+      "description": "Set a new password for your account",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "passwordHelp": "Password must be at least 8 characters with lowercase, uppercase, number, and special character",
+      "submit": "Set Password",
+      "genericError": "An error occurred. Please try again."
     }
   },
   "validation": {
@@ -299,8 +318,7 @@
     "currentScore": "Current score",
     "level": "Level",
     "csv": "CSV",
-    "pdf": "PDF"
-    ,
+    "pdf": "PDF",
     "individualTitle": "Student ranking report",
     "individualDescriptionFull": "View individual, classroom, grade-level history and academic-year rankings",
     "sortLowestScore": "Lowest score",
@@ -323,7 +341,6 @@
     "allClassrooms": "All classrooms",
     "searchStudentPlaceholder": "Search student name or ID",
     "rankModePlaceholder": "Rank mode",
-    "scoreBest": "Best score",
     "sortBy": "Sort by",
     "studentsLabel": "Students",
     "minScore": "Lowest",
@@ -378,8 +395,7 @@
     "deductedTotal": "Total deducted",
     "action": "Action",
     "levelLabel": "Level {level}",
-    "exportFileName": "threshold_report_{year}"
-    ,
+    "exportFileName": "threshold_report_{year}",
     "bondTitle": "Behavior bond documents",
     "bondDescription": "Manage student behavior bond documents",
     "noBondDocuments": "No bond documents yet",
@@ -433,7 +449,8 @@
     "action": "Action",
     "viewInfo": "View",
     "deductedPoints": "Deducted {points} points",
-    "view": "View"
+    "view": "View",
+    "noAtRiskStudents": "No at-risk students"
   },
   "classroom": {
     "title": "Classrooms",
@@ -469,9 +486,6 @@
     "notSpecified": "Not specified",
     "viewDetail": "View Details",
     "deleteConfirm": "Delete classroom \"{name}\"?",
-    "loadError": "Unable to load classrooms",
-    "addSuccess": "Classroom added",
-    "editSuccess": "Classroom updated",
     "nameRequired": "Classroom name *",
     "stageRequired": "Stage *",
     "gradeRequired": "Grade level *",
@@ -703,7 +717,9 @@
     "quickLoginPrompt": "Choose to sign in immediately:",
     "manualLoginDivider": "Or enter manually",
     "superadminRole": "Superadmin",
-    "adminRole": "Admin"
+    "adminRole": "Admin",
+    "emailOrStudentId": "Student ID or Email",
+    "emailOrStudentIdPlaceholder": "Enter student ID or email"
   },
   "settings": {
     "title": "Settings",
@@ -790,7 +806,7 @@
     "currentYearNotEndedReason": "Academic year {year} has not ended",
     "loadAcademicYearsFailed": "Unable to load academic years",
     "rolloverSuccess": "Academic year {year} is now active",
-    "rolloverSuccessDescription": "Created/checked {classrooms} classrooms and {assignments} homeroom assignments, then set the year as current",
+    "rolloverSuccessDescription": "Created/checked {classrooms} classrooms, {assignments} homeroom assignments, and {enrollments} student enrollments, then set the year as current",
     "rolloverFailed": "Unable to roll over to the next academic year",
     "rolloverNextYear": "Roll over to next academic year",
     "noCurrentYearTitle": "No current academic year is set",

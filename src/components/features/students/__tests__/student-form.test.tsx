@@ -170,7 +170,7 @@ describe('StudentForm', () => {
   });
 
   it('submits successfully when class number is greater than 50', async () => {
-    const onSubmit = vi.fn(async () => {});
+    const onSubmit = vi.fn(async () => ({}));
 
     await act(async () => {
       root.render(<StudentForm classrooms={classrooms} onSubmit={onSubmit} />);
@@ -207,7 +207,7 @@ describe('StudentForm', () => {
   });
 
   it('allows submitting with guardian fields left blank', async () => {
-    const onSubmit = vi.fn(async () => {});
+    const onSubmit = vi.fn(async () => ({}));
 
     await act(async () => {
       root.render(<StudentForm classrooms={classrooms} onSubmit={onSubmit} />);

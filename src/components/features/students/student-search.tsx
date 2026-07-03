@@ -61,12 +61,14 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
   // Load classrooms when year changes
   useEffect(() => {
     if (!selectedYearId) return;
-    setLoadingClassrooms(true);
-    getClassroomsForSelect(selectedYearId).then((res) => {
+    void Promise.resolve().then(() => setLoadingClassrooms(true));
+    void getClassroomsForSelect(selectedYearId).then((res) => {
       if (res.success && res.data) {
         setFilteredClassrooms(res.data);
       }
-    }).finally(() => setLoadingClassrooms(false));
+    }).finally(() => {
+      void Promise.resolve().then(() => setLoadingClassrooms(false));
+    });
   }, [selectedYearId]);
 
   const getGradeLabelFromClassroomName = (name: string, fallbackGrade: number) => {
@@ -144,15 +146,19 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
     if (!gradeLevel) return;
     const isValidGrade = gradeOptions.some(g => g.id === gradeLevel);
     if (!isValidGrade) {
-      setGradeLevel('');
-      setClassroomId('');
+      void Promise.resolve().then(() => {
+        setGradeLevel('');
+        setClassroomId('');
+      });
     }
   }, [gradeLevel, gradeOptions]);
 
   useEffect(() => {
     if (!classroomId) return;
     const isValidClassroom = displayClassrooms.some(c => c.id === classroomId);
-    if (!isValidClassroom) setClassroomId('');
+    if (!isValidClassroom) {
+      void Promise.resolve().then(() => setClassroomId(''));
+    }
   }, [classroomId, displayClassrooms]);
 
   return (
@@ -172,7 +178,7 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
         <div>
           <Select
             value={stageFilterId || null}
-            onValueChange={(v) => v !== null && setStageFilterId(v)}
+            onValueChange={(v) => setStageFilterId(v || '')}
             itemToStringLabel={(value) => {
               const stage = stages.find((item) => item.id === value);
               return stage ? getStageLabel(stage) : '';
@@ -194,7 +200,7 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
         <div>
           <Select
             value={gradeLevel || null}
-            onValueChange={(v) => v !== null && setGradeLevel(v)}
+            onValueChange={(v) => setGradeLevel(v || '')}
             itemToStringLabel={(value) => {
               const selected = gradeOptions.find(g => g.id === value);
               return selected ? selected.label : String(value);
@@ -216,7 +222,7 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
         <div>
           <Select
             value={classroomId || null}
-            onValueChange={(v) => v !== null && setClassroomId(v)}
+            onValueChange={(v) => setClassroomId(v || '')}
             disabled={!selectedYearId || loadingClassrooms}
             itemToStringLabel={(value) => {
               const c = displayClassrooms.find(c => c.id === value);

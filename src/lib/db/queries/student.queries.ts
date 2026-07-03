@@ -581,6 +581,7 @@ export async function createStudent(data: {
       prefix: prefix || null,
       avatar_url: data.avatar_url || null,
       is_active: true,
+      must_change_password: true,
     })
     .select('id')
     .single();

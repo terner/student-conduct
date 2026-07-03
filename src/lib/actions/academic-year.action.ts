@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/server-action';
 import { canManageSchoolData } from '@/lib/security/roles';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
+import { buildPromotionEnrollmentRows, type PromotionSourceEnrollment } from '@/lib/academic-year/rollover';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -300,6 +301,56 @@ export async function createNextAcademicYearFromCurrent() {
       }
     }
 
+    const { data: sourceEnrollments, error: sourceEnrollmentError } = await supabase
+      .from('student_enrollments')
+      .select('id, student_id, classroom_id, class_number, enrollment_status')
+      .eq('academic_year_id', sourceYear.id)
+      .in('enrollment_status', ['active', 'repeated']);
+    if (sourceEnrollmentError) return { success: false, error: { code: 'DB_ERROR', message: sourceEnrollmentError.message } };
+
+    const sourceStudentIds = (sourceEnrollments || [])
+      .map((enrollment) => enrollment.student_id as string | null)
+      .filter((studentId): studentId is string => Boolean(studentId));
+
+    let createdEnrollments = 0;
+    if (sourceStudentIds.length > 0) {
+      const { data: targetEnrollments, error: targetEnrollmentError } = await supabase
+        .from('student_enrollments')
+        .select('student_id, classroom_id, class_number')
+        .eq('academic_year_id', targetYearId);
+      if (targetEnrollmentError) return { success: false, error: { code: 'DB_ERROR', message: targetEnrollmentError.message } };
+
+      const existingTargetStudentIds = new Set((targetEnrollments || []).map((enrollment) => enrollment.student_id as string));
+      const existingTargetClassNumbers = new Set((targetEnrollments || [])
+        .filter((enrollment) => enrollment.classroom_id && enrollment.class_number)
+        .map((enrollment) => `${enrollment.classroom_id}|${enrollment.class_number}`));
+      const enrollmentsToInsert = buildPromotionEnrollmentRows(
+        (sourceEnrollments || []) as PromotionSourceEnrollment[],
+        sourceToTargetClassroomId,
+        targetYearId,
+        existingTargetStudentIds,
+        existingTargetClassNumbers,
+      );
+
+      if (enrollmentsToInsert.length > 0) {
+        const { error: insertEnrollmentError } = await supabase
+          .from('student_enrollments')
+          .insert(enrollmentsToInsert);
+        if (insertEnrollmentError) return { success: false, error: { code: 'DB_ERROR', message: insertEnrollmentError.message } };
+        createdEnrollments = enrollmentsToInsert.length;
+
+        for (const enrollment of enrollmentsToInsert) {
+          await supabase
+            .from('students')
+            .update({
+              classroom_id: enrollment.classroom_id,
+              current_status: 'active',
+            })
+            .eq('id', enrollment.student_id);
+        }
+      }
+    }
+
     const { error: activateError } = await supabase
       .from('academic_years')
       .update({ is_current: true })
@@ -325,6 +376,7 @@ export async function createNextAcademicYearFromCurrent() {
         created_year: createdYear,
         created_classrooms: createdClassrooms,
         created_assignments: createdAssignments,
+        created_enrollments: createdEnrollments,
         activated_current: true,
       },
     };

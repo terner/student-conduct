@@ -242,7 +242,7 @@ describe('PDPA Consent Flow — Integration', () => {
   describe('acceptPDPA', () => {
     it('successfully inserts consent via admin client', async () => {
       // Mock: getAuthProfile succeeds, insert succeeds
-      let insertCalledWith: any = null;
+      let insertCalledWith: Record<string, unknown> | null = null;
       const insertFn = vi.fn().mockImplementation((data) => {
         insertCalledWith = data;
         return { error: null };
@@ -269,12 +269,14 @@ describe('PDPA Consent Flow — Integration', () => {
 
       // Verify the insert was called with correct data
       expect(insertCalledWith).not.toBeNull();
-      expect(insertCalledWith.subject_id).toBe('profile-123');
-      expect(insertCalledWith.subject_type).toBe('teacher');
-      expect(insertCalledWith.consent_type).toBe('general');
-      expect(insertCalledWith.version).toBe('1.0');
-      expect(insertCalledWith.accepted).toBe(true);
-      expect(insertCalledWith.accepted_by).toBe('profile-123');
+      if (insertCalledWith === null) throw new Error('Expected PDPA consent insert payload');
+      const insertedConsent = insertCalledWith as unknown as Record<string, unknown>;
+      expect(insertedConsent.subject_id).toBe('profile-123');
+      expect(insertedConsent.subject_type).toBe('teacher');
+      expect(insertedConsent.consent_type).toBe('general');
+      expect(insertedConsent.version).toBe('1.0');
+      expect(insertedConsent.accepted).toBe(true);
+      expect(insertedConsent.accepted_by).toBe('profile-123');
     });
 
     it('returns error when insert fails', async () => {

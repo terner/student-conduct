@@ -5,7 +5,6 @@ import { CalendarDays } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getAcademicYears } from '@/lib/actions/student.action';
 import {
-  getStoredAcademicYearId,
   setStoredAcademicYearId,
   useSelectedAcademicYearId,
 } from '@/lib/academic-year-selection';
@@ -19,11 +18,15 @@ interface AcademicYear {
 export function AcademicYearSwitcher() {
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [years, setYears] = useState<AcademicYear[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadYears() {
       const result = await getAcademicYears();
-      if (!result.success || !result.data) return;
+      if (!result.success || !result.data) {
+        setLoading(false);
+        return;
+      }
 
       const academicYears = result.data as AcademicYear[];
       setYears(academicYears);
@@ -31,8 +34,9 @@ export function AcademicYearSwitcher() {
       // เลือกปีปัจจุบันเสมอ (is_current = true) ไม่สนใจค่าเก่า
       const current = academicYears.find((year) => year.is_current) || academicYears[0];
       if (current) setStoredAcademicYearId(current.id);
+      setLoading(false);
     }
-    loadYears();
+    void loadYears();
   }, []);
 
   const selectedYear = useMemo(
@@ -40,7 +44,20 @@ export function AcademicYearSwitcher() {
     [selectedAcademicYearId, years],
   );
 
-  if (years.length === 0) return null;
+  if (years.length === 0) {
+    return (
+      <Select
+        value={selectedAcademicYearId || null}
+        disabled
+        itemToStringLabel={() => ''}
+      >
+        <SelectTrigger className="w-[150px]">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <SelectValue placeholder={loading ? 'กำลังโหลดปีการศึกษา...' : 'ไม่พบปีการศึกษา'} />
+        </SelectTrigger>
+      </Select>
+    );
+  }
 
   return (
     <Select

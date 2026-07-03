@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { TeacherTable } from '@/components/features/teachers/teacher-table';
 import { TeacherForm } from '@/components/features/teachers/teacher-form';
 import { SimplePagination } from '@/components/ui/simple-pagination';
-import { getTeachers, addTeacher, editTeacher, setTeacherActive, importTeachersCsv } from '@/lib/actions/teacher.action';
+import { getTeachers, addTeacher, editTeacher, setTeacherActive, importTeachersCsv, resetTeacherPassword } from '@/lib/actions/teacher.action';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
 import type { TeacherInput } from '@/lib/validation/schemas';
 import { exportCsv, parseCsvFile } from '@/lib/utils/csv';
@@ -28,6 +28,7 @@ export default function TeachersPage() {
   const [editItem, setEditItem] = useState<TeacherWithProfile | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState('');
   const [page, setPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,7 +95,9 @@ export default function TeachersPage() {
   const pagedData = useMemo(() => filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredData, page]);
 
   // Reset page when filters change
-  useEffect(() => { setPage(1); }, [search, filterRole, filterStatus, filterDepartment]);
+  useEffect(() => {
+    void Promise.resolve().then(() => setPage(1));
+  }, [search, filterRole, filterStatus, filterDepartment]);
 
   const handleSubmit = async (formData: TeacherInput) => {
     const result = editItem
@@ -113,16 +116,16 @@ export default function TeachersPage() {
 
   const handleExport = () => {
     exportCsv(filteredData.map((teacher) => ({
-      [teacherT('employeeId')]: teacher.employee_id || '',
-      [teacherT('prefix')]: teacher.prefix || '',
-      [studentT('firstName')]: teacher.first_name || '',
-      [studentT('lastName')]: teacher.last_name || '',
-      [teacherT('email')]: teacher.email || '',
-      [teacherT('phone')]: teacher.phone || '',
-      [teacherT('department')]: teacher.department || '',
-      [teacherT('position')]: teacher.position || teacherT('teacher'),
-      [teacherT('systemRole')]: teacher.roles?.includes('superadmin') ? 'superadmin' : teacher.roles?.includes('admin') ? 'admin' : 'teacher',
-      [teacherT('advisorRooms')]: teacher.assigned_classrooms?.map((c) => c.classroom_name).join(', ') || '',
+      'รหัสเจ้าหน้าที่': teacher.employee_id || '',
+      'คำนำหน้า': teacher.prefix || '',
+      'ชื่อ': teacher.first_name || '',
+      'นามสกุล': teacher.last_name || '',
+      'อีเมล': teacher.email || '',
+      'เบอร์โทร': teacher.phone || '',
+      'แผนก': teacher.department || '',
+      'ตำแหน่ง': teacher.position || 'ครู',
+      'สิทธิ์ในระบบ': teacher.roles?.includes('superadmin') ? 'superadmin' : teacher.roles?.includes('admin') ? 'admin' : 'teacher',
+      'ห้องที่ปรึกษา': teacher.assigned_classrooms?.filter(c => c.assignment_role === 'homeroom').map(c => c.classroom_name).join(', ') || '',
     })), `teachers_${new Date().toISOString().slice(0, 10)}`);
   };
 
@@ -144,32 +147,56 @@ export default function TeachersPage() {
     }
   };
 
+  const handleResetPassword = async (teacher: TeacherWithProfile) => {
+    if (!confirm(`ส่งลิงก์ตั้งรหัสผ่านไปที่ ${teacher.email || teacher.full_name} ?`)) return;
+    const result = await resetTeacherPassword(teacher.id);
+    if (result.success) {
+      toast('ส่งลิงก์ตั้งรหัสผ่านแล้ว', { description: `ส่งไปที่ ${teacher.email}` });
+    } else {
+      toast('ส่งไม่สำเร็จ', { description: result.error?.message || '' });
+    }
+  };
+
   const hasFilters = search || filterRole || filterStatus || filterDepartment;
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImporting(true);
+    setImportStatus('กำลังอ่านไฟล์...');
     try {
       const parsed = await parseCsvFile(file);
       if (parsed.data.length === 0) {
         toast(teacherT('importFailed'), { description: 'ไม่พบข้อมูลในไฟล์' });
+        setImporting(false);
+        setImportStatus('');
         return;
       }
+      const total = parsed.data.length;
+      setImportStatus(`กำลังนำเข้า ${total} รายการ...`);
+      const toastId = toast.loading(`กำลังนำเข้าครู ${total} รายการ...`, { description: 'กรุณารอสักครู่' });
+
       const res = await importTeachersCsv(parsed.data);
+      toast.dismiss(toastId);
+
       if (res.success) {
         const d = res.data;
-        toast(teacherT('importSuccess', { count: d.imported }), {
-          description: d.errors.length > 0 ? `ข้าม ${d.errors.length} รายการ` : undefined,
+        const skipped = d.errors.length;
+        const successCount = d.imported;
+        let desc = `สำเร็จ ${successCount} รายการ`;
+        if (skipped > 0) desc += `, ข้าม ${skipped} รายการ`;
+        toast.success(desc, {
+          description: skipped > 0 ? `${skipped} รายการถูกละเว้น — ดูรายละเอียดใน log` : undefined,
         });
         fetchData();
       } else {
-        toast(teacherT('importFailed'), { description: res.error?.message });
+        toast.error('นำเข้าไม่สำเร็จ', { description: res.error?.message });
       }
     } catch (err) {
-      toast(teacherT('importFailed'), { description: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' });
+      toast.error('นำเข้าไม่สำเร็จ', { description: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' });
     } finally {
       setImporting(false);
+      setImportStatus('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }
@@ -191,7 +218,7 @@ export default function TeachersPage() {
         <div className="flex flex-wrap justify-end gap-2">
           <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleImportFile} disabled={importing} />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-            <Upload className="mr-2 h-4 w-4" />{importing ? teacherT('importing') : teacherT('importCsv')}
+            <Upload className="mr-2 h-4 w-4" />{importing ? importStatus || teacherT('importing') : teacherT('importCsv')}
           </Button>
           <Button variant="outline" onClick={handleExport} disabled={filteredData.length === 0}>
             <Download className="mr-2 h-4 w-4" />{teacherT('exportCsv')}
@@ -264,11 +291,18 @@ export default function TeachersPage() {
         </div>
       </div>
 
+      {!loading && filteredData.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          แสดง {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredData.length)} จาก {filteredData.length} รายการ
+        </p>
+      )}
+
       <TeacherTable
         data={pagedData}
         loading={loading || updatingStatus}
         onEdit={(t) => { setEditItem(t); setShowForm(true); }}
         onSetActive={handleSetActive}
+        onResetPassword={handleResetPassword}
       />
       <SimplePagination page={page} pageSize={PAGE_SIZE} total={filteredData.length} onPageChange={setPage} />
 

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, FileText, UserCheck, Ban, AlertTriangle, Loader2, ArrowUpRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, UserCheck, Ban, AlertTriangle, Loader2, ArrowUpRight, type LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -48,7 +48,7 @@ interface ScoreTransactionTableProps {
   showStudentProfileLink?: boolean;
 }
 
-const statusConfig: Record<string, { labelKey: string; color: string; icon: any }> = {
+const statusConfig: Record<string, { labelKey: string; color: string; icon: ComponentType<LucideProps> }> = {
   approved: { labelKey: 'approved', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   pending: { labelKey: 'pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
   voided: { labelKey: 'voided', color: 'bg-red-100 text-red-700', icon: XCircle },

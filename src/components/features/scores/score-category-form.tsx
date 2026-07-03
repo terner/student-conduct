@@ -11,6 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { scoreCategorySchema } from '@/lib/validation/schemas';
+import { z } from 'zod';
+
+export type ScoreCategoryInput = z.input<typeof scoreCategorySchema>;
+type ScoreCategoryOutput = z.output<typeof scoreCategorySchema>;
 
 interface ScoreCategoryFormProps {
   defaultValues?: {
@@ -22,7 +26,7 @@ interface ScoreCategoryFormProps {
     requires_evidence?: boolean;
     requires_approval?: boolean;
   };
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: ScoreCategoryOutput) => Promise<void>;
   onCancel?: () => void;
 }
 
@@ -35,7 +39,7 @@ export function ScoreCategoryForm({ defaultValues, onSubmit, onCancel }: ScoreCa
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm({
+  } = useForm<ScoreCategoryInput, unknown, ScoreCategoryOutput>({
     resolver: zodResolver(scoreCategorySchema),
     defaultValues: defaultValues || {
       name: '',

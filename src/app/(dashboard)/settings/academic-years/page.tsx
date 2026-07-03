@@ -73,6 +73,7 @@ export default function AcademicYearsPage() {
           description: settingsT('rolloverSuccessDescription', {
             classrooms: result.data.created_classrooms,
             assignments: result.data.created_assignments,
+            enrollments: result.data.created_enrollments,
           }),
         });
         await load();

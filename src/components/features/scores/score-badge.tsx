@@ -9,6 +9,10 @@ interface ScoreBadgeProps {
   className?: string;
 }
 
+export function capScoreDisplay(score: number, baseScore: number): string {
+  return score > baseScore ? `${baseScore}+` : String(score);
+}
+
 export function ScoreBadge({ score, baseScore = 100, className }: ScoreBadgeProps) {
   const t = useTranslations('level');
   const getLevel = () => {
@@ -19,10 +23,11 @@ export function ScoreBadge({ score, baseScore = 100, className }: ScoreBadgeProp
   };
 
   const level = getLevel();
+  const displayScore = capScoreDisplay(score, baseScore);
 
   return (
     <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium', level.color, className)}>
-      {score} — {level.label}
+      {displayScore} — {level.label}
     </span>
   );
 }

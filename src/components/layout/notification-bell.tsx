@@ -63,7 +63,9 @@ export function NotificationBell() {
     }
   }, [limit, stopped]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void Promise.resolve().then(load);
+  }, [load]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {

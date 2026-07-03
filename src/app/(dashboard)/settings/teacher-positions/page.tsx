@@ -45,7 +45,9 @@ export default function TeacherPositionsPage() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    void Promise.resolve().then(load);
+  }, []);
 
   function openAddForm() {
     setEditing(null);
