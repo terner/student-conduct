@@ -274,6 +274,26 @@ export async function recordScore(data: {
       });
     }
 
+    // Send LINE notification to guardians (best-effort, non-blocking)
+    if (!category?.requires_approval) {
+      const { notifyGuardiansScoreRecorded } = await import('@/lib/notifications/line');
+      // Get student name for notification
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('profiles!inner(full_name)')
+        .eq('id', validated.student_id)
+        .single();
+      const studentProfile = studentData?.profiles as unknown as { full_name?: string } | null;
+      void notifyGuardiansScoreRecorded({
+        studentId: validated.student_id,
+        studentName: studentProfile?.full_name || '',
+        points: validated.points,
+        categoryName: category?.name || '',
+        note: validated.note || undefined,
+        academicYearId,
+      }).catch(() => {}); // Fire-and-forget
+    }
+
     return { success: true, data: result };
   });
 }
