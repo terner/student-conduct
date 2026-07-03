@@ -68,10 +68,41 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
   }
 
   const totalPages = total ? Math.ceil(total / pageSize) : 1;
+  const showPagination = totalPages > 1 && onPageChange;
+  const paginationControls = showPagination ? (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+      >
+        <ChevronLeft className="h-4 w-4" />
+        {common('previous')}
+      </Button>
+      <span className="min-w-14 px-2 text-center text-sm text-muted-foreground">
+        {page} / {totalPages}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(page + 1)}
+      >
+        {common('next')}
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  ) : null;
 
   return (
     <div className="space-y-4">
       <div className="rounded-md border">
+        {paginationControls && (
+          <div className="flex min-h-12 items-center justify-end border-b px-3 py-2">
+            {paginationControls}
+          </div>
+        )}
         <Table>
           <TableHeader>
             <TableRow>
@@ -144,32 +175,6 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
           </TableBody>
         </Table>
       </div>
-
-      {totalPages > 1 && onPageChange && (
-        <div className="flex items-center justify-center gap-2 py-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            {common('previous')}
-          </Button>
-          <span className="text-sm text-muted-foreground px-2">
-            {page} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => onPageChange(page + 1)}
-          >
-            {common('next')}
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

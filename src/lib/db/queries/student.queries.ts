@@ -55,6 +55,10 @@ export interface PaginatedResult<T> {
   total_pages: number;
 }
 
+function escapePostgrestPattern(value: string) {
+  return value.replace(/[%_]/g, (match) => `\\${match}`);
+}
+
 function formatTeacherName(profile?: Record<string, unknown>) {
   const prefix = String(profile?.prefix || '').trim();
   let fullName = String(profile?.full_name || '').trim();
@@ -107,10 +111,6 @@ async function loadStages(): Promise<Map<string, string>> {
   return stagesLoadPromise;
 }
 
-async function getStageName(stageId: string): Promise<string> {
-  const cache = await loadStages();
-  return cache.get(stageId) || '';
-}
 // Reset cache (for testing)
 export function resetStagesCache() { stagesCache = null; stagesLoadPromise = null; }
 
@@ -168,6 +168,17 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
     includeScores = true,
   } = params;
 
+  const searchTerm = search?.trim();
+  let matchingProfileIds: string[] = [];
+  if (searchTerm) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('full_name', `%${escapePostgrestPattern(searchTerm)}%`)
+      .limit(1000);
+    matchingProfileIds = (profiles || []).map((profile: Record<string, unknown>) => profile.id as string);
+  }
+
   let query = supabase
     .from('students')
     .select(`
@@ -177,8 +188,11 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
     `, { count: 'exact' });
 
   // Filters
-  if (search) {
-    query = query.or(`student_id_number.ilike.%${search}%,profiles.full_name.ilike.%${search}%`);
+  if (searchTerm) {
+    const idNumberFilter = `student_id_number.ilike.%${escapePostgrestPattern(searchTerm)}%`;
+    query = matchingProfileIds.length > 0
+      ? query.or(`${idNumberFilter},profile_id.in.(${matchingProfileIds.join(',')})`)
+      : query.ilike('student_id_number', `%${escapePostgrestPattern(searchTerm)}%`);
   }
   if (classroom_id) {
     query = query.eq('classroom_id', classroom_id);

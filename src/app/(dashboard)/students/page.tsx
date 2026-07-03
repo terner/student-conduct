@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { StudentTable } from '@/components/features/students/student-table';
 import { StudentSearch } from '@/components/features/students/student-search';
 import { StudentForm, type SubmitResult } from '@/components/features/students/student-form';
-import { getStudentsForClientFilters, getStudentScores, getStudentsForCsvExport, addStudent, editStudent, deleteStudent } from '@/lib/actions/student.action';
+import { getStudents, getStudentScores, getStudentsForCsvExport, addStudent, editStudent, deleteStudent } from '@/lib/actions/student.action';
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 import { studentPrefixEnum, type StudentInput } from '@/lib/validation/schemas';
@@ -19,7 +19,8 @@ export default function StudentsPage() {
   const t = useTranslations('student');
   const common = useTranslations('common');
   const selectedAcademicYearId = useSelectedAcademicYearId();
-  const [allStudents, setAllStudents] = useState<StudentWithProfile[]>([]);
+  const [students, setStudents] = useState<StudentWithProfile[]>([]);
+  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -31,7 +32,6 @@ export default function StudentsPage() {
   const [searchParams, setSearchParams] = useState<Record<string, string>>({});
   const [selectedYearOpen, setSelectedYearOpen] = useState(false);
   const [scores, setScores] = useState<Record<string, number>>({});
-  const [scoresLoading, setScoresLoading] = useState(false);
 
   const normalizeStudentPrefix = (value: string): StudentInput['prefix'] => (
     studentPrefixEnum.includes(value as StudentInput['prefix'])
@@ -48,23 +48,33 @@ export default function StudentsPage() {
 
   const loadStudents = useCallback(async () => {
     if (!selectedAcademicYearId) {
-      setAllStudents([]);
+      setStudents([]);
+      setTotal(0);
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    const result = await getStudentsForClientFilters(selectedAcademicYearId);
+    const result = await getStudents({
+      ...searchParams,
+      page,
+      page_size: 20,
+      academic_year: selectedAcademicYearId,
+      includeScores: false,
+    });
+
     if (result.success && result.data) {
-      setAllStudents(result.data as StudentWithProfile[]);
+      setStudents(result.data.data as StudentWithProfile[]);
+      setTotal(result.data.total);
       setLoading(false);
       return;
     } else {
-      setAllStudents([]);
+      setStudents([]);
+      setTotal(0);
       toast(common('error'), { description: !result.success ? result.error.message : 'โหลดข้อมูลนักเรียนไม่สำเร็จ' });
     }
     setLoading(false);
-  }, [common, selectedAcademicYearId]);
+  }, [common, page, searchParams, selectedAcademicYearId]);
 
   useEffect(() => {
     void Promise.resolve().then(() => loadStudents());
@@ -257,68 +267,36 @@ export default function StudentsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const filteredData = useMemo(() => {
-    const search = searchParams.search?.trim().toLowerCase();
-    return allStudents.filter((student) => {
-      if (search) {
-        const fullName = `${student.prefix}${student.first_name} ${student.last_name}`.toLowerCase();
-        const fullNameSpaced = `${student.prefix} ${student.first_name} ${student.last_name}`.toLowerCase();
-        if (
-          !student.student_id_number.toLowerCase().includes(search)
-          && !fullName.includes(search)
-          && !fullNameSpaced.includes(search)
-        ) {
-          return false;
-        }
-      }
-
-      if (searchParams.classroom_id && student.classroom_id !== searchParams.classroom_id) return false;
-      if (searchParams.grade_level_id && student.grade_level_id !== searchParams.grade_level_id) return false;
-      if (searchParams.grade_level && String(student.grade_level) !== String(searchParams.grade_level)) return false;
-      if (searchParams.education_stage_id && student.education_stage_id !== searchParams.education_stage_id) return false;
-      return true;
-    });
-  }, [allStudents, searchParams]);
-
-  const data = useMemo(() => {
-    const start = (page - 1) * 20;
-    return filteredData.slice(start, start + 20);
-  }, [filteredData, page]);
-
   // Load scores for visible students only
   useEffect(() => {
-    const visibleIds = data.map((s) => s.id);
-    if (visibleIds.length === 0 || !selectedAcademicYearId) return;
+    const visibleIds = students.map((s) => s.id);
+    if (visibleIds.length === 0 || !selectedAcademicYearId) {
+      return;
+    }
 
     let cancelled = false;
-    void Promise.resolve().then(() => setScoresLoading(true));
     void getStudentScores(visibleIds, selectedAcademicYearId).then((result) => {
       if (cancelled) return;
       if (result.success && result.data) {
         setScores((prev) => ({ ...prev, ...result.data }));
       }
-      void Promise.resolve().then(() => setScoresLoading(false));
     });
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.map((s) => s.id).join(','), selectedAcademicYearId]);
+  }, [students.map((s) => s.id).join(','), selectedAcademicYearId]);
 
   // Merge scores into data
   const displayData = useMemo(() => {
-    return data.map((s) => ({
+    return students.map((s) => ({
       ...s,
       current_score: scores[s.id] ?? s.current_score,
     }));
-  }, [data, scores]);
+  }, [scores, students]);
 
-  const total = filteredData.length;
   const totalPages = Math.max(1, Math.ceil(total / 20));
-  const unfilteredTotal = allStudents.length;
-  const hasActiveFilters = Object.keys(searchParams).length > 0;
   const from = total === 0 ? 0 : (page - 1) * 20 + 1;
-  const to = total === 0 ? 0 : (page - 1) * 20 + data.length;
-  const baseTotal = hasActiveFilters ? Math.max(unfilteredTotal, total) : total;
+  const to = total === 0 ? 0 : (page - 1) * 20 + students.length;
 
   useEffect(() => {
     if (page > totalPages) {
@@ -334,7 +312,7 @@ export default function StudentsPage() {
           <p className="text-muted-foreground mt-1">{t('manageDescription')}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportCSV} disabled={filteredData.length === 0 || exporting}>
+          <Button variant="outline" onClick={handleExportCSV} disabled={total === 0 || exporting}>
             <Download className="mr-2 h-4 w-4" />
             {exporting ? 'กำลังส่งออก...' : t('exportCsv')}
           </Button>
@@ -358,7 +336,6 @@ export default function StudentsPage() {
       {!loading && total > 0 && (
         <p className="text-sm text-muted-foreground">
           {t('resultsSummary', { total, from, to })}
-          {hasActiveFilters && baseTotal > total ? t('resultsFilteredSuffix', { total: baseTotal }) : ''}
         </p>
       )}
 

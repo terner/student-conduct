@@ -220,6 +220,7 @@ export async function getStudents(params: {
   education_stage_id?: string;
   status?: string;
   academic_year?: string;
+  includeScores?: boolean;
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile) && !canApproveScores(profile)) {
@@ -230,6 +231,7 @@ export async function getStudents(params: {
     const result = await listStudents({
       ...validated,
       grade_level: validated.grade_level === '' ? undefined : validated.grade_level,
+      includeScores: params.includeScores !== false,
     });
     return { success: true, data: result };
   });
