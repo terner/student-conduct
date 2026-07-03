@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/server-action';
 import { hasRole, getRoles } from '@/lib/security/roles';
 import { getDashboardData } from '@/lib/db';
 import { createClient, createAdminClient, getUserFromCookie } from '@/lib/supabase/server';
+import { serverMessage } from '@/lib/i18n/server';
 
 /**
  * Consolidated dashboard data fetch.
@@ -36,10 +37,13 @@ export async function getDashboard(params: { academic_year_id?: string } = {}) {
           await supabase.from('notifications').insert({
             recipient_id: profile.id,
             type: notificationType,
-            title: `ปีการศึกษา ${data.academic_year_ending.name} กำลังจะสิ้นสุด`,
+            title: await serverMessage('settings.academicYearEndingTitle', { year: data.academic_year_ending.name }),
             body: data.academic_year_ending.days_remaining === 0
-              ? 'วันนี้เป็นวันสุดท้ายของปีการศึกษา กรุณาตั้งปีการศึกษาใหม่'
-              : `เหลืออีก ${data.academic_year_ending.days_remaining} วัน (${data.academic_year_ending.end_date})`,
+              ? await serverMessage('settings.academicYearEndingToday')
+              : await serverMessage('settings.academicYearEndingInDays', {
+                days: data.academic_year_ending.days_remaining,
+                endDate: data.academic_year_ending.end_date,
+              }),
           });
         }
       } catch {
@@ -200,7 +204,7 @@ export async function changePassword(newPassword: string) {
       };
     }
 
-    return { success: true, data: { message: 'เปลี่ยนรหัสผ่านสำเร็จ' } };
+    return { success: true, data: { message: await serverMessage('authPages.changePassword.successMessage') } };
   });
 }
 
@@ -217,7 +221,7 @@ export async function changePasswordWithOld(oldPassword: string, newPassword: st
     if (!user?.email) {
       return {
         success: false,
-        error: { code: 'USER_NOT_FOUND', message: 'ไม่พบผู้ใช้' },
+        error: { code: 'USER_NOT_FOUND', message: await serverMessage('apiErrors.userNotFound') },
       };
     }
 
@@ -230,7 +234,7 @@ export async function changePasswordWithOld(oldPassword: string, newPassword: st
     if (signInError) {
       return {
         success: false,
-        error: { code: 'INVALID_PASSWORD', message: 'รหัสผ่านเดิมไม่ถูกต้อง' },
+        error: { code: 'INVALID_PASSWORD', message: await serverMessage('apiErrors.invalidCurrentPassword') },
       };
     }
 
@@ -248,6 +252,6 @@ export async function changePasswordWithOld(oldPassword: string, newPassword: st
       };
     }
 
-    return { success: true, data: { message: 'เปลี่ยนรหัสผ่านสำเร็จ' } };
+    return { success: true, data: { message: await serverMessage('authPages.changePassword.successMessage') } };
   });
 }

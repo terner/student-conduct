@@ -55,8 +55,8 @@ export default function ScoreHistoryPage() {
   const [categories, setCategories] = useState<CategoryOption[]>([]);
 
   const getStageLabel = (stage: StageOption) => {
-    if (stage.code === 'secondary') return 'มัธยมต้น';
-    if (stage.code === 'highschool') return 'มัธยมปลาย';
+    if (stage.code === 'secondary') return scoreT('secondaryStage');
+    if (stage.code === 'highschool') return scoreT('highschoolStage');
     return stage.name_th;
   };
 

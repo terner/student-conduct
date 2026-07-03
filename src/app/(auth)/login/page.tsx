@@ -1,9 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/server';
+import { getTranslations } from 'next-intl/server';
 import { LoginForm } from './login-form';
 
 export const dynamic = 'force-dynamic';
 
 async function getLoginBranding() {
+  const authT = await getTranslations('auth');
   try {
     const adminClient = await createAdminClient();
     const { data } = await adminClient
@@ -15,11 +17,11 @@ async function getLoginBranding() {
     const schoolLogo = data?.find((item) => item.key === 'school_logo')?.value;
 
     return {
-      schoolName: typeof schoolName === 'string' && schoolName.trim() ? schoolName : 'โรงเรียน',
+      schoolName: typeof schoolName === 'string' && schoolName.trim() ? schoolName : authT('schoolFallbackName'),
       schoolLogo: typeof schoolLogo === 'string' && schoolLogo.trim() ? schoolLogo : undefined,
     };
   } catch {
-    return { schoolName: 'โรงเรียน', schoolLogo: undefined };
+    return { schoolName: authT('schoolFallbackName'), schoolLogo: undefined };
   }
 }
 

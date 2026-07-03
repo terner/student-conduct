@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, getUserFromCookie } from '@/lib/supabase/server';
+import { apiMessage } from '@/lib/i18n/api';
 
-export async function POST() {
+export async function POST(request: Request) {
   const user = await getUserFromCookie();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: apiMessage(request, 'unauthorized') }, { status: 401 });
   }
 
   const adminClient = await createAdminClient();
@@ -16,7 +17,7 @@ export async function POST() {
 
   const roles = Array.isArray(profile?.role) ? profile.role : [profile?.role];
   if (!roles.includes('superadmin')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: apiMessage(request, 'forbidden') }, { status: 403 });
   }
 
   // Get settings
@@ -33,7 +34,7 @@ export async function POST() {
   const from = String(settingsMap.resend_from || process.env.RESEND_FROM || 'onboarding@resend.dev');
 
   if (!apiKey) {
-    return NextResponse.json({ error: 'กรุณาตั้งค่า Resend API Key ก่อน' }, { status: 400 });
+    return NextResponse.json({ error: apiMessage(request, 'resendApiKeyMissing') }, { status: 400 });
   }
 
   try {
@@ -60,6 +61,6 @@ export async function POST() {
 
     return NextResponse.json({ success: true, id: data?.id });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'ส่งอีเมลไม่สำเร็จ' }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : apiMessage(request, 'emailSendFailed') }, { status: 500 });
   }
 }

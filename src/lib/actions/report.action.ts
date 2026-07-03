@@ -6,6 +6,7 @@ import { canApproveScores, hasRole } from '@/lib/security/roles';
 import { listStudents, getScoreSummary } from '@/lib/db';
 import type { StudentThresholdInfo } from '@/types';
 import { logAction } from '@/lib/audit/log';
+import { serverMessage } from '@/lib/i18n/server';
 
 export type RankingSortBy = 'current_score' | 'deducted' | 'transaction_count' | 'latest' | 'name';
 
@@ -503,7 +504,7 @@ export async function getDashboardStats() {
 export async function getSchoolStatisticsReport(academicYearId?: string) {
   return withAuth<SchoolStatisticsReportData>(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูสถิติโรงเรียน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.schoolStatisticsForbidden') } };
     }
 
     const supabase = await createAdminClient();
@@ -766,7 +767,7 @@ export async function getIndividualReport(studentId: string, academicYearId?: st
         .maybeSingle();
 
       if (!currentYear?.id) {
-        return { success: false, error: { code: 'NOT_FOUND', message: 'ยังไม่ได้ตั้งปีการศึกษาปัจจุบัน' } };
+        return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.noCurrentAcademicYear') } };
       }
 
       const { data: currentEnrollment } = await supabase
@@ -778,7 +779,7 @@ export async function getIndividualReport(studentId: string, academicYearId?: st
         .maybeSingle();
 
       if (!currentEnrollment) {
-        return { success: false, error: { code: 'FORBIDDEN', message: 'ดูได้เฉพาะข้อมูลของตนเองในปีการศึกษาปัจจุบัน' } };
+        return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.currentYearSelfOnly') } };
       }
 
       effectiveAcademicYearId = currentYear.id as string;
@@ -806,7 +807,7 @@ export async function getIndividualReport(studentId: string, academicYearId?: st
       .single();
 
     if (!student) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลนักเรียน' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.studentNotFound') } };
     }
 
     // Get score transactions
@@ -866,13 +867,13 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
     const canViewAll = canApproveScores(profile);
     const isTeacher = hasRole(profile, 'teacher');
     if (!canViewAll && !isTeacher) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายงานห้องเรียน' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.classroomReportForbidden') } };
     }
 
     if (!canViewAll) {
       const assignedClassroomIds = await getTeacherAssignedClassroomIds(profile.id);
       if (!assignedClassroomIds.includes(classroomId)) {
-        return { success: false, error: { code: 'FORBIDDEN', message: 'ดูได้เฉพาะห้องเรียนที่ได้รับมอบหมาย' } };
+        return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.assignedClassroomOnly') } };
       }
     }
 
@@ -896,7 +897,7 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
       .single();
 
     if (!classroom) {
-      return { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบห้องเรียน' } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.classroomNotFound') } };
     }
 
     if (!acYear && (classroom as any).academic_year_id) {

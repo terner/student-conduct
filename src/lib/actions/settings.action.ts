@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/server-action';
 import { canManageSettings, getRoles } from '@/lib/security/roles';
 import { createAdminClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
+import { serverMessage } from '@/lib/i18n/server';
 
 export async function getSettingsPageData() {
   return withAuth(async (profile) => {
@@ -47,7 +48,7 @@ export async function saveSystemSettings(input: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSettings(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลสูงสุด' } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
     }
 
     const adminClient = await createAdminClient();

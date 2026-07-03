@@ -17,12 +17,14 @@ type LoginFormProps = {
   schoolLogo?: string;
 };
 
-const loginSchema = z.object({
-  identity: z.string().min(1, 'กรุณากรอกอีเมลหรือรหัสนักเรียน'),
-  password: z.string().min(1, 'กรุณากรอกรหัสผ่าน'),
-});
+function createLoginSchema(identityRequired: string, passwordRequired: string) {
+  return z.object({
+    identity: z.string().min(1, identityRequired),
+    password: z.string().min(1, passwordRequired),
+  });
+}
 
-type LoginInput = z.infer<typeof loginSchema>;
+type LoginInput = z.infer<ReturnType<typeof createLoginSchema>>;
 
 async function doLogin(body: Record<string, string>, fallbackError: string) {
   const res = await fetch('/api/auth/login', {
@@ -49,6 +51,7 @@ async function doLogin(body: Record<string, string>, fallbackError: string) {
 export function LoginForm({ schoolName, schoolLogo }: LoginFormProps) {
   const authT = useTranslations('auth');
   const commonT = useTranslations('common');
+  const loginSchema = createLoginSchema(authT('identityRequired'), authT('passwordRequired'));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

@@ -73,8 +73,8 @@ export default function ScoreRecordPage() {
   const [loading, setLoading] = useState(true);
   const [recordingClosedReason, setRecordingClosedReason] = useState('');
   const getStageLabel = (stage: StageOption) => {
-    if (stage.code === 'secondary') return 'มัธยมต้น';
-    if (stage.code === 'highschool') return 'มัธยมปลาย';
+    if (stage.code === 'secondary') return t('secondaryStage');
+    if (stage.code === 'highschool') return t('highschoolStage');
     return stage.name_th;
   };
 

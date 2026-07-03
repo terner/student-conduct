@@ -509,11 +509,11 @@ export default function SettingsPage() {
 
               <div className="space-y-3">
                 <div>
-                  <Label className="text-base">📧 อีเมล (Resend)</Label>
-                  <p className="text-xs text-muted-foreground">ส่งอีเมลแจ้งเตือน, รีเซ็ตรหัสผ่าน, รายงาน</p>
+                  <Label className="text-base">{settingsT('emailSectionTitle')}</Label>
+                  <p className="text-xs text-muted-foreground">{settingsT('emailSectionDescription')}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="resend_api_key">Resend API Key</Label>
+                  <Label htmlFor="resend_api_key">{settingsT('resendApiKeyLabel')}</Label>
                   <div className="flex gap-2">
                     <Input
                       id="resend_api_key"
@@ -529,30 +529,30 @@ export default function SettingsPage() {
                         const res = await fetch('/api/email/test', { method: 'POST' });
                         const result = await res.json();
                         if (res.ok && result.success) {
-                          toast('✅ ส่งอีเมลทดสอบสำเร็จ');
+                          toast(settingsT('emailTestSuccess'));
                         } else {
-                          toast('❌ ส่งไม่สำเร็จ', { description: result.error || 'Unknown error' });
+                          toast(settingsT('emailTestFailed'), { description: result.error || settingsT('emailTestUnknownError') });
                         }
                       } catch {
-                        toast('❌ ส่งไม่สำเร็จ');
+                        toast(settingsT('emailTestFailed'));
                       } finally {
                         setTestingEmail(false);
                       }
                     }} disabled={testingEmail}>
-                      {testingEmail ? 'กำลังส่ง...' : 'ทดสอบส่ง'}
+                      {testingEmail ? settingsT('emailTestSending') : settingsT('emailTestButton')}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">API key จาก resend.com → API Keys</p>
+                  <p className="text-xs text-muted-foreground">{settingsT('resendApiKeyHelp')}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="resend_from">อีเมลผู้ส่ง (From)</Label>
+                  <Label htmlFor="resend_from">{settingsT('resendFromLabel')}</Label>
                   <Input
                     id="resend_from"
                     value={inputSetting(settings, 'resend_from')}
                     onChange={(e) => setSettings({ ...settings, resend_from: e.target.value })}
-                    placeholder="ระบบคะแนน <noreply@school.ac.th>"
+                    placeholder={settingsT('resendFromPlaceholder')}
                   />
-                  <p className="text-xs text-muted-foreground">ต้อง verify domain ที่ Resend ก่อนส่งจริง</p>
+                  <p className="text-xs text-muted-foreground">{settingsT('resendFromHelp')}</p>
                 </div>
               </div>
             </CardContent>
