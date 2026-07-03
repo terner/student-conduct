@@ -228,6 +228,10 @@ export async function getStudents(params: {
     }
 
     const validated = paginationSchema.parse(params);
+    if (!validated.academic_year) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'กรุณาเลือกปีการศึกษา' } };
+    }
+
     const result = await listStudents({
       ...validated,
       grade_level: validated.grade_level === '' ? undefined : validated.grade_level,

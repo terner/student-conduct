@@ -155,7 +155,6 @@ function buildStudentLoginEmail(studentIdNumber: string, academicYearId?: string
  * List students with pagination, search, and filters
  */
 export async function listStudents(params: StudentListParams = {}): Promise<PaginatedResult<StudentWithProfile>> {
-  const supabase = await createClient();
   const {
     page = 1,
     page_size = 20,
@@ -168,89 +167,106 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
     includeScores = true,
   } = params;
 
+  if (!academic_year) {
+    return { data: [], total: 0, page, page_size, total_pages: 0 };
+  }
+
+  const supabase = await createAdminClient();
   const searchTerm = search?.trim();
-  let matchingProfileIds: string[] = [];
+  let matchingStudentIds: string[] | undefined;
   if (searchTerm) {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id')
       .ilike('full_name', `%${escapePostgrestPattern(searchTerm)}%`)
       .limit(1000);
-    matchingProfileIds = (profiles || []).map((profile: Record<string, unknown>) => profile.id as string);
+    const matchingProfileIds = (profiles || []).map((profile: Record<string, unknown>) => profile.id as string);
+    let studentSearchQuery = supabase
+      .from('students')
+      .select('id')
+      .ilike('student_id_number', `%${escapePostgrestPattern(searchTerm)}%`);
+
+    if (matchingProfileIds.length > 0) {
+      const idNumberFilter = `student_id_number.ilike.%${escapePostgrestPattern(searchTerm)}%`;
+      studentSearchQuery = supabase
+        .from('students')
+        .select('id')
+        .or(`${idNumberFilter},profile_id.in.(${matchingProfileIds.join(',')})`);
+    }
+
+    const { data: matchingStudents } = await studentSearchQuery.limit(1000);
+    matchingStudentIds = (matchingStudents || []).map((student: Record<string, unknown>) => student.id as string);
+
+    if (matchingStudentIds.length === 0) {
+      return { data: [], total: 0, page, page_size, total_pages: 0 };
+    }
   }
 
-  let query = supabase
-    .from('students')
+  let enrollmentQuery = supabase
+    .from('student_enrollments')
     .select(`
-      *,
-      profiles!inner(full_name, prefix, avatar_url),
-      classrooms!inner(name, grade_level_id, grade_level, education_stage_id, academic_year_id, grade_levels(name, level_no))
-    `, { count: 'exact' });
+      student_id,
+      classroom_id,
+      class_number,
+      enrollment_status,
+      students!inner(
+        id,
+        profile_id,
+        student_id_number,
+        current_status,
+        profiles!inner(full_name, prefix, avatar_url)
+      ),
+      classrooms!inner(name, grade_level_id, grade_level, education_stage_id, grade_levels(name, level_no))
+    `, { count: 'exact' })
+    .eq('academic_year_id', academic_year);
 
-  // Filters
-  if (searchTerm) {
-    const idNumberFilter = `student_id_number.ilike.%${escapePostgrestPattern(searchTerm)}%`;
-    query = matchingProfileIds.length > 0
-      ? query.or(`${idNumberFilter},profile_id.in.(${matchingProfileIds.join(',')})`)
-      : query.ilike('student_id_number', `%${escapePostgrestPattern(searchTerm)}%`);
-  }
-  if (classroom_id) {
-    query = query.eq('classroom_id', classroom_id);
-  }
-  if (grade_level) {
-    query = query.eq('classrooms.grade_level', grade_level);
-  }
-  if (params.grade_level_id) {
-    query = query.eq('classrooms.grade_level_id', params.grade_level_id);
-  }
-  if (education_stage_id) {
-    query = query.eq('classrooms.education_stage_id', education_stage_id);
-  }
-  if (status) {
-    query = query.eq('current_status', status);
-  }
-  if (academic_year) {
-    query = query.eq('classrooms.academic_year_id', academic_year);
-  }
+  if (matchingStudentIds) enrollmentQuery = enrollmentQuery.in('student_id', matchingStudentIds);
+  if (classroom_id) enrollmentQuery = enrollmentQuery.eq('classroom_id', classroom_id);
+  if (grade_level) enrollmentQuery = enrollmentQuery.eq('classrooms.grade_level', grade_level);
+  if (params.grade_level_id) enrollmentQuery = enrollmentQuery.eq('classrooms.grade_level_id', params.grade_level_id);
+  if (education_stage_id) enrollmentQuery = enrollmentQuery.eq('classrooms.education_stage_id', education_stage_id);
+  if (status) enrollmentQuery = enrollmentQuery.eq('students.current_status', status);
 
   const from = (page - 1) * page_size;
   const to = from + page_size - 1;
 
-  const { data, error, count } = await query
-    .order('profiles(full_name)', { ascending: true })
+  const { data, error, count } = await enrollmentQuery
+    .order('classroom_id', { ascending: true })
+    .order('class_number', { ascending: true, nullsFirst: false })
     .range(from, to);
 
   if (error) throw error;
 
-  const studentIds = (data || []).map((s: Record<string, unknown>) => s.id as string);
-
+  const rows = (data || []) as Record<string, unknown>[];
+  const studentIds = rows.map((row) => row.student_id as string);
   const scoresPromise = includeScores
     ? getScoreByStudentId(studentIds, academic_year)
     : Promise.resolve(new Map<string, number>());
 
-  const [guardianByStudentId, scoreByStudentId, classNumberByStudentId, stages] = await Promise.all([
+  const [guardianByStudentId, scoreByStudentId, stages] = await Promise.all([
     getPrimaryGuardians(studentIds),
     scoresPromise,
-    getClassNumbersByStudentId(studentIds, academic_year),
     loadStages(),
   ]);
 
-  const mapped: StudentWithProfile[] = await Promise.all((data || []).map(async (s: Record<string, unknown>) => {
-    const profile = s.profiles as Record<string, unknown> || {};
+  const mapped: StudentWithProfile[] = rows.map((row) => {
+    const student = row.students as Record<string, unknown> || {};
+    const profile = student.profiles as Record<string, unknown> || {};
     const { prefix, first_name, last_name } = parseProfile(profile);
-    const classroom = s.classrooms as Record<string, unknown> || {};
+    const classroom = row.classrooms as Record<string, unknown> || {};
     const stageId = classroom.education_stage_id as string || '';
-    const guardian = guardianByStudentId.get(s.id as string);
+    const studentId = student.id as string;
+    const guardian = guardianByStudentId.get(studentId);
     return {
-      id: s.id as string,
-      profile_id: s.profile_id as string,
-      student_id_number: s.student_id_number as string,
-      classroom_id: s.classroom_id as string,
-      current_status: s.current_status as Student['current_status'],
+      id: studentId,
+      profile_id: student.profile_id as string,
+      student_id_number: student.student_id_number as string,
+      classroom_id: row.classroom_id as string,
+      current_status: student.current_status as Student['current_status'],
       prefix,
       first_name,
       last_name,
-      class_number: classNumberByStudentId.get(s.id as string),
+      class_number: row.class_number as number | undefined,
       classroom_name: classroom.name as string || '',
       education_stage_id: stageId,
       grade_level_id: classroom.grade_level_id as string || '',
@@ -264,9 +280,9 @@ export async function listStudents(params: StudentListParams = {}): Promise<Pagi
       guardian_relation: guardian?.relation || '',
       guardian_phone: guardian?.phone || '',
       avatar_url: profile.avatar_url as string | undefined,
-      current_score: scoreByStudentId.get(s.id as string) ?? 100,
+      current_score: scoreByStudentId.get(studentId) ?? 100,
     };
-  }));
+  });
 
   return {
     data: mapped,
