@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CopyPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
+import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
+import { compareNullableNumber, compareNullableText, textOrEmpty } from '@/components/ui/table-helpers';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import {
@@ -14,6 +16,8 @@ import {
   getAcademicYears,
   type AcademicYearItem,
 } from '@/lib/actions/academic-year.action';
+
+type AcademicYearSortField = 'name' | 'status' | 'base_score' | 'start_date' | 'end_date';
 
 function nextAcademicYearName(name: string) {
   const numeric = Number(name);
@@ -48,6 +52,8 @@ export default function AcademicYearsPage() {
   const [years, setYears] = useState<AcademicYearItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sortField, setSortField] = useState<AcademicYearSortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,14 +91,47 @@ export default function AcademicYearsPage() {
     }
   }
 
+  const sortedYears = useMemo(() => {
+    return [...years].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'name':
+          comparison = compareNullableText(a.name, b.name);
+          break;
+        case 'status':
+          comparison = Number(a.is_current) - Number(b.is_current);
+          break;
+        case 'base_score':
+          comparison = compareNullableNumber(a.base_score, b.base_score, 'asc');
+          break;
+        case 'start_date':
+          comparison = compareNullableText(a.start_date, b.start_date);
+          break;
+        case 'end_date':
+          comparison = compareNullableText(a.end_date, b.end_date);
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [sortDirection, sortField, years]);
+
+  function handleSort(field: AcademicYearSortField) {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortField(field);
+    setSortDirection(field === 'name' ? 'desc' : 'asc');
+  }
+
   if (loading) return <div className="flex justify-center py-12"><Spinner className="size-8" /></div>;
 
-  const currentYear = years.find((year) => year.is_current) || null;
+  const currentYear = years.find((year) => year.is_current) ?? null;
   const nextYearName = currentYear
-    ? nextAcademicYearName(currentYear.name) || settingsT('nextYearSuffix', { name: currentYear.name })
+    ? nextAcademicYearName(currentYear.name) ?? settingsT('nextYearSuffix', { name: currentYear.name })
     : '';
   const hasNextYear = nextYearName ? years.some((year) => year.name === nextYearName) : false;
-  const daysUntilCurrentYearEnds = getDaysUntil(currentYear?.end_date || null);
+  const daysUntilCurrentYearEnds = getDaysUntil(currentYear?.end_date ?? null);
   const shouldWarnNextYear = Boolean(
     currentYear &&
     !hasNextYear &&
@@ -112,7 +151,7 @@ export default function AcademicYearsPage() {
           variant="outline"
           onClick={createNextYear}
           disabled={saving || !canRollover}
-          title={rolloverBlockedReason || undefined}
+          title={rolloverBlockedReason ? rolloverBlockedReason : undefined}
         >
           <CopyPlus className="h-4 w-4 mr-1" /> {settingsT('rolloverNextYear')}
         </Button>
@@ -138,10 +177,10 @@ export default function AcademicYearsPage() {
               <p className="font-medium">{settingsT('shouldCreateAcademicYear', { year: nextYearName })}</p>
               <p className="text-amber-800 dark:text-amber-200">
                 {daysUntilCurrentYearEnds !== null && daysUntilCurrentYearEnds < 0
-                  ? settingsT('academicYearEnded', { year: currentYear?.name || '' })
+                  ? settingsT('academicYearEnded', { year: currentYear?.name ?? '' })
                   : daysUntilCurrentYearEnds !== null
-                    ? settingsT('academicYearEndsIn', { year: currentYear?.name || '', days: daysUntilCurrentYearEnds })
-                    : settingsT('nextAcademicYearMissing', { year: currentYear?.name || '' })}
+                    ? settingsT('academicYearEndsIn', { year: currentYear?.name ?? '', days: daysUntilCurrentYearEnds })
+                    : settingsT('nextAcademicYearMissing', { year: currentYear?.name ?? '' })}
                 {' '}{settingsT('rolloverPreparationNote')}
               </p>
               {rolloverBlockedReason && (
@@ -154,7 +193,7 @@ export default function AcademicYearsPage() {
           <Button
             onClick={createNextYear}
             disabled={saving || !canRollover}
-            title={rolloverBlockedReason || undefined}
+            title={rolloverBlockedReason ? rolloverBlockedReason : undefined}
             className="w-full bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-amber-950 dark:hover:bg-amber-400 sm:w-auto"
           >
             <CopyPlus className="h-4 w-4 mr-1" /> {settingsT('rolloverShort', { year: nextYearName })}
@@ -167,17 +206,27 @@ export default function AcademicYearsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{commonT('academicYear')}</TableHead>
-                <TableHead>{settingsT('status')}</TableHead>
-                <TableHead>{settingsT('baseScore')}</TableHead>
-                <TableHead>{settingsT('startDate')}</TableHead>
-                <TableHead>{settingsT('endDate')}</TableHead>
+                <SortableTableHead field="name" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                  {commonT('academicYear')}
+                </SortableTableHead>
+                <SortableTableHead field="status" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                  {settingsT('status')}
+                </SortableTableHead>
+                <SortableTableHead field="base_score" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                  {settingsT('baseScore')}
+                </SortableTableHead>
+                <SortableTableHead field="start_date" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                  {settingsT('startDate')}
+                </SortableTableHead>
+                <SortableTableHead field="end_date" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                  {settingsT('endDate')}
+                </SortableTableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {years.length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{settingsT('noAcademicYears')}</TableCell></TableRow>
-              ) : years.map((y) => (
+              ) : sortedYears.map((y) => (
                 <TableRow key={y.id}>
                   <TableCell className="font-medium">{y.name}</TableCell>
                   <TableCell>
@@ -187,9 +236,9 @@ export default function AcademicYearsPage() {
                       <Badge variant="outline">{settingsT('notActive')}</Badge>
                     )}
                   </TableCell>
-                  <TableCell>{y.base_score || 100}</TableCell>
-                  <TableCell className="text-xs">{y.start_date ? new Date(y.start_date).toLocaleDateString('th-TH') : '-'}</TableCell>
-                  <TableCell className="text-xs">{y.end_date ? new Date(y.end_date).toLocaleDateString('th-TH') : '-'}</TableCell>
+                  <TableCell>{y.base_score ?? ''}</TableCell>
+                  <TableCell className="text-xs">{textOrEmpty(y.start_date ? new Date(y.start_date).toLocaleDateString('th-TH') : '')}</TableCell>
+                  <TableCell className="text-xs">{textOrEmpty(y.end_date ? new Date(y.end_date).toLocaleDateString('th-TH') : '')}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

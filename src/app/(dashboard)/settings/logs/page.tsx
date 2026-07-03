@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SimplePagination } from '@/components/ui/simple-pagination';
+import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
+import { compareNullableText, textOrEmpty } from '@/components/ui/table-helpers';
 import { createClient } from '@/lib/supabase/client';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -17,6 +19,21 @@ interface LogRow {
   created_at: string;
   profiles?: { full_name?: string | null } | null;
   [key: string]: unknown;
+}
+
+type LogSortField = 'created_at' | 'actor' | 'action' | 'target';
+
+function logValue(log: LogRow, key: string) {
+  const value = log[key];
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  return '';
+}
+
+function logTarget(log: LogRow, targetTypeKey: string, targetIdKey: string) {
+  const targetType = logValue(log, targetTypeKey);
+  const targetId = logValue(log, targetIdKey);
+  if (!targetType) return '';
+  return targetId ? `${targetType}: ${targetId.slice(0, 8)}...` : targetType;
 }
 
 export default function AuditLogPage() {
@@ -135,6 +152,38 @@ function LogTable({
   onPageChange: (page: number) => void;
 }) {
   const settingsT = useTranslations('settings');
+  const [sortField, setSortField] = useState<LogSortField>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  function handleSort(field: LogSortField) {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortField(field);
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc');
+  }
+
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'created_at':
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        case 'actor':
+          comparison = compareNullableText(a.profiles?.full_name, b.profiles?.full_name);
+          break;
+        case 'action':
+          comparison = compareNullableText(logValue(a, eventKey), logValue(b, eventKey));
+          break;
+        case 'target':
+          comparison = compareNullableText(logTarget(a, targetTypeKey, targetIdKey), logTarget(b, targetTypeKey, targetIdKey));
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [eventKey, rows, sortDirection, sortField, targetIdKey, targetTypeKey]);
 
   if (rows.length === 0) {
     return (
@@ -153,22 +202,30 @@ function LogTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{settingsT('time')}</TableHead>
-              <TableHead>{settingsT('actor')}</TableHead>
-              <TableHead>{settingsT('action')}</TableHead>
-              <TableHead>{settingsT('target')}</TableHead>
+              <SortableTableHead field="created_at" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                {settingsT('time')}
+              </SortableTableHead>
+              <SortableTableHead field="actor" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                {settingsT('actor')}
+              </SortableTableHead>
+              <SortableTableHead field="action" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                {settingsT('action')}
+              </SortableTableHead>
+              <SortableTableHead field="target" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                {settingsT('target')}
+              </SortableTableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((log) => (
+            {sortedRows.map((log) => (
               <TableRow key={log.id}>
                 <TableCell className="text-xs whitespace-nowrap">
                   {new Date(log.created_at).toLocaleString(locale)}
                 </TableCell>
-                <TableCell className="text-sm">{log.profiles?.full_name || '-'}</TableCell>
-                <TableCell className="text-sm">{String(log[eventKey] || '')}</TableCell>
+                <TableCell className="text-sm">{textOrEmpty(log.profiles?.full_name)}</TableCell>
+                <TableCell className="text-sm">{logValue(log, eventKey)}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {String(log[targetTypeKey] || '-')}{log[targetIdKey] ? `: ${String(log[targetIdKey]).slice(0, 8)}...` : ''}
+                  {logTarget(log, targetTypeKey, targetIdKey)}
                 </TableCell>
               </TableRow>
             ))}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
@@ -10,6 +10,8 @@ import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
+import { compareNullableNumber, compareNullableText, textOrEmpty } from '@/components/ui/table-helpers';
 import { getDashboard, checkPDPAConsent, checkMustChangePassword } from '@/lib/actions/dashboard.action';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 import { createClient } from '@/lib/supabase/client';
@@ -56,6 +58,12 @@ interface AcademicYearEnding {
   end_date: string;
 }
 
+type AtRiskSortField = 'student' | 'classroom' | 'current_score' | 'action';
+
+function atRiskStudentName(student: AtRiskStudent) {
+  return [student.first_name, student.last_name].filter(Boolean).join(' ');
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const t = useTranslations('dashboard');
@@ -67,6 +75,8 @@ export default function DashboardPage() {
   const [atRisk, setAtRisk] = useState<AtRiskStudent[]>([]);
   const [academicYearEnding, setAcademicYearEnding] = useState<AcademicYearEnding | null>(null);
   const [loading, setLoading] = useState(true);
+  const [atRiskSortField, setAtRiskSortField] = useState<AtRiskSortField>('current_score');
+  const [atRiskSortDirection, setAtRiskSortDirection] = useState<SortDirection>('asc');
   const realtimeRefreshRef = useRef<number | null>(null);
 
   const loadDashboard = useCallback(async (showSpinner = false) => {
@@ -88,6 +98,36 @@ export default function DashboardPage() {
       timeStyle: 'short',
     }).format(new Date(value));
   }
+
+  function handleAtRiskSort(field: AtRiskSortField) {
+    if (atRiskSortField === field) {
+      setAtRiskSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setAtRiskSortField(field);
+    setAtRiskSortDirection(field === 'current_score' ? 'asc' : 'desc');
+  }
+
+  const sortedAtRisk = useMemo(() => {
+    return [...atRisk].sort((a, b) => {
+      let comparison = 0;
+      switch (atRiskSortField) {
+        case 'student':
+          comparison = compareNullableText(atRiskStudentName(a), atRiskStudentName(b));
+          break;
+        case 'classroom':
+          comparison = compareNullableText(a.classroom_name, b.classroom_name);
+          break;
+        case 'current_score':
+          comparison = compareNullableNumber(a.current_score, b.current_score, 'asc');
+          break;
+        case 'action':
+          comparison = compareNullableText(a.threshold_action, b.threshold_action);
+          break;
+      }
+      return atRiskSortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [atRisk, atRiskSortDirection, atRiskSortField]);
 
   useEffect(() => {
     async function load() {
@@ -185,12 +225,17 @@ export default function DashboardPage() {
 
       {academicYearEnding && (
         <div className={`rounded-md border px-4 py-3 text-sm ${academicYearEnding.days_remaining <= 7 ? 'bg-red-50 border-red-300 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-300' : 'bg-yellow-50 border-yellow-300 text-yellow-800 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-300'}`}>
-          <p className="font-medium">
+          <p className="flex items-center gap-2 font-medium">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
             {academicYearEnding.days_remaining === 0
-              ? `⚠️ วันนี้เป็นวันสุดท้ายของปีการศึกษา ${academicYearEnding.name}`
-              : `⚠️ ปีการศึกษา ${academicYearEnding.name} จะสิ้นสุดในอีก ${academicYearEnding.days_remaining} วัน (${new Date(academicYearEnding.end_date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })})`}
+              ? t('academicYearEndingToday')
+              : t('academicYearEndingInDays', {
+                days: academicYearEnding.days_remaining,
+                endDate: new Date(academicYearEnding.end_date).toLocaleDateString(locale === 'th' ? 'th-TH' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+              })}
           </p>
-          <p className="mt-1 opacity-80">กรุณาเตรียมตั้งปีการศึกษาใหม่ที่หน้า การตั้งค่า → ปีการศึกษา</p>
+          <p className="mt-1 opacity-80">{t('academicYearEndingTitle', { year: academicYearEnding.name })}</p>
+          <p className="mt-1 opacity-80">{t('rolloverPreparationNote')}</p>
         </div>
       )}
 
@@ -257,23 +302,31 @@ export default function DashboardPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t('student')}</TableHead>
-                    <TableHead>{t('classroom')}</TableHead>
-                    <TableHead>{t('currentScore')}</TableHead>
-                    <TableHead>{t('action')}</TableHead>
+                    <SortableTableHead field="student" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
+                      {t('student')}
+                    </SortableTableHead>
+                    <SortableTableHead field="classroom" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
+                      {t('classroom')}
+                    </SortableTableHead>
+                    <SortableTableHead field="current_score" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
+                      {t('currentScore')}
+                    </SortableTableHead>
+                    <SortableTableHead field="action" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
+                      {t('action')}
+                    </SortableTableHead>
                     <TableHead className="w-[90px]">{t('viewInfo')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {atRisk.map((s) => (
+                  {sortedAtRisk.map((s) => (
                     <TableRow key={s.student_id}>
                       <TableCell>
-                        <div className="font-medium">{s.first_name} {s.last_name}</div>
+                        <div className="font-medium">{atRiskStudentName(s)}</div>
                         <div className="text-xs text-muted-foreground">{s.student_id_number}</div>
                       </TableCell>
-                      <TableCell>{s.classroom_name || common('notAvailable')}</TableCell>
+                      <TableCell>{textOrEmpty(s.classroom_name)}</TableCell>
                       <TableCell><ScoreBadge score={s.current_score} /></TableCell>
-                      <TableCell className="text-xs">{s.threshold_action || common('notAvailable')}</TableCell>
+                      <TableCell className="text-xs">{textOrEmpty(s.threshold_action)}</TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
                           {t('view')}

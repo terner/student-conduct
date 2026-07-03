@@ -95,17 +95,18 @@
 ### UI Components — ✅ เสร็จสมบูรณ์ (พื้นฐาน)
 | Component | สถานะ |
 |-----------|--------|
-| `student-table.tsx` | ✅ |
+| `sortable-table-head.tsx` / `table-helpers.ts` | ✅ helper กลางสำหรับ table sort/nullable display/status lookup |
+| `student-table.tsx` | ✅ ใช้ helper กลาง + sortable headers + no literal fallback |
 | `student-search.tsx` | ✅ พร้อม academic year + stage + grade level + classroom filter |
 | `student-form.tsx` | ✅ พร้อม current year + grade level + classroom dependency + guardian fields |
 | `student-detail.tsx` | ✅ แสดงครูประจำชั้น/ที่ปรึกษา + guardian fields |
 | `score-record-form.tsx` | ✅ พร้อม category Select fix |
-| `score-transaction-table.tsx` | ✅ |
+| `score-transaction-table.tsx` | ✅ ใช้ helper กลาง + sortable headers + no literal fallback หลัก |
 | `score-category-form.tsx` | ✅ |
 | `score-badge.tsx` | ✅ |
-| `classroom-table.tsx` | ✅ |
+| `classroom-table.tsx` | ✅ ใช้ helper กลาง + sortable headers + no literal fallback |
 | `classroom-form.tsx` | ✅ สร้างห้องแบบ ระดับชั้น → ชั้นปี → จำนวนห้อง |
-| `teacher-table.tsx` | ✅ |
+| `teacher-table.tsx` | ✅ ใช้ helper กลาง + sortable headers + no literal fallback |
 | `teacher-form.tsx` | ✅ |
 | `app-sidebar.tsx` | ✅ |
 | `top-bar.tsx` | ✅ |
@@ -217,8 +218,12 @@
   - [x] Upload/storage API error messages ที่แสดงถึงผู้ใช้ผ่าน message files แล้ว
   - [x] Notification bell แสดง type label และ event threshold message แล้ว
   - [x] Auth login route และ `/api/auth/me/student` ใช้ API message files แล้ว
+  - [x] เพิ่ม table helper กลางสำหรับ sortable header, nullable cell display, status label และ compare functions
+  - [x] ปรับ shared data tables หลัก (`student-table`, `teacher-table`, `classroom-table`, `score-transaction-table`) ให้ไม่มี literal fallback หลักและรองรับ sort
+  - [x] ปรับ page-level table บางส่วน (`dashboard`, `interventions`, `settings/logs`, `settings/academic-years`) ให้ใช้ helper กลาง/no fallback/sort แล้ว
   - [ ] Server action errors และ API routes อื่นที่ยังเหลือ
   - [ ] ตรวจ hardcoded ที่เหลือใน reports/score/settings/teacher/student profile/PDF ให้ครบแบบ strict
+  - [ ] ไล่ table pages ที่ยังเป็น page-level table ให้ใช้ helper กลาง/no fallback/sort: classroom detail, settings import, student dashboard, reports tables, score record table, teacher positions
   - [ ] แยก domain data ที่ไม่ควร i18n เช่น CSV Thai headers, คำนำหน้า, sample import data ออกจาก UI copy ที่ต้อง i18n
 - [x] **รายงานนักเรียนถึงเกณฑ์ + การแจ้งเตือน**
   - [x] แปลง `/reports/threshold` เป็น i18n สำหรับ UI/filters หลักแล้ว

@@ -37,6 +37,10 @@ yarn-error.log*
 /supabase/.temp/
 /supabase/supabase/.temp/
 
+# Raw database exports/import fragments can contain auth tokens, password hashes, PII, and audit secrets.
+/supabase/backups/
+/supabase/generated-import/
+
 # vercel
 .vercel
 

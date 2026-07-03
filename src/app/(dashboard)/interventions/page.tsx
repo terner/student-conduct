@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { Phone, MessageSquare, Home, AlertTriangle, FileText, type LucideProps } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
 import { SimplePagination } from '@/components/ui/simple-pagination';
+import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
+import { compareNullableText, textOrEmpty } from '@/components/ui/table-helpers';
 import { createClient } from '@/lib/supabase/client';
 import { useTranslations } from 'next-intl';
 
@@ -45,16 +47,18 @@ const typeIcon: Record<string, ComponentType<LucideProps>> = {
   home_visit: Home, counseling: MessageSquare, bond: FileText,
 };
 const PAGE_SIZE = 25;
+type InterventionSortField = 'occurred_at' | 'student' | 'type' | 'summary' | 'outcome';
 
 export default function InterventionsPage() {
   const interventionT = useTranslations('intervention');
   const studentT = useTranslations('student');
-  const commonT = useTranslations('common');
   const [interventions, setInterventions] = useState<InterventionRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const typeLabel: Record<string, string> = {
+  const [sortField, setSortField] = useState<InterventionSortField>('occurred_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const typeLabel: Record<string, string> = useMemo(() => ({
     phone_call: interventionT('phoneCall'),
     parent_meeting: interventionT('parentMeeting'),
     warning: interventionT('warning'),
@@ -62,9 +66,9 @@ export default function InterventionsPage() {
     home_visit: interventionT('homeVisit'),
     counseling: interventionT('counseling'),
     other: interventionT('other'),
-  };
+  }), [interventionT]);
 
-  const load = useCallback(async (nextPage = page) => {
+  const load = useCallback(async (nextPage: number) => {
     setLoading(true);
     const supabase = createClient();
     const from = (nextPage - 1) * PAGE_SIZE;
@@ -74,13 +78,46 @@ export default function InterventionsPage() {
       .order('occurred_at', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
     if (data) setInterventions(data as InterventionRow[]);
-    setTotal(count || 0);
+    setTotal(count ?? 0);
     setLoading(false);
-  }, [page]);
+  }, []);
 
   useEffect(() => {
     void Promise.resolve().then(() => load(page));
   }, [load, page]);
+
+  function handleSort(field: InterventionSortField) {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortField(field);
+    setSortDirection(field === 'occurred_at' ? 'desc' : 'asc');
+  }
+
+  const sortedInterventions = useMemo(() => {
+    return [...interventions].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'occurred_at':
+          comparison = new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime();
+          break;
+        case 'student':
+          comparison = compareNullableText(formatProfileFullName(a.students?.profiles), formatProfileFullName(b.students?.profiles));
+          break;
+        case 'type':
+          comparison = compareNullableText(typeLabel[a.intervention_type], typeLabel[b.intervention_type]);
+          break;
+        case 'summary':
+          comparison = compareNullableText(a.summary, b.summary);
+          break;
+        case 'outcome':
+          comparison = compareNullableText(a.outcome, b.outcome);
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [interventions, sortDirection, sortField, typeLabel]);
 
   if (loading) return <div className="flex justify-center py-12"><Spinner className="size-8" /></div>;
 
@@ -104,27 +141,38 @@ export default function InterventionsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{interventionT('date')}</TableHead>
-                  <TableHead>{studentT('detail')}</TableHead>
-                  <TableHead>{interventionT('type')}</TableHead>
-                  <TableHead>{interventionT('summary')}</TableHead>
-                  <TableHead>{interventionT('outcome')}</TableHead>
+                  <SortableTableHead field="occurred_at" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                    {interventionT('date')}
+                  </SortableTableHead>
+                  <SortableTableHead field="student" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                    {studentT('detail')}
+                  </SortableTableHead>
+                  <SortableTableHead field="type" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                    {interventionT('type')}
+                  </SortableTableHead>
+                  <SortableTableHead field="summary" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                    {interventionT('summary')}
+                  </SortableTableHead>
+                  <SortableTableHead field="outcome" activeField={sortField} direction={sortDirection} onSort={handleSort}>
+                    {interventionT('outcome')}
+                  </SortableTableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {interventions.map((iv) => {
-                  const Icon = typeIcon[iv.intervention_type] || FileText;
+                {sortedInterventions.map((iv) => {
+                  const Icon = typeIcon[iv.intervention_type];
                   return (
                     <TableRow key={iv.id}>
                       <TableCell className="text-xs">{formatDateTime(iv.occurred_at)}</TableCell>
-                      <TableCell className="font-medium">{formatProfileFullName(iv.students?.profiles) || commonT('notAvailable')}</TableCell>
+                      <TableCell className="font-medium">{formatProfileFullName(iv.students?.profiles)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                          <Icon className="h-3 w-3" /> {typeLabel[iv.intervention_type] || iv.intervention_type}
+                          {Icon ? <Icon className="h-3 w-3" /> : null}
+                          {textOrEmpty(typeLabel[iv.intervention_type])}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs max-w-[300px] truncate">{iv.summary}</TableCell>
-                      <TableCell className="text-xs max-w-[200px] truncate">{iv.outcome || commonT('notAvailable')}</TableCell>
+                      <TableCell className="text-xs max-w-[200px] truncate">{textOrEmpty(iv.outcome)}</TableCell>
                     </TableRow>
                   );
                 })}
