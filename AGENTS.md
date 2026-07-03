@@ -22,3 +22,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - No fallback UI copy. Do not add literal fallback text such as `'Error'`, `'-'`, `'Unknown error'`, or inline translated strings in components/actions.
 - No hardcoded user-facing copy. Add message keys in `messages/th.json` and `messages/en.json`, then read them through the app's i18n helpers.
 - Keep domain values separate from UI translation. Enumerations, status codes, and stored data formats can stay domain-level, but all rendered labels and returned user-facing error messages must come from i18n keys.
+
+## Table UI Rules
+
+- Use shared table helpers instead of ad hoc table behavior:
+  - `src/components/ui/sortable-table-head.tsx` for sortable headers.
+  - `src/components/ui/table-helpers.ts` for nullable text, score display, joins, status lookup, and compare helpers.
+- Do not render fallback literals in cells (`'-'`, `'N/A'`, raw status codes, or inline translated strings). Empty optional data should be rendered through helper policy.
+- Shared data tables should support column sorting unless the table is a static sample/preview table or the data order is intentionally fixed by the domain.

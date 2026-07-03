@@ -1,11 +1,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useMemo, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowDownUp, ArrowUp, Edit, MoreHorizontal, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Edit, MoreHorizontal, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
+import { compareNullableNumber, compareNullableText, scoreText, statusLabel, textOrEmpty } from '@/components/ui/table-helpers';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +32,6 @@ interface StudentTableProps {
 }
 
 type SortField = 'student_id_number' | 'full_name' | 'classroom_name' | 'class_number' | 'education_stage_name' | 'current_score' | 'current_status';
-type SortDirection = 'asc' | 'desc';
 
 const statusColors: Record<string, string> = {
   active: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
@@ -39,21 +40,9 @@ const statusColors: Record<string, string> = {
   graduated: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
   suspended: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
 };
-const emptyStudents: StudentWithProfile[] = [];
 
 function studentFullName(student: StudentWithProfile) {
   return `${student.prefix}${student.first_name} ${student.last_name}`.trim();
-}
-
-function compareText(a: string | undefined, b: string | undefined) {
-  return (a || '').localeCompare(b || '', 'th', { numeric: true, sensitivity: 'base' });
-}
-
-function compareNullableNumber(a: number | null | undefined, b: number | null | undefined, direction: SortDirection) {
-  if (a == null && b == null) return 0;
-  if (a == null) return 1;
-  if (b == null) return -1;
-  return direction === 'asc' ? a - b : b - a;
 }
 
 function compareStudents(a: StudentWithProfile, b: StudentWithProfile, field: SortField, direction: SortDirection) {
@@ -61,46 +50,13 @@ function compareStudents(a: StudentWithProfile, b: StudentWithProfile, field: So
   if (field === 'current_score') return compareNullableNumber(a.current_score, b.current_score, direction);
 
   let result = 0;
-  if (field === 'student_id_number') result = compareText(a.student_id_number, b.student_id_number);
-  else if (field === 'full_name') result = compareText(studentFullName(a), studentFullName(b));
-  else if (field === 'classroom_name') result = compareText(a.classroom_name, b.classroom_name);
-  else if (field === 'education_stage_name') result = compareText(a.education_stage_name, b.education_stage_name);
-  else result = compareText(a.current_status, b.current_status);
+  if (field === 'student_id_number') result = compareNullableText(a.student_id_number, b.student_id_number);
+  else if (field === 'full_name') result = compareNullableText(studentFullName(a), studentFullName(b));
+  else if (field === 'classroom_name') result = compareNullableText(a.classroom_name, b.classroom_name);
+  else if (field === 'education_stage_name') result = compareNullableText(a.education_stage_name, b.education_stage_name);
+  else result = compareNullableText(a.current_status, b.current_status);
 
   return direction === 'asc' ? result : -result;
-}
-
-function SortableTableHead({
-  children,
-  field,
-  activeField,
-  direction,
-  onSort,
-  className,
-}: {
-  children: ReactNode;
-  field: SortField;
-  activeField: SortField | null;
-  direction: SortDirection;
-  onSort: (field: SortField) => void;
-  className?: string;
-}) {
-  const active = activeField === field;
-  const Icon = active ? (direction === 'asc' ? ArrowUp : ArrowDown) : ArrowDownUp;
-  return (
-    <TableHead className={className} aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="-ml-2 h-8 px-2 text-xs font-semibold"
-        onClick={() => onSort(field)}
-      >
-        <span>{children}</span>
-        <Icon className={`ml-1 h-3.5 w-3.5 ${active ? 'text-foreground' : 'text-muted-foreground'}`} />
-      </Button>
-    </TableHead>
-  );
 }
 
 export function StudentTable({ data, loading, total, page = 1, pageSize = 20, onPageChange, hidePagination, onView, onEdit, onDelete }: StudentTableProps) {
@@ -108,7 +64,6 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
   const common = useTranslations('common');
   const [sortField, setSortField] = useState<SortField>('student_id_number');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const tableData = data || emptyStudents;
   const statusLabels: Record<string, string> = {
     active: t('statusActive'),
     inactive: t('statusInactive'),
@@ -118,15 +73,15 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
   };
 
   const sortedData = useMemo(() => {
-    if (!sortField) return tableData;
-    return tableData
+    if (!sortField) return data;
+    return data
       .map((student, index) => ({ student, index }))
       .sort((a, b) => {
         const result = compareStudents(a.student, b.student, sortField, sortDirection);
-        return result || compareText(a.student.student_id_number, b.student.student_id_number) || a.index - b.index;
+        return result || compareNullableText(a.student.student_id_number, b.student.student_id_number) || a.index - b.index;
       })
       .map(({ student }) => student);
-  }, [sortDirection, sortField, tableData]);
+  }, [data, sortDirection, sortField]);
 
   function handleSort(field: SortField) {
     if (sortField === field) {
@@ -149,7 +104,7 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
     );
   }
 
-  if (tableData.length === 0) {
+  if (data.length === 0) {
     return (
       <Empty>
         <EmptyHeader>
@@ -226,13 +181,13 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
                     {studentFullName(student)}
                   </button>
                 </TableCell>
-                <TableCell>{student.classroom_name}</TableCell>
-                <TableCell>{student.class_number ?? '-'}</TableCell>
-                <TableCell>{student.education_stage_name || '-'}</TableCell>
-                <TableCell className="font-medium">{student.current_score != null ? (student.current_score > 100 ? '100+' : student.current_score) : '-'}</TableCell>
+                <TableCell>{textOrEmpty(student.classroom_name)}</TableCell>
+                <TableCell>{student.class_number == null ? '' : String(student.class_number)}</TableCell>
+                <TableCell>{textOrEmpty(student.education_stage_name)}</TableCell>
+                <TableCell className="font-medium">{scoreText(student.current_score, t('scoreCapped'))}</TableCell>
                 <TableCell>
-                  <Badge className={statusColors[student.current_status] || ''} variant="outline">
-                    {statusLabels[student.current_status] || student.current_status}
+                  <Badge className={statusColors[student.current_status] ?? ''} variant="outline">
+                    {statusLabel(student.current_status, statusLabels)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>

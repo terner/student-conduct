@@ -8,6 +8,8 @@ import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, Book
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
+import { compareNullableNumber, compareNullableText, statusLabel, textOrEmpty } from '@/components/ui/table-helpers';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
 import {
@@ -49,11 +51,24 @@ interface ScoreTransactionTableProps {
   showStudentProfileLink?: boolean;
 }
 
+type SortField = 'recorded_at' | 'student_id_number' | 'category_name' | 'points' | 'note' | 'recorded_by_name' | 'status';
+
 const statusConfig: Record<string, { labelKey: string; color: string; icon: ComponentType<LucideProps> }> = {
   approved: { labelKey: 'approved', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   pending: { labelKey: 'pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
   voided: { labelKey: 'voided', color: 'bg-red-100 text-red-700', icon: XCircle },
 };
+
+function compareTransactions(a: ScoreTransactionWithDetails, b: ScoreTransactionWithDetails, field: SortField, direction: SortDirection) {
+  if (field === 'points') {
+    return compareNullableNumber(a.points, b.points, direction);
+  }
+
+  const multiplier = direction === 'asc' ? 1 : -1;
+  if (field === 'recorded_at') return compareNullableText(a.recorded_at, b.recorded_at) * multiplier;
+  if (field === 'status') return compareNullableText(a.status, b.status) * multiplier;
+  return compareNullableText(a[field], b[field]) * multiplier;
+}
 
 export function ScoreTransactionTable({
   data, loading, total, page = 1, pageSize = 50,
@@ -67,8 +82,31 @@ export function ScoreTransactionTable({
   const [voidLoading, setVoidLoading] = useState(false);
   const [approveLoading, setApproveLoading] = useState<string | null>(null);
   const [detailTx, setDetailTx] = useState<ScoreTransactionWithDetails | null>(null);
+  const [sortField, setSortField] = useState<SortField>('recorded_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const specialAddLabel = studentT('specialAdd');
   const specialDeductLabel = studentT('specialDeduct');
+  const statusLabels: Record<string, string> = {
+    approved: scoreT('approved'),
+    pending: scoreT('pending'),
+    voided: scoreT('voided'),
+  };
+  const sortedData = data
+    .map((transaction, index) => ({ transaction, index }))
+    .sort((a, b) => {
+      const result = compareTransactions(a.transaction, b.transaction, sortField, sortDirection);
+      return result || compareNullableText(a.transaction.recorded_at, b.transaction.recorded_at) || a.index - b.index;
+    })
+    .map(({ transaction }) => transaction);
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortField(field);
+    setSortDirection(field === 'recorded_at' ? 'desc' : 'asc');
+  }
 
   if (loading) {
     return (
@@ -111,18 +149,18 @@ export function ScoreTransactionTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{scoreT('date')}</TableHead>
-              <TableHead>{scoreT('studentId')}</TableHead>
-              <TableHead>{scoreT('type')}</TableHead>
-              <TableHead>{scoreT('points')}</TableHead>
-              <TableHead>{scoreT('note')}</TableHead>
-              <TableHead>{scoreT('recordedBy')}</TableHead>
-              <TableHead>{scoreT('status')}</TableHead>
+              <SortableTableHead field="recorded_at" activeField={sortField} direction={sortDirection} onSort={handleSort}>{scoreT('date')}</SortableTableHead>
+              <SortableTableHead field="student_id_number" activeField={sortField} direction={sortDirection} onSort={handleSort}>{scoreT('studentId')}</SortableTableHead>
+              <SortableTableHead field="category_name" activeField={sortField} direction={sortDirection} onSort={handleSort}>{scoreT('type')}</SortableTableHead>
+              <SortableTableHead field="points" activeField={sortField} direction={sortDirection} onSort={handleSort}>{scoreT('points')}</SortableTableHead>
+              <SortableTableHead field="note" activeField={sortField} direction={sortDirection} onSort={handleSort}>{scoreT('note')}</SortableTableHead>
+              <SortableTableHead field="recorded_by_name" activeField={sortField} direction={sortDirection} onSort={handleSort}>{scoreT('recordedBy')}</SortableTableHead>
+              <SortableTableHead field="status" activeField={sortField} direction={sortDirection} onSort={handleSort}>{scoreT('status')}</SortableTableHead>
               {showActions && <TableHead className="w-[100px]">{scoreT('actions')}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((t) => {
+            {sortedData.map((t) => {
               const status = statusConfig[t.status];
               const StatusIcon = status?.icon;
               return (
@@ -155,11 +193,11 @@ export function ScoreTransactionTable({
                   <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
                     {t.note ?? ''}
                   </TableCell>
-                  <TableCell className="text-xs">{t.recorded_by_name}</TableCell>
+                  <TableCell className="text-xs">{textOrEmpty(t.recorded_by_name)}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={status?.color ?? ''}>
                       {StatusIcon && <StatusIcon className="mr-1 h-3 w-3 inline" />}
-                      {status?.labelKey ? scoreT(status.labelKey) : ''}
+                      {statusLabel(t.status, statusLabels)}
                     </Badge>
                   </TableCell>
                   {showActions && (

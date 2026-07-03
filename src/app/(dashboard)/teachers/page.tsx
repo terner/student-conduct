@@ -20,7 +20,6 @@ const PAGE_SIZE = 25;
 
 export default function TeachersPage() {
   const teacherT = useTranslations('teacher');
-  const studentT = useTranslations('student');
   const commonT = useTranslations('common');
   const [data, setData] = useState<TeacherWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
