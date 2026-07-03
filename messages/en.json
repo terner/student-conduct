@@ -1173,5 +1173,21 @@
     "print": "Print / PDF",
     "csvSuccess": "CSV exported successfully",
     "noData": "No data to export"
+  },
+  "permission": {
+    "title": "Manage Permissions",
+    "description": "Configure system access permissions by role",
+    "roles": "Roles",
+    "permissions": "Permissions",
+    "save": "Save Permissions",
+    "cancel": "Cancel",
+    "saveSuccess": "Permissions saved successfully",
+    "superadminNote": "Superadmin has all permissions automatically"
+  },
+  "bond": {
+    "generate": "Generate Bond Document",
+    "generateSuccess": "Bond document generated successfully",
+    "markSigned": "Mark as Signed",
+    "markCancelled": "Cancel"
   }
 }

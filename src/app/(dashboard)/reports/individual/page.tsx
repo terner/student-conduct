@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowDownUp, Download, Eye, Search, X } from 'lucide-react';
+import { ArrowDownUp, Download, Eye, Printer, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -306,10 +306,16 @@ export default function IndividualReportPage() {
           <h1 className="text-2xl font-bold">{reportT('individualTitle')}</h1>
           <p className="text-muted-foreground mt-1">{reportT('individualDescriptionFull')}</p>
         </div>
-        <Button variant="outline" onClick={handleExport} disabled={displayedRows.length === 0}>
-          <Download className="mr-2 h-4 w-4" />
-          {reportT('csv')}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport} disabled={displayedRows.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            {reportT('csv')}
+          </Button>
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" />
+            {reportT('print')}
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md border bg-background p-4">

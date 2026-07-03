@@ -180,6 +180,7 @@ export default function SettingsPage() {
           <TabsTrigger value="thresholds">{settingsT('thresholds')}</TabsTrigger>
           <TabsTrigger value="academic-structure">{settingsT('academicStructure')}</TabsTrigger>
           <TabsTrigger value="storage">{settingsT('storage')}</TabsTrigger>
+          <TabsTrigger value="permissions">สิทธิ์</TabsTrigger>
         </TabsList>
 
         <TabsContent value="school" className="mt-6">
@@ -394,6 +395,24 @@ export default function SettingsPage() {
                   {settingsT('manageEducationStructure')}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="permissions" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCog className="h-5 w-5" />
+                จัดการสิทธิ์
+              </CardTitle>
+              <CardDescription>กำหนดสิทธิ์การเข้าถึงระบบตามบทบาท (superadmin, admin, teacher, student)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="h-auto justify-start py-4" nativeButton={false} render={<a href="/settings/permissions" />}>
+                <UserCog className="mr-2 h-4 w-4" />
+                เปิดหน้าจัดการสิทธิ์
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

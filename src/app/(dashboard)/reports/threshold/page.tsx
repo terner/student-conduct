@@ -3,7 +3,8 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, ChevronLeft, ChevronRight, Download, Eye, Search } from 'lucide-react';
+import { toast } from 'sonner';
+import { AlertTriangle, ChevronLeft, ChevronRight, Download, Eye, FileText, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { getThresholdReport, logReportExport, type ThresholdReportData } from '@/lib/actions/report.action';
+import { generateBondDocument } from '@/lib/actions/bond.action';
 import { exportCsv } from '@/lib/utils/csv';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 import { createClient } from '@/lib/supabase/client';
@@ -30,6 +32,7 @@ export default function ThresholdReportPage() {
   const [levelFilter, setLevelFilter] = useState('all');
   const [classroomFilter, setClassroomFilter] = useState('all');
   const [page, setPage] = useState(1);
+  const [generatingBond, setGeneratingBond] = useState<string | null>(null);
   const realtimeRefreshRef = useRef<number | null>(null);
 
   const loadReport = useCallback(async (showSpinner = false) => {
@@ -238,9 +241,33 @@ export default function ThresholdReportPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{s.threshold_action}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
-                        <Eye className="h-3 w-3" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          disabled={generatingBond === s.student_id}
+                          onClick={async () => {
+                            setGeneratingBond(s.student_id);
+                            const result = await generateBondDocument({
+                              student_id: s.student_id,
+                              threshold_deducted: s.deducted_total,
+                            });
+                            if (result.success) {
+                              toast.success(`สร้างเอกสารทัณฑ์บน ${result.data.document_no} สำเร็จ`);
+                            } else {
+                              toast.error(result.error?.message || 'เกิดข้อผิดพลาด');
+                            }
+                            setGeneratingBond(null);
+                          }}
+                          title="สร้างเอกสารทัณฑ์บน"
+                        >
+                          <FileText className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

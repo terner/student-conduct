@@ -1173,5 +1173,21 @@
     "print": "พิมพ์ / PDF",
     "csvSuccess": "ส่งออก CSV สำเร็จ",
     "noData": "ไม่มีข้อมูลสำหรับส่งออก"
+  },
+  "permission": {
+    "title": "จัดการสิทธิ์",
+    "description": "กำหนดสิทธิ์การเข้าถึงระบบตามบทบาท",
+    "roles": "บทบาท",
+    "permissions": "สิทธิ์",
+    "save": "บันทึกสิทธิ์",
+    "cancel": "ยกเลิก",
+    "saveSuccess": "บันทึกสิทธิ์สำเร็จ",
+    "superadminNote": "superadmin มีสิทธิ์ทั้งหมดโดยอัตโนมัติ"
+  },
+  "bond": {
+    "generate": "สร้างเอกสารทัณฑ์บน",
+    "generateSuccess": "สร้างเอกสารทัณฑ์บนสำเร็จ",
+    "markSigned": "ลงนามแล้ว",
+    "markCancelled": "ยกเลิก"
   }
 }

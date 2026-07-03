@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { FileText } from 'lucide-react';
+import { Download, FileText, Printer } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
@@ -9,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { SimplePagination } from '@/components/ui/simple-pagination';
 import { createClient } from '@/lib/supabase/client';
 import { useTranslations } from 'next-intl';
+import { exportToCSV } from '@/lib/utils/export';
 
 interface BondProfile {
   full_name?: string | null;
@@ -94,6 +96,28 @@ export default function BondDocumentsPage() {
         <div>
           <h1 className="text-2xl font-bold">{thresholdT('bondTitle')}</h1>
           <p className="text-muted-foreground mt-1">{thresholdT('bondDescription')}</p>
+        </div>
+        <div className="flex gap-2 print:hidden">
+          <Button variant="outline" onClick={() => {
+            if (bonds.length === 0) return;
+            const rows = bonds.map(b => ({
+              'เลขที่เอกสาร': b.document_no,
+              'ชื่อนักเรียน': formatProfileFullName(b.students?.profiles),
+              'รหัสนักเรียน': b.students?.student_id_number ?? '',
+              'ปีการศึกษา': b.academic_years?.name ?? '',
+              'คะแนนหักที่เกณฑ์': b.threshold_deducted,
+              'สถานะ': statusLabel[b.status] ?? b.status,
+              'วันที่สร้าง': formatDateTime(b.created_at),
+            }));
+            exportToCSV(rows, `ทัณฑ์บน_${new Date().toISOString().slice(0,10)}`);
+          }} disabled={bonds.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            CSV
+          </Button>
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" />
+            {thresholdT('print')}
+          </Button>
         </div>
       </div>
 
