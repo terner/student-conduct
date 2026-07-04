@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
@@ -34,10 +34,10 @@ export function ScoreCategoryForm({ defaultValues, onSubmit, onCancel }: ScoreCa
   const t = useTranslations('score');
   const commonT = useTranslations('common');
   const {
+    control,
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<ScoreCategoryInput, unknown, ScoreCategoryOutput>({
     resolver: zodResolver(scoreCategorySchema),
@@ -51,8 +51,9 @@ export function ScoreCategoryForm({ defaultValues, onSubmit, onCancel }: ScoreCa
     },
   });
 
-  const type = watch('type');
-  const requiresEvidence = watch('requires_evidence');
+  const type = useWatch({ control, name: 'type' });
+  const requiresEvidence = useWatch({ control, name: 'requires_evidence' });
+  const requiresApproval = useWatch({ control, name: 'requires_approval' });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -106,7 +107,7 @@ export function ScoreCategoryForm({ defaultValues, onSubmit, onCancel }: ScoreCa
       <div className="flex items-center gap-2">
         <Switch
           id="requires_approval"
-          checked={watch('requires_approval')}
+          checked={requiresApproval}
           onCheckedChange={(v) => setValue('requires_approval', v)}
         />
         <Label htmlFor="requires_approval">{t('requiresApproval')}</Label>

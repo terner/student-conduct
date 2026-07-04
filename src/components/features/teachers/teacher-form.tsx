@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
@@ -32,7 +32,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
   const [positions, setPositions] = useState<TeacherPositionItem[]>([]);
   const [avatarUrl, setAvatarUrl] = useState(defaultValues?.avatar_url || '');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<z.input<typeof teacherSchema>, unknown, TeacherInput>({
+  const { control, register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<z.input<typeof teacherSchema>, unknown, TeacherInput>({
     resolver: zodResolver(teacherSchema),
     defaultValues: defaultValues || {
       prefix: DEFAULT_TEACHER_PREFIX,
@@ -46,10 +46,11 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
       system_role: 'teacher',
     },
   });
-  const prefixValue = watch('prefix') || DEFAULT_TEACHER_PREFIX;
-  const systemRole = watch('system_role') || (watch('is_admin') ? 'admin' : 'teacher');
-  const positionValue = watch('position') || DEFAULT_TEACHER_POSITION;
-  const phoneValue = watch('phone') || '';
+  const prefixValue = useWatch({ control, name: 'prefix' }) || DEFAULT_TEACHER_PREFIX;
+  const isAdmin = useWatch({ control, name: 'is_admin' });
+  const systemRole = useWatch({ control, name: 'system_role' }) || (isAdmin ? 'admin' : 'teacher');
+  const positionValue = useWatch({ control, name: 'position' }) || DEFAULT_TEACHER_POSITION;
+  const phoneValue = useWatch({ control, name: 'phone' }) || '';
   const positionOptions = useMemo(() => {
     if (!positionValue || positions.some((item) => item.name === positionValue)) return positions;
     return [{ id: 'current', name: positionValue, sort_order: 0, is_active: true }, ...positions];
@@ -66,7 +67,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
   }, []);
 
   useEffect(() => {
-    setAvatarUrl(defaultValues?.avatar_url || '');
+    void Promise.resolve().then(() => setAvatarUrl(defaultValues?.avatar_url || ''));
   }, [defaultValues?.avatar_url]);
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {

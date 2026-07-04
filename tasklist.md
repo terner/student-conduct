@@ -7,6 +7,15 @@
 
 ---
 
+## UX/UI Audit Backlog — 2026-07-04
+
+- Settings: split the current all-in-one system settings tabs into dedicated routes after the hub is stable (`/settings/school`, `/settings/scores`, `/settings/thresholds`, `/settings/storage`) so mobile users do not scroll through unrelated forms.
+- LINE OA: add in-app rich menu apply/list/remove actions after connection testing is reliable; current UI supports credential entry, LIFF settings, URLs, preview, and connection test.
+- Mobile tables: convert remaining high-traffic mobile tables to card/list layouts first: `/score/approval`, `/score/record`, `/score/history`, `/reports/threshold`, `/reports/individual`, `/interventions`.
+- Mobile spacing: replace old `p-6 space-y-6` page shells with the dashboard/settings pattern (`p-4 sm:p-6`, tighter headers) across operational pages.
+- Code quality: keep React Compiler lint clean when adding new forms; existing `watch()`/effect/image-preview warnings have been cleaned up.
+- Guardian UX: replace guardian table in student detail with a mobile-friendly list and remove raw fallback relation labels.
+
 ## ✅ สรุปสถานะปัจจุบัน
 
 ### Database Schema (Supabase) — ✅ เสร็จสมบูรณ์

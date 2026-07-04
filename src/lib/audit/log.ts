@@ -30,10 +30,15 @@ function sanitize(value: unknown): unknown {
 
   const redactedKeys = new Set(['password', 'token', 'access_token', 'refresh_token', 'private_key', 'google_drive_private_key']);
   return Object.fromEntries(
-    Object.entries(value as JsonRecord).map(([key, item]) => [
-      key,
-      redactedKeys.has(key.toLowerCase()) ? '[redacted]' : sanitize(item),
-    ]),
+    Object.entries(value as JsonRecord).map(([key, item]) => {
+      const normalizedKey = key.toLowerCase();
+      const shouldRedact =
+        redactedKeys.has(normalizedKey) ||
+        normalizedKey.includes('token') ||
+        normalizedKey.includes('secret') ||
+        normalizedKey.includes('private_key');
+      return [key, shouldRedact ? '[redacted]' : sanitize(item)];
+    }),
   );
 }
 

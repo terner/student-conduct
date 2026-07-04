@@ -75,7 +75,7 @@ export function GuardianList({ studentId, studentName }: GuardianListProps) {
   }, [studentId]);
 
   useEffect(() => {
-    loadGuardians();
+    void Promise.resolve().then(loadGuardians);
   }, [loadGuardians]);
 
   function handleAdd() {

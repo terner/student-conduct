@@ -148,9 +148,9 @@ export default function ThresholdReportPage() {
   if (loading) return <div className="flex justify-center py-12"><div className="flex flex-col items-center gap-2"><Spinner className="size-8" /><p className="text-sm text-muted-foreground">{commonT('loading')}</p></div></div>;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">{t('title')}</h1>
           {reportData?.academic_year && (
             <p className="text-muted-foreground mt-1">
@@ -158,7 +158,7 @@ export default function ThresholdReportPage() {
             </p>
           )}
         </div>
-        <Button variant="outline" onClick={handleExport} disabled={filteredStudents.length === 0}>
+        <Button variant="outline" onClick={handleExport} disabled={filteredStudents.length === 0} className="w-full sm:w-auto">
           <Download className="mr-2 h-4 w-4" />{t('exportCsv')}
         </Button>
       </div>
@@ -233,44 +233,84 @@ export default function ThresholdReportPage() {
             onPageChange={setPage}
           />
 
-          <Card>
+          <div className="space-y-3 lg:hidden">
+            {pagedStudents.map((s: StudentThresholdInfo) => (
+              <div key={s.student_id} className="rounded-lg border bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{s.first_name} {s.last_name}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-mono">{s.student_id_number}</span>
+                      <span>{s.classroom_name}</span>
+                    </div>
+                  </div>
+                  <Badge variant={s.threshold_level >= 3 ? 'destructive' : 'outline'} className="shrink-0">
+                    {t('levelLabel', { level: s.threshold_level })}
+                  </Badge>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-md border bg-background p-3">
+                    <p className="text-xs text-muted-foreground">{reportT('currentScore')}</p>
+                    <div className="mt-2"><ScoreBadge score={s.current_score} /></div>
+                  </div>
+                  <div className="rounded-md border bg-background p-3">
+                    <p className="text-xs text-muted-foreground">{t('deductedTotal')}</p>
+                    <p className="mt-1 text-xl font-bold text-destructive">{s.deducted_total}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-md bg-muted/40 p-3">
+                  <p className="text-xs text-muted-foreground">{t('action')}</p>
+                  <p className="mt-1 text-sm">{s.threshold_action}</p>
+                </div>
+
+                <Button variant="outline" size="sm" className="mt-4 w-full" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
+                  <Eye className="h-4 w-4" />
+                  {reportT('viewColumn')}
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Card className="hidden lg:block">
             <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{reportT('studentId')}</TableHead>
-                  <TableHead>{reportT('studentName')}</TableHead>
-                  <TableHead>{t('classroom')}</TableHead>
-                  <TableHead>{reportT('currentScore')}</TableHead>
-                  <TableHead>{t('deductedTotal')}</TableHead>
-                  <TableHead>{reportT('level')}</TableHead>
-                  <TableHead>{t('action')}</TableHead>
-                  <TableHead className="w-[60px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagedStudents.map((s: StudentThresholdInfo) => (
-                  <TableRow key={s.student_id}>
-                    <TableCell className="font-mono text-xs">{s.student_id_number}</TableCell>
-                    <TableCell className="font-medium">{s.first_name} {s.last_name}</TableCell>
-                    <TableCell>{s.classroom_name}</TableCell>
-                    <TableCell><ScoreBadge score={s.current_score} /></TableCell>
-                    <TableCell className="font-bold text-destructive">{s.deducted_total}</TableCell>
-                    <TableCell>
-                      <Badge variant={s.threshold_level >= 3 ? 'destructive' : 'outline'}>
-                        {t('levelLabel', { level: s.threshold_level })}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{s.threshold_action}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
-                        <Eye className="h-3 w-3" />
-                      </Button>
-                    </TableCell>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{reportT('studentId')}</TableHead>
+                    <TableHead>{reportT('studentName')}</TableHead>
+                    <TableHead>{t('classroom')}</TableHead>
+                    <TableHead>{reportT('currentScore')}</TableHead>
+                    <TableHead>{t('deductedTotal')}</TableHead>
+                    <TableHead>{reportT('level')}</TableHead>
+                    <TableHead>{t('action')}</TableHead>
+                    <TableHead className="w-[60px]"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pagedStudents.map((s: StudentThresholdInfo) => (
+                    <TableRow key={s.student_id}>
+                      <TableCell className="font-mono text-xs">{s.student_id_number}</TableCell>
+                      <TableCell className="font-medium">{s.first_name} {s.last_name}</TableCell>
+                      <TableCell>{s.classroom_name}</TableCell>
+                      <TableCell><ScoreBadge score={s.current_score} /></TableCell>
+                      <TableCell className="font-bold text-destructive">{s.deducted_total}</TableCell>
+                      <TableCell>
+                        <Badge variant={s.threshold_level >= 3 ? 'destructive' : 'outline'}>
+                          {t('levelLabel', { level: s.threshold_level })}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{s.threshold_action}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </>

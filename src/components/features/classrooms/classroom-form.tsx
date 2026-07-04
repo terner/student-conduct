@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { Loader2 } from 'lucide-react';
@@ -31,17 +31,18 @@ export function ClassroomForm({ defaultValues, onSubmit, onCancel }: ClassroomFo
   const [gradeLevels, setGradeLevels] = useState<GradeLevelItem[]>([]);
   const [loadingStages, setLoadingStages] = useState(true);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<ClassroomFormValues, unknown, ClassroomInput>({
+  const { control, register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<ClassroomFormValues, unknown, ClassroomInput>({
     resolver: zodResolver(classroomSchema),
     defaultValues: defaultValues || { name: '', education_stage_id: '', grade_level_id: '', grade_level: 1, room_count: 1 },
   });
 
-  const selectedStageId = watch('education_stage_id');
-  const selectedGradeLevelId = watch('grade_level_id');
+  const defaultEducationStageId = defaultValues?.education_stage_id;
+  const selectedStageId = useWatch({ control, name: 'education_stage_id' });
+  const selectedGradeLevelId = useWatch({ control, name: 'grade_level_id' });
   const selectedGradeLevel = gradeLevels.find(level => level.id === selectedGradeLevelId);
   const availableGradeLevels = gradeLevels.filter(level => level.education_stage_id === selectedStageId);
-  const gradeLevel = watch('grade_level') || 1;
-  const roomCount = watch('room_count') || 1;
+  const gradeLevel = useWatch({ control, name: 'grade_level' }) || 1;
+  const roomCount = useWatch({ control, name: 'room_count' }) || 1;
 
   const generatedNames = Array.from({ length: Math.min(Number(roomCount) || 0, 20) }, (_, index) => {
     const label = selectedGradeLevel?.name || String(gradeLevel);
@@ -53,14 +54,14 @@ export function ClassroomForm({ defaultValues, onSubmit, onCancel }: ClassroomFo
       if (stageRes.success && stageRes.data) {
         setStages(stageRes.data);
         // Set default stage if not set
-        if (!defaultValues?.education_stage_id && stageRes.data.length > 0) {
+        if (!defaultEducationStageId && stageRes.data.length > 0) {
           setValue('education_stage_id', stageRes.data[0].id);
         }
       }
       if (gradeRes.success && gradeRes.data) setGradeLevels(gradeRes.data);
       setLoadingStages(false);
     });
-  }, []);
+  }, [defaultEducationStageId, setValue]);
 
   useEffect(() => {
     if (!selectedStageId || gradeLevels.length === 0) return;
@@ -91,7 +92,7 @@ export function ClassroomForm({ defaultValues, onSubmit, onCancel }: ClassroomFo
         ) : (
           <>
             <Select
-              value={watch('education_stage_id')}
+              value={selectedStageId}
               onValueChange={(v) => {
                 if (!v) return;
                 setValue('education_stage_id', v);

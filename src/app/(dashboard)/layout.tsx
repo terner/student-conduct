@@ -2,10 +2,18 @@ import { createAdminClient, getUserFromCookie } from '@/lib/supabase/server'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { TopBar } from '@/components/layout/top-bar'
+import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav'
 import { RouteAccessGuard } from '@/components/layout/route-access-guard'
 import { AuthGuard } from '@/components/layout/auth-guards'
+import { isVercelBlobReady } from '@/lib/storage/vercel-blob'
 
 export const dynamic = 'force-dynamic'
+
+function usableSchoolLogo(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  if (value.startsWith('/api/blob/') && !isVercelBlobReady()) return undefined
+  return value
+}
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   let schoolName = 'โรงเรียน'
@@ -36,7 +44,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
     if (settingsResult.data) {
       schoolName = settingsResult.data.find(s => s.key === 'school_name')?.value || 'โรงเรียน'
-      schoolLogo = settingsResult.data.find(s => s.key === 'school_logo')?.value || undefined
+      schoolLogo = usableSchoolLogo(settingsResult.data.find(s => s.key === 'school_logo')?.value)
     }
 
     if (profileResult?.data) {
@@ -72,11 +80,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
       />
       <SidebarInset className="flex flex-1 flex-col overflow-hidden h-dvh">
         <TopBar role={role} />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <AuthGuard>
             <RouteAccessGuard role={role}>{children}</RouteAccessGuard>
           </AuthGuard>
         </main>
+        <MobileBottomNav role={role} />
       </SidebarInset>
     </SidebarProvider>
   )

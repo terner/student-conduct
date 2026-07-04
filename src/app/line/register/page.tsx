@@ -37,14 +37,15 @@ export default function LineRegisterPage() {
   useEffect(() => {
     async function initLiff() {
       try {
+        const configRes = await fetch('/api/line/config');
+        const config = await configRes.json() as { liffId?: string };
         // Dynamic import to avoid SSR issues
         const liff = (await import('@line/liff')).default;
-        const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
-        if (!liffId) {
+        if (!config.liffId) {
           setError(t('liffIdMissing'));
           return;
         }
-        await liff.init({ liffId });
+        await liff.init({ liffId: config.liffId });
         if (!liff.isLoggedIn()) {
           liff.login();
           return;
@@ -57,7 +58,7 @@ export default function LineRegisterPage() {
       }
     }
     initLiff();
-  }, []);
+  }, [t]);
 
   async function handleSearch() {
     if (!studentIdNumber.trim()) {

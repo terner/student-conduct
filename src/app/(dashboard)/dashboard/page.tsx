@@ -4,7 +4,17 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { Users, GraduationCap, BookOpen, AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  Users,
+  GraduationCap,
+  BookOpen,
+  AlertTriangle,
+  TrendingDown,
+  TrendingUp,
+  ClipboardPlus,
+  CheckCircle2,
+  FileText,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
@@ -67,6 +77,7 @@ function atRiskStudentName(student: AtRiskStudent) {
 export default function DashboardPage() {
   const router = useRouter();
   const t = useTranslations('dashboard');
+  const nav = useTranslations('nav');
   const common = useTranslations('common');
   const locale = useLocale();
   const selectedAcademicYearId = useSelectedAcademicYearId();
@@ -214,10 +225,10 @@ export default function DashboardPage() {
   const total = dist.excellent + dist.good + dist.fair + dist.poor;
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <p className="text-muted-foreground mt-1">
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
+      <div className="space-y-1">
+        <h1 className="text-xl font-bold sm:text-2xl">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground sm:text-base">
           {t('description')}
           {stats?.academic_year_name ? ` · ${t('academicYearSuffix', { year: stats.academic_year_name })}` : ''}
         </p>
@@ -239,19 +250,19 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
         {statCards.map((s) => {
           const Icon = s.icon;
           return (
-            <Card key={s.title}>
-              <CardContent className="p-4">
+            <Card key={s.title} size="sm" className="rounded-lg">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${s.bg}`}>
-                    <Icon className={`h-5 w-5 ${s.color}`} />
+                  <div className={`flex size-9 shrink-0 items-center justify-center rounded-md sm:size-10 ${s.bg}`}>
+                    <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${s.color}`} />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{s.title}</p>
-                    <p className="text-xl font-bold">{s.value}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs text-muted-foreground">{s.title}</p>
+                    <p className="text-lg font-bold leading-tight sm:text-xl">{s.value}</p>
                   </div>
                 </div>
               </CardContent>
@@ -260,8 +271,23 @@ export default function DashboardPage() {
         })}
       </div>
 
+      <div className="grid grid-cols-3 gap-2 md:hidden">
+        <Button variant="outline" size="lg" className="h-16 min-w-0 flex-col rounded-lg px-1 text-xs" nativeButton={false} render={<Link href="/score/record" />}>
+          <ClipboardPlus className="size-4" />
+          <span className="w-full truncate text-center">{nav('recordScore')}</span>
+        </Button>
+        <Button variant="outline" size="lg" className="h-16 min-w-0 flex-col rounded-lg px-1 text-xs" nativeButton={false} render={<Link href="/score/approval" />}>
+          <CheckCircle2 className="size-4" />
+          <span className="w-full truncate text-center">{nav('pendingApproval')}</span>
+        </Button>
+        <Button variant="outline" size="lg" className="h-16 min-w-0 flex-col rounded-lg px-1 text-xs" nativeButton={false} render={<Link href="/reports" />}>
+          <FileText className="size-4" />
+          <span className="w-full truncate text-center">{nav('reports')}</span>
+        </Button>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="text-lg">{t('scoreDistribution')}</CardTitle>
           </CardHeader>
@@ -291,7 +317,7 @@ export default function DashboardPage() {
         </Card>
 
         {atRisk.length > 0 && (
-          <Card>
+          <Card className="rounded-lg">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -299,50 +325,79 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <SortableTableHead field="student" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
-                      {t('student')}
-                    </SortableTableHead>
-                    <SortableTableHead field="classroom" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
-                      {t('classroom')}
-                    </SortableTableHead>
-                    <SortableTableHead field="current_score" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
-                      {t('currentScore')}
-                    </SortableTableHead>
-                    <SortableTableHead field="action" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
-                      {t('action')}
-                    </SortableTableHead>
-                    <TableHead className="w-[90px]">{t('viewInfo')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedAtRisk.map((s) => (
-                    <TableRow key={s.student_id}>
-                      <TableCell>
-                        <div className="font-medium">{atRiskStudentName(s)}</div>
-                        <div className="text-xs text-muted-foreground">{s.student_id_number}</div>
-                      </TableCell>
-                      <TableCell>{textOrEmpty(s.classroom_name)}</TableCell>
-                      <TableCell><ScoreBadge score={s.current_score} /></TableCell>
-                      <TableCell className="text-xs">{textOrEmpty(s.threshold_action)}</TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
-                          {t('view')}
-                        </Button>
-                      </TableCell>
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <SortableTableHead field="student" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
+                        {t('student')}
+                      </SortableTableHead>
+                      <SortableTableHead field="classroom" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
+                        {t('classroom')}
+                      </SortableTableHead>
+                      <SortableTableHead field="current_score" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
+                        {t('currentScore')}
+                      </SortableTableHead>
+                      <SortableTableHead field="action" activeField={atRiskSortField} direction={atRiskSortDirection} onSort={handleAtRiskSort}>
+                        {t('action')}
+                      </SortableTableHead>
+                      <TableHead className="w-[90px]">{t('viewInfo')}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedAtRisk.map((s) => (
+                      <TableRow key={s.student_id}>
+                        <TableCell>
+                          <div className="font-medium">{atRiskStudentName(s)}</div>
+                          <div className="text-xs text-muted-foreground">{s.student_id_number}</div>
+                        </TableCell>
+                        <TableCell>{textOrEmpty(s.classroom_name)}</TableCell>
+                        <TableCell><ScoreBadge score={s.current_score} /></TableCell>
+                        <TableCell className="text-xs">{textOrEmpty(s.threshold_action)}</TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
+                            {t('view')}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="divide-y divide-border/70 md:hidden">
+                {sortedAtRisk.map((s) => (
+                  <div key={s.student_id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{textOrEmpty(atRiskStudentName(s))}</div>
+                        <div className="text-xs text-muted-foreground">{s.student_id_number}</div>
+                      </div>
+                      <ScoreBadge score={s.current_score} className="shrink-0" />
+                    </div>
+                    <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                      <div className="flex items-center justify-between gap-3">
+                        <span>{t('classroom')}</span>
+                        <span className="truncate text-right text-foreground">{textOrEmpty(s.classroom_name)}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="shrink-0">{t('action')}</span>
+                        <span className="text-right text-foreground">{textOrEmpty(s.threshold_action)}</span>
+                      </div>
+                    </div>
+                    <Button className="mt-3 w-full rounded-lg" variant="outline" size="lg" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
+                      {t('view')}
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
       </div>
 
       {atRisk.length === 0 && (
-        <Card>
+        <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -355,7 +410,7 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <Card>
+      <Card className="rounded-lg">
         <CardHeader>
           <CardTitle className="text-lg">{t('recentTransactions')}</CardTitle>
         </CardHeader>
@@ -363,14 +418,14 @@ export default function DashboardPage() {
           {recentTx.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">{t('noRecentTransactions')}</p>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-border/70">
               {recentTx.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+                <div key={tx.id} className="flex items-center justify-between gap-3 py-3 text-sm first:pt-0 last:pb-0 sm:py-2">
                   <div className="flex min-w-0 items-center gap-2">
                     {tx.points > 0 ? (
-                      <TrendingUp className="h-3 w-3 shrink-0 text-green-600" />
+                      <TrendingUp className="h-4 w-4 shrink-0 text-green-600 sm:h-3 sm:w-3" />
                     ) : (
-                      <TrendingDown className="h-3 w-3 shrink-0 text-destructive" />
+                      <TrendingDown className="h-4 w-4 shrink-0 text-destructive sm:h-3 sm:w-3" />
                     )}
                     <div className="min-w-0">
                       <div className="truncate font-medium">{tx.student_name || tx.student_id_number}</div>
@@ -382,7 +437,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <span className={`shrink-0 font-mono text-xs font-medium ${tx.points > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  <span className={`shrink-0 rounded-md px-2 py-1 font-mono text-xs font-medium ${tx.points > 0 ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300' : 'bg-red-50 text-destructive dark:bg-red-950'}`}>
                     {tx.points > 0 ? `+${tx.points}` : tx.points}
                   </span>
                 </div>

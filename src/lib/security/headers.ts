@@ -54,11 +54,11 @@ export function buildCspHeader(config: SecurityHeadersConfig['csp']): string {
 export const defaultSecurityConfig: SecurityHeadersConfig = {
   csp: {
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],  // Next.js needs these
+    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://va.vercel-scripts.com'],  // Next.js and Vercel Speed Insights need these
     styleSrc: ["'self'", "'unsafe-inline'"],
     imgSrc: ["'self'", 'data:', 'blob:', 'https://*.supabase.co', 'https://*.blob.vercel-storage.com', 'https://lh3.googleusercontent.com', 'https://drive.google.com'],
     fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-    connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co', 'https://*.vercel.app', 'https://api.github.com', 'https://*.ingest.sentry.io', 'https://*.ingest.us.sentry.io'],
+    connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co', 'https://*.vercel.app', 'https://vitals.vercel-insights.com', 'https://api.github.com', 'https://*.ingest.sentry.io', 'https://*.ingest.us.sentry.io'],
     frameAncestors: ["'none'"],
     formAction: ["'self'"],
     baseUri: ["'self'"],

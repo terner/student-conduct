@@ -18,16 +18,22 @@ function formatMessage(template: string, values?: Record<string, string | number
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? `{${key}}`));
 }
 
+async function getMessageCatalog() {
+  try {
+    return (await getLocale()) === 'en' ? en : th;
+  } catch {
+    return th;
+  }
+}
+
 export async function serverMessage(path: string, values?: Record<string, string | number>) {
-  const locale = await getLocale();
-  const messages = locale === 'en' ? en : th;
+  const messages = await getMessageCatalog();
   const value = readPath(messages, path);
   return typeof value === 'string' ? formatMessage(value, values) : path;
 }
 
 export async function serverApiMessage(key: string, values?: Record<string, string | number>) {
-  const locale = await getLocale();
-  const messages = locale === 'en' ? en : th;
+  const messages = await getMessageCatalog();
   const value = readPath(messages, `apiErrors.${key}`);
   const fallback = readPath(messages, 'apiErrors.internalError');
   const template = typeof value === 'string' ? value : fallback;

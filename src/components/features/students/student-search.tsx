@@ -101,12 +101,19 @@ export function StudentSearch({ onSearch, classrooms: propClassrooms }: StudentS
       academic_year: selectedYearId || undefined,
     }), [search, classroomId, gradeLevel, stageFilterId, selectedYearId]);
 
-  const submitSearch = useCallback((params: ReturnType<typeof buildSearchParams>) => {
+  const submitSearch = useCallback((params: {
+    search?: string;
+    classroom_id?: string;
+    grade_level_id?: string;
+    grade_level?: string;
+    education_stage_id?: string;
+    academic_year?: string;
+  }) => {
     const normalized = JSON.stringify(params);
     if (normalized === lastSubmittedParams.current) return;
     lastSubmittedParams.current = normalized;
     onSearch(params);
-  }, [onSearch, buildSearchParams]);
+  }, [onSearch]);
 
   const handleSearch = useCallback(() => {
     submitSearch(buildSearchParams());

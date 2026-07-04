@@ -10,7 +10,11 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "preview": "next build && next start"
+    "preview": "next build && next start",
+    "line:info": "node scripts/line-oa.mjs info",
+    "line:validate": "node scripts/line-oa.mjs validate",
+    "line:rich-menu:image": "node scripts/line-oa.mjs generate-image",
+    "line:rich-menu:apply": "node scripts/line-oa.mjs setup-rich-menu --apply"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

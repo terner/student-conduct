@@ -2,7 +2,26 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import NextImage from 'next/image';
-import { Save, Plus, Trash2, ListChecks, Upload, Image as ImageIcon, X, CalendarDays, UserCog, HardDrive } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Save,
+  Plus,
+  Trash2,
+  ListChecks,
+  Upload,
+  Image as ImageIcon,
+  X,
+  CalendarDays,
+  UserCog,
+  HardDrive,
+  MessageCircle,
+  ShieldCheck,
+  History,
+  Tags,
+  School,
+  SlidersHorizontal,
+  type LucideIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +38,13 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
 type SettingValue = string | number | boolean | null;
+type SettingsHubTile = {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  href?: string;
+  tab?: string;
+};
 
 function inputSetting(settings: Record<string, SettingValue>, key: string, fallback: string | number = '') {
   const value = settings[key];
@@ -37,9 +63,27 @@ export default function SettingsPage() {
   const [selectedYearOpen, setSelectedYearOpen] = useState(false);
   const [testingStorage, setTestingStorage] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
+  const [activeTab, setActiveTab] = useState('school');
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const currentStorageProvider = String(settings.storage_provider || 'supabase');
+  const schoolLogo = typeof settings.school_logo === 'string' && settings.school_logo && failedLogo !== settings.school_logo
+    ? settings.school_logo
+    : '';
   const sectionContentClass = 'space-y-5';
   const subsectionClass = 'rounded-lg border p-4';
+  const settingsHubTiles: SettingsHubTile[] = [
+    { title: settingsT('myProfile'), description: settingsT('profileManageDescription'), href: '/settings/profile', icon: UserCog },
+    { title: settingsT('lineOa'), description: settingsT('lineOaDescription'), href: '/settings/line', icon: MessageCircle },
+    { title: settingsT('importData'), description: settingsT('importDataDescription'), href: '/settings/import', icon: Upload },
+    { title: settingsT('permissions'), description: settingsT('permissionsDescription'), href: '/settings/permissions', icon: ShieldCheck },
+    { title: settingsT('auditLogsTitle'), description: settingsT('auditLogDescription'), href: '/settings/logs', icon: History },
+    { title: settingsT('manageTeacherPositions'), description: settingsT('manageTeacherPositionsDescription'), href: '/settings/teacher-positions', icon: Tags },
+    { title: settingsT('academicStructure'), description: settingsT('academicStructureDescription'), href: '/settings/academic-years', icon: CalendarDays },
+    { title: settingsT('schoolInfo'), description: settingsT('schoolInfoDescription'), tab: 'school', icon: School },
+    { title: settingsT('scores'), description: settingsT('scoreSettingsDescription'), tab: 'scores', icon: SlidersHorizontal },
+    { title: settingsT('thresholds'), description: settingsT('thresholdsDescription'), tab: 'thresholds', icon: ListChecks },
+    { title: settingsT('storage'), description: settingsT('storageDescription'), tab: 'storage', icon: HardDrive },
+  ];
 
   const loadAccessAndSettings = useCallback(async () => {
     setLoading(true);
@@ -120,10 +164,10 @@ export default function SettingsPage() {
 
   if (!roles.includes('superadmin')) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
         <div>
-          <h1 className="text-2xl font-bold">{settingsT('title')}</h1>
-          <p className="text-muted-foreground mt-1">{settingsT('adminToolsDescription')}</p>
+          <h1 className="text-xl font-bold sm:text-2xl">{settingsT('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">{settingsT('adminToolsDescription')}</p>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
@@ -165,7 +209,7 @@ export default function SettingsPage() {
 
   return (
     <>
-    <div className="space-y-6 p-6 pb-28 sm:pb-6">
+    <div className="space-y-4 p-4 pb-28 sm:space-y-6 sm:p-6 sm:pb-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">{settingsT('title')}</h1>
@@ -177,7 +221,47 @@ export default function SettingsPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="school">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {settingsHubTiles.map((item) => {
+          const Icon = item.icon;
+          const content = (
+            <>
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
+                <Icon className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="truncate font-medium">{item.title}</div>
+                <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</div>
+              </div>
+            </>
+          );
+
+          if (item.href) {
+            return (
+              <Link
+                key={item.title}
+                href={item.href}
+                className="flex min-h-24 items-start gap-3 rounded-lg border bg-card p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {content}
+              </Link>
+            );
+          }
+
+          return (
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => item.tab && setActiveTab(item.tab)}
+              className="flex min-h-24 items-start gap-3 rounded-lg border bg-card p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {content}
+            </button>
+          );
+        })}
+      </div>
+
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value ?? 'school')}>
         <TabsList className="h-auto w-full flex-nowrap justify-start overflow-x-auto">
           <TabsTrigger value="school" className="shrink-0">{settingsT('schoolInfo')}</TabsTrigger>
           <TabsTrigger value="scores" className="shrink-0">{settingsT('scores')}</TabsTrigger>
@@ -213,9 +297,17 @@ export default function SettingsPage() {
                       <p className="text-xs text-muted-foreground">{settingsT('logoHelp')}</p>
                     </div>
                     <div className="flex flex-col items-start gap-3 sm:flex-row lg:flex-col">
-                      {settings.school_logo ? (
+                      {schoolLogo ? (
                         <div className="relative">
-                          <NextImage src={String(settings.school_logo)} alt="Logo" width={96} height={96} unoptimized className="size-24 rounded-xl object-cover border shadow-sm" />
+                          <NextImage
+                            src={schoolLogo}
+                            alt={settingsT('schoolLogo')}
+                            width={96}
+                            height={96}
+                            unoptimized
+                            className="size-24 rounded-xl object-cover border shadow-sm"
+                            onError={() => setFailedLogo(schoolLogo)}
+                          />
                           <button
                             type="button"
                             className="absolute -top-1.5 -right-1.5 rounded-full bg-destructive text-destructive-foreground p-1"
@@ -596,7 +688,7 @@ export default function SettingsPage() {
 
       </Tabs>
     </div>
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 p-4 backdrop-blur sm:hidden">
+    <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-20 border-t bg-background/95 p-4 backdrop-blur sm:hidden">
       <Button onClick={saveSettings} disabled={saving} className="w-full">
         <Save className="mr-2 h-4 w-4" />
         {saving ? commonT('saving') : settingsT('saveSettings')}

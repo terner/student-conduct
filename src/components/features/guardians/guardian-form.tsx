@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { guardianManageSchema, type GuardianManageInput } from '@/lib/validation/schemas';
 import { createGuardian, updateGuardian } from '@/lib/actions/guardian.action';
@@ -60,10 +60,10 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
   const commonT = useTranslations('common');
 
   const {
+    control,
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors },
   } = useForm<GuardianManageFormInput, undefined, GuardianManageInput>({
     resolver: zodResolver(guardianManageSchema),
@@ -79,8 +79,8 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
     },
   });
 
-  const prefixValue = watch('prefix');
-  const relationValue = watch('relation');
+  const prefixValue = useWatch({ control, name: 'prefix' });
+  const relationValue = useWatch({ control, name: 'relation' });
 
   async function onSubmit(data: GuardianManageInput) {
     setSubmitting(true);

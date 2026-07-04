@@ -19,18 +19,6 @@ interface Permission {
   category: string;
 }
 
-interface RolePermission {
-  role: string;
-  permission_id: string;
-}
-
-interface ProfileOverride {
-  profile_id: string;
-  permission_id: string;
-  allowed: boolean;
-  profile_name?: string;
-}
-
 const ROLES = ['superadmin', 'admin', 'teacher', 'student'];
 const ROLE_LABELS: Record<string, string> = {
   superadmin: 'ผู้ดูแลสูงสุด',
@@ -66,7 +54,7 @@ export default function PermissionsPage() {
   }, []);
 
   useEffect(() => {
-    loadData();
+    void Promise.resolve().then(loadData);
   }, [loadData]);
 
   function togglePermission(role: string, permissionId: string) {

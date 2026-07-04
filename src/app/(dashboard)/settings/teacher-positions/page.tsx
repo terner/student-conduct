@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, Pencil, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,7 @@ export default function TeacherPositionsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<TeacherPositionItem | null>(null);
   const [formData, setFormData] = useState({ name: '', sort_order: 1, is_active: true });
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     const result = await getTeacherPositions({ includeInactive: true });
     if (result.success && result.data) {
@@ -43,11 +43,11 @@ export default function TeacherPositionsPage() {
       toast(settingsT('loadTeacherPositionsFailed'), { description: !result.success ? result.error.message : undefined });
     }
     setLoading(false);
-  }
+  }, [settingsT]);
 
   useEffect(() => {
     void Promise.resolve().then(load);
-  }, []);
+  }, [load]);
 
   function openAddForm() {
     setEditing(null);

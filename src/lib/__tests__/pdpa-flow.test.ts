@@ -15,29 +15,6 @@ vi.mock('@/lib/supabase/server', () => ({
   getUserFromCookie: vi.fn(() => Promise.resolve(mockUser)),
 }));
 
-// Helper to build .from().select().eq().maybeSingle() chain
-function mockSingleResult(result: unknown) {
-  const singleFn = vi.fn().mockResolvedValue({ data: result, error: null });
-  const eqFn = vi.fn().mockReturnValue({ maybeSingle: singleFn });
-  const selectFn = vi.fn().mockReturnValue({ eq: eqFn });
-  const orderFn = vi.fn().mockReturnValue({ limit: vi.fn().mockReturnValue({ maybeSingle: singleFn }) });
-  const limitFn = vi.fn().mockReturnValue({ maybeSingle: singleFn });
-
-  // For queries with .order().limit().maybeSingle()
-  mockSupabase.from.mockReturnValue({
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        order: orderFn,
-        maybeSingle: singleFn,
-      }),
-      order: orderFn,
-      maybeSingle: singleFn,
-    }),
-  });
-
-  return { singleFn, eqFn, selectFn, orderFn, limitFn };
-}
-
 // Now import the code under test
 const { checkPDPAConsent, acceptPDPA, getCurrentUserRole, checkMustChangePassword } = await import('@/lib/actions/dashboard.action');
 
@@ -302,7 +279,8 @@ describe('PDPA Consent Flow — Integration', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe('DB_ERROR');
-        expect(result.error.message).toContain('constraint');
+        expect(result.error.message).toBeTruthy();
+        expect(result.error.message).not.toContain('constraint');
       }
     });
   });

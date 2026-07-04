@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Upload, X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
@@ -25,11 +26,16 @@ export function EvidenceUploader({ files, onChange, uploading = false, maxFiles 
   const t = useTranslations('score');
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const filesRef = useRef(files);
+
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
 
   // Clean up preview URLs on unmount
   useEffect(() => {
     return () => {
-      files.forEach(f => URL.revokeObjectURL(f.preview));
+      filesRef.current.forEach(f => URL.revokeObjectURL(f.preview));
     };
   }, []);
 
@@ -65,8 +71,6 @@ export function EvidenceUploader({ files, onChange, uploading = false, maxFiles 
   };
 
   const doneCount = files.filter(f => f.status === 'done').length;
-  const hasUploading = files.some(f => f.status === 'uploading');
-
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -96,9 +100,12 @@ export function EvidenceUploader({ files, onChange, uploading = false, maxFiles 
           {files.map((item, i) => (
             <div key={i} className="relative group">
               <div className={`w-16 h-16 rounded-md border overflow-hidden ${item.status === 'error' ? 'border-destructive bg-destructive/5' : 'bg-muted'}`}>
-                <img
+                <Image
                   src={item.preview}
-                  alt={`evidence ${i + 1}`}
+                  alt={t('evidence')}
+                  width={64}
+                  height={64}
+                  unoptimized
                   className="w-full h-full object-cover"
                 />
                 {/* Status overlay */}

@@ -171,7 +171,8 @@ describe('validatedAction', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error?.code).toBe('INTERNAL_ERROR');
-      expect(result.error?.message).toContain('DB connection failed');
+      expect(result.error?.message).toBeTruthy();
+      expect(result.error?.message).not.toContain('DB connection failed');
     }
   });
 

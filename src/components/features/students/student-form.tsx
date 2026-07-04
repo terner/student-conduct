@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
 import { Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
@@ -87,11 +87,11 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   const initialGuardianLastName = defaultValues?.guardian_last_name ?? parsedGuardian.guardian_last_name;
 
   const {
+    control,
     register,
     handleSubmit,
     setValue,
     setError,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(studentSchema),
@@ -113,7 +113,12 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     }) as StudentInput,
   });
 
-  const classroomId = watch('classroom_id');
+  const classroomId = useWatch({ control, name: 'classroom_id' });
+  const prefix = useWatch({ control, name: 'prefix' });
+  const currentStatus = useWatch({ control, name: 'current_status' });
+  const watchedGuardianPrefix = useWatch({ control, name: 'guardian_prefix' });
+  const guardianPhoneValue = useWatch({ control, name: 'guardian_phone' }) || '';
+  const guardianRelation = useWatch({ control, name: 'guardian_relation' });
 
   // If classrooms are provided via props (backward compat), use those
   const displayClassrooms = useMemo(() => {
@@ -141,8 +146,10 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
 
   useEffect(() => {
     if (selectedGradeLevel !== null && !gradeLevels.some(level => level.id === selectedGradeLevel)) {
-      setSelectedGradeLevel(null);
-      setValue('classroom_id', '', { shouldValidate: true });
+      void Promise.resolve().then(() => {
+        setSelectedGradeLevel(null);
+        setValue('classroom_id', '', { shouldValidate: true });
+      });
     }
   }, [gradeLevels, selectedGradeLevel, setValue]);
 
@@ -164,19 +171,17 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     : null;
 
   // Safe value for Base UI Select: null when no valid option is selected
-  const prefixValue = studentPrefixEnum.includes(watch('prefix') as StudentInput['prefix'])
-    ? watch('prefix')
+  const prefixValue = studentPrefixEnum.includes(prefix as StudentInput['prefix'])
+    ? prefix
     : null;
-  const statusValue = (['active', 'inactive', 'transferred', 'graduated', 'suspended'] as string[]).includes(watch('current_status') || '')
-    ? watch('current_status')
+  const statusValue = (['active', 'inactive', 'transferred', 'graduated', 'suspended'] as string[]).includes(currentStatus || '')
+    ? currentStatus
     : null;
-  const watchedGuardianPrefix = watch('guardian_prefix');
   const guardianPrefixValue = isGuardianPrefix(watchedGuardianPrefix)
     ? watchedGuardianPrefix
     : null;
-  const guardianPhoneValue = watch('guardian_phone') || '';
-  const guardianRelationValue = (['father', 'mother', 'guardian', 'relative', 'other'] as string[]).includes(watch('guardian_relation') || '')
-    ? watch('guardian_relation')
+  const guardianRelationValue = (['father', 'mother', 'guardian', 'relative', 'other'] as string[]).includes(guardianRelation || '')
+    ? guardianRelation
     : 'guardian';
 
   function formatGradeLabel(level: { id: string; label: string }): string {
@@ -225,7 +230,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
       } else {
         didInitializeYear.current = true;
       }
-      loadClassrooms(selectedYearId);
+      void Promise.resolve().then(() => loadClassrooms(selectedYearId));
     }
   }, [selectedYearId, loadClassrooms, setValue]);
 
@@ -233,7 +238,9 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     if (!defaultValues?.classroom_id || selectedGradeLevel !== null) return;
     const selectedDefaultClassroom = displayClassrooms.find(c => c.id === defaultValues.classroom_id);
     if (selectedDefaultClassroom) {
-      setSelectedGradeLevel(selectedDefaultClassroom.grade_level_id || String(selectedDefaultClassroom.grade_level));
+      void Promise.resolve().then(() => {
+        setSelectedGradeLevel(selectedDefaultClassroom.grade_level_id || String(selectedDefaultClassroom.grade_level));
+      });
     }
   }, [defaultValues?.classroom_id, displayClassrooms, selectedGradeLevel]);
 

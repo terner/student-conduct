@@ -47,6 +47,7 @@ export function AppSidebar({ schoolName, schoolLogo, role, firstName, lastName, 
   const userRoles = getRoles(role ? { role } : { role: undefined })
   const selectedAcademicYearId = useSelectedAcademicYearId()
   const [selectedYearOpen, setSelectedYearOpen] = useState(false)
+  const [failedLogo, setFailedLogo] = useState<string | null>(null)
 
   function closeMobileSidebar() {
     if (isMobile) setOpenMobile(false)
@@ -93,7 +94,7 @@ export function AppSidebar({ schoolName, schoolLogo, role, firstName, lastName, 
     { label: t('classroomReport'), icon: FileText, href: '/reports/classroom', roles: ['teacher'], group: 'main' },
     { label: t('teachers'), icon: BookOpen, href: '/teachers', roles: ['superadmin'], group: 'main' },
     { label: t('settings'), icon: Settings, href: '/settings', roles: ['superadmin', 'admin'], group: 'main' },
-    { label: 'คู่มือ', icon: BookOpen, href: '/docs', roles: ['superadmin', 'admin'], group: 'main' },
+    { label: t('docs'), icon: BookOpen, href: '/docs', roles: ['superadmin', 'admin'], group: 'main' },
     // Student
     { label: t('myScore'), icon: ClipboardPlus, href: '/student/dashboard', roles: ['student'], group: 'main' },
   ]
@@ -107,8 +108,8 @@ export function AppSidebar({ schoolName, schoolLogo, role, firstName, lastName, 
       <SidebarHeader className="p-4">
         <Link href="/dashboard" onClick={closeMobileSidebar} className="flex flex-col items-center gap-3 group-data-[collapsible=icon]:gap-0">
           <div className="flex aspect-square size-24 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-md group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:shadow-none">
-            {schoolLogo ? (
-              <Image src={schoolLogo} alt="" width={80} height={80} unoptimized className="size-20 rounded-lg object-contain group-data-[collapsible=icon]:size-6" />
+            {schoolLogo && failedLogo !== schoolLogo ? (
+              <Image src={schoolLogo} alt="" width={80} height={80} unoptimized className="size-20 rounded-lg object-contain group-data-[collapsible=icon]:size-6" onError={() => setFailedLogo(schoolLogo)} />
             ) : (
               <School className="size-12 group-data-[collapsible=icon]:size-4" />
             )}

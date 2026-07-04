@@ -1,8 +1,15 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { getTranslations } from 'next-intl/server';
+import { isVercelBlobReady } from '@/lib/storage/vercel-blob';
 import { LoginForm } from './login-form';
 
 export const dynamic = 'force-dynamic';
+
+function usableSchoolLogo(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  if (value.startsWith('/api/blob/') && !isVercelBlobReady()) return undefined;
+  return value;
+}
 
 async function getLoginBranding() {
   const authT = await getTranslations('auth');
@@ -18,7 +25,7 @@ async function getLoginBranding() {
 
     return {
       schoolName: typeof schoolName === 'string' && schoolName.trim() ? schoolName : authT('schoolFallbackName'),
-      schoolLogo: typeof schoolLogo === 'string' && schoolLogo.trim() ? schoolLogo : undefined,
+      schoolLogo: usableSchoolLogo(schoolLogo),
     };
   } catch {
     return { schoolName: authT('schoolFallbackName'), schoolLogo: undefined };

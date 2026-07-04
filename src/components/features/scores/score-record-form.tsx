@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,18 +30,18 @@ export function ScoreRecordForm({ students, categories, onSubmit, loading }: Sco
   const [evidenceError, setEvidenceError] = useState('');
 
   const {
+    control,
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<ScoreRecordInput>({
     resolver: zodResolver(scoreRecordSchema),
     defaultValues: { student_id: '', category_id: '', points: 0, note: '' },
   });
 
-  const studentId = watch('student_id');
-  const categoryId = watch('category_id');
+  const studentId = useWatch({ control, name: 'student_id' });
+  const categoryId = useWatch({ control, name: 'category_id' });
 
     const filteredStudents = students.filter(
     (s) =>
