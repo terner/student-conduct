@@ -1,3 +1,5 @@
+/** @vitest-environment jsdom */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock papaparse
@@ -7,7 +9,14 @@ vi.mock('papaparse', () => ({
       if (Array.isArray(data)) {
         return data.map((row: Record<string, unknown>) => Object.values(row).join(',')).join('\n');
       }
-      if (data?.fields && data?.data) {
+      if (
+        typeof data === 'object' &&
+        data !== null &&
+        'fields' in data &&
+        'data' in data &&
+        Array.isArray(data.fields) &&
+        Array.isArray(data.data)
+      ) {
         const headers = data.fields.join(',');
         const rows = data.data.map((row: unknown[]) => row.join(',')).join('\n');
         return `${headers}\n${rows}`;
@@ -38,9 +47,10 @@ const mockLink = {
   download: '',
   click: mockClick,
 };
+const nativeCreateElement = document.createElement.bind(document);
 vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
   if (tag === 'a') return mockLink as unknown as HTMLAnchorElement;
-  return document.createElement(tag);
+  return nativeCreateElement(tag);
 });
 
 describe('exportToCSV', () => {

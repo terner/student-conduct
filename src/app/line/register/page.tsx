@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { CheckCircle2, Loader2, Search, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,12 +17,17 @@ interface StudentResult {
   classroom_name: string;
 }
 
+type GuardianRelation = 'father' | 'mother' | 'guardian' | 'relative';
+
 export default function LineRegisterPage() {
+  const t = useTranslations('lineRegister');
+  const commonT = useTranslations('common');
+  const guardianT = useTranslations('guardian');
   const [step, setStep] = useState<'search' | 'verify' | 'done'>('search');
   const [lineUserId, setLineUserId] = useState<string | null>(null);
   const [studentIdNumber, setStudentIdNumber] = useState('');
   const [guardianPhone, setGuardianPhone] = useState('');
-  const [relation, setRelation] = useState('guardian');
+  const [relation, setRelation] = useState<GuardianRelation>('guardian');
   const [searching, setSearching] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [studentResult, setStudentResult] = useState<StudentResult | null>(null);
@@ -35,7 +41,7 @@ export default function LineRegisterPage() {
         const liff = (await import('@line/liff')).default;
         const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
         if (!liffId) {
-          setError('LIFF ID ไม่ได้ตั้งค่า');
+          setError(t('liffIdMissing'));
           return;
         }
         await liff.init({ liffId });
@@ -47,7 +53,7 @@ export default function LineRegisterPage() {
         setLineUserId(profile.userId);
       } catch (err) {
         console.error('LIFF init error:', err);
-        setError('ไม่สามารถเชื่อมต่อ LINE ได้ กรุณาลองใหม่');
+        setError(t('connectError'));
       }
     }
     initLiff();
@@ -55,7 +61,7 @@ export default function LineRegisterPage() {
 
   async function handleSearch() {
     if (!studentIdNumber.trim()) {
-      toast.error('กรุณากรอกรหัสนักเรียน');
+      toast.error(t('studentIdRequired'));
       return;
     }
     setSearching(true);
@@ -71,10 +77,10 @@ export default function LineRegisterPage() {
         setStudentResult(data.student);
         setStep('verify');
       } else {
-        setError(data.error || 'ไม่พบรหัสนักเรียนนี้ในระบบ');
+        setError(data.error || t('studentNotFound'));
       }
     } catch {
-      setError('เกิดข้อผิดพลาด กรุณาลองใหม่');
+      setError(commonT('unknownError'));
     } finally {
       setSearching(false);
     }
@@ -83,7 +89,7 @@ export default function LineRegisterPage() {
   async function handleRegister() {
     if (!lineUserId || !studentResult) return;
     if (!guardianPhone.trim()) {
-      toast.error('กรุณากรอกเบอร์โทร');
+      toast.error(t('phoneRequired'));
       return;
     }
     setRegistering(true);
@@ -102,12 +108,12 @@ export default function LineRegisterPage() {
       const data = await res.json();
       if (data.success) {
         setStep('done');
-        toast.success('ลงทะเบียนสำเร็จ');
+        toast.success(t('registerSuccess'));
       } else {
-        setError(data.error || 'ลงทะเบียนไม่สำเร็จ');
+        setError(data.error || t('registerFailed'));
       }
     } catch {
-      setError('เกิดข้อผิดพลาด กรุณาลองใหม่');
+      setError(commonT('unknownError'));
     } finally {
       setRegistering(false);
     }
@@ -120,9 +126,9 @@ export default function LineRegisterPage() {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
             <UserCheck className="h-6 w-6 text-green-600" />
           </div>
-          <CardTitle className="text-xl">ลงทะเบียนผู้ปกครอง</CardTitle>
+          <CardTitle className="text-xl">{t('title')}</CardTitle>
           <CardDescription>
-            เชื่อมต่อ LINE เพื่อรับแจ้งเตือนคะแนนความประพฤติ
+            {t('description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -135,20 +141,20 @@ export default function LineRegisterPage() {
           {!lineUserId && !error && (
             <div className="flex flex-col items-center gap-3 py-8">
               <Loader2 className="h-8 w-8 animate-spin text-green-600" />
-              <p className="text-sm text-muted-foreground">กำลังเชื่อมต่อ LINE...</p>
+              <p className="text-sm text-muted-foreground">{t('connecting')}</p>
             </div>
           )}
 
           {lineUserId && step === 'search' && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="studentId">รหัสนักเรียน</Label>
+                <Label htmlFor="studentId">{t('studentIdLabel')}</Label>
                 <div className="flex gap-2">
                   <Input
                     id="studentId"
                     value={studentIdNumber}
                     onChange={(e) => setStudentIdNumber(e.target.value)}
-                    placeholder="กรอกรหัสนักเรียน"
+                    placeholder={t('studentIdPlaceholder')}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   />
                   <Button onClick={handleSearch} disabled={searching}>
@@ -164,47 +170,47 @@ export default function LineRegisterPage() {
               <div className="rounded-lg border bg-green-50/50 p-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  <span className="font-semibold">พบข้อมูลนักเรียน</span>
+                  <span className="font-semibold">{t('studentFound')}</span>
                 </div>
                 <div className="text-sm space-y-1">
-                  <p><span className="text-muted-foreground">ชื่อ:</span> {studentResult.full_name}</p>
-                  <p><span className="text-muted-foreground">ห้อง:</span> {studentResult.classroom_name}</p>
-                  <p><span className="text-muted-foreground">รหัส:</span> {studentResult.student_id_number}</p>
+                  <p><span className="text-muted-foreground">{t('nameLabel')}:</span> {studentResult.full_name}</p>
+                  <p><span className="text-muted-foreground">{t('classroomLabel')}:</span> {studentResult.classroom_name}</p>
+                  <p><span className="text-muted-foreground">{t('studentIdLabel')}:</span> {studentResult.student_id_number}</p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>ความสัมพันธ์</Label>
-                <Select value={relation} onValueChange={setRelation}>
+                <Label>{t('relation')}</Label>
+                <Select value={relation} onValueChange={(value) => setRelation((value as GuardianRelation | null) ?? 'guardian')}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="father">บิดา</SelectItem>
-                    <SelectItem value="mother">มารดา</SelectItem>
-                    <SelectItem value="guardian">ผู้ปกครอง</SelectItem>
-                    <SelectItem value="relative">ญาติ</SelectItem>
+                    <SelectItem value="father">{guardianT('relationFather')}</SelectItem>
+                    <SelectItem value="mother">{guardianT('relationMother')}</SelectItem>
+                    <SelectItem value="guardian">{guardianT('relationGuardian')}</SelectItem>
+                    <SelectItem value="relative">{guardianT('relationRelative')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">เบอร์โทร</Label>
+                <Label htmlFor="phone">{commonT('phone')}</Label>
                 <Input
                   id="phone"
                   value={guardianPhone}
                   onChange={(e) => setGuardianPhone(e.target.value)}
-                  placeholder="0xx-xxx-xxxx"
+                  placeholder={commonT('phone')}
                 />
               </div>
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => { setStep('search'); setStudentResult(null); }}>
-                  ย้อนกลับ
+                  {commonT('back')}
                 </Button>
                 <Button className="flex-1" onClick={handleRegister} disabled={registering}>
                   {registering ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  ลงทะเบียน
+                  {t('register')}
                 </Button>
               </div>
             </div>
@@ -216,13 +222,13 @@ export default function LineRegisterPage() {
                 <CheckCircle2 className="h-8 w-8 text-green-600" />
               </div>
               <div className="text-center">
-                <h3 className="text-lg font-semibold">ลงทะเบียนสำเร็จ!</h3>
+                <h3 className="text-lg font-semibold">{t('doneTitle')}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  ระบบจะแจ้งเตือนผ่าน LINE เมื่อมีเหตุการณ์สำคัญ
+                  {t('doneDescription')}
                 </p>
               </div>
               <Button variant="outline" onClick={() => window.close()}>
-                ปิดหน้าต่าง
+                {commonT('close')}
               </Button>
             </div>
           )}

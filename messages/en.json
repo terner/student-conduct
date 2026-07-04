@@ -1278,6 +1278,27 @@
     "saveSuccess": "Permissions saved successfully",
     "superadminNote": "Superadmin has all permissions automatically"
   },
+  "lineRegister": {
+    "title": "Guardian Registration",
+    "description": "Connect LINE to receive conduct score notifications",
+    "connecting": "Connecting to LINE...",
+    "liffIdMissing": "LIFF ID is not configured",
+    "connectError": "Unable to connect to LINE. Please try again.",
+    "studentIdRequired": "Please enter a student ID",
+    "studentIdLabel": "Student ID",
+    "studentIdPlaceholder": "Enter student ID",
+    "studentFound": "Student found",
+    "studentNotFound": "This student ID was not found",
+    "nameLabel": "Name",
+    "classroomLabel": "Classroom",
+    "relation": "Relationship",
+    "phoneRequired": "Please enter a phone number",
+    "register": "Register",
+    "registerSuccess": "Registration completed",
+    "registerFailed": "Registration failed",
+    "doneTitle": "Registration completed",
+    "doneDescription": "The system will notify you via LINE when important events happen"
+  },
   "bond": {
     "generate": "Generate Bond Document",
     "generateSuccess": "Bond document generated successfully",

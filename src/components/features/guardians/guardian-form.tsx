@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { z } from 'zod';
 
 interface GuardianFormProps {
   studentId: string;
@@ -49,9 +51,13 @@ const PREFIX_OPTIONS = [
   { value: 'คุณ', label: 'คุณ' },
 ];
 
+type GuardianManageFormInput = z.input<typeof guardianManageSchema>;
+
 export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: GuardianFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const isEdit = !!guardian;
+  const guardianT = useTranslations('guardian');
+  const commonT = useTranslations('common');
 
   const {
     register,
@@ -59,7 +65,7 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
     setValue,
     watch,
     formState: { errors },
-  } = useForm<GuardianManageInput>({
+  } = useForm<GuardianManageFormInput, undefined, GuardianManageInput>({
     resolver: zodResolver(guardianManageSchema),
     defaultValues: {
       prefix: (guardian?.prefix as GuardianManageInput['prefix']) || '',
@@ -82,22 +88,22 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
       if (isEdit && guardian) {
         const result = await updateGuardian(guardian.guardian_id, data);
         if (result.success) {
-          toast.success('แก้ไขผู้ปกครองสำเร็จ');
+          toast.success(guardianT('editSuccess'));
           onSuccess();
         } else {
-          toast.error(result.error?.message || 'เกิดข้อผิดพลาด');
+          toast.error(result.error?.message ?? commonT('unknownError'));
         }
       } else {
         const result = await createGuardian(studentId, data);
         if (result.success) {
-          toast.success('เพิ่มผู้ปกครองสำเร็จ');
+          toast.success(guardianT('addSuccess'));
           onSuccess();
         } else {
-          toast.error(result.error?.message || 'เกิดข้อผิดพลาด');
+          toast.error(result.error?.message ?? commonT('unknownError'));
         }
       }
     } catch {
-      toast.error('เกิดข้อผิดพลาด');
+      toast.error(commonT('unknownError'));
     } finally {
       setSubmitting(false);
     }
@@ -107,13 +113,13 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-2">
-          <Label htmlFor="prefix">คำนำหน้า</Label>
+          <Label htmlFor="prefix">{guardianT('prefix')}</Label>
           <Select
             value={prefixValue || ''}
             onValueChange={(val) => setValue('prefix', val as GuardianManageInput['prefix'])}
           >
             <SelectTrigger>
-              <SelectValue placeholder="เลือก" />
+              <SelectValue placeholder={guardianT('prefix')} />
             </SelectTrigger>
             <SelectContent>
               {PREFIX_OPTIONS.map((opt) => (
@@ -126,11 +132,11 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="first_name">ชื่อ *</Label>
+          <Label htmlFor="first_name">{guardianT('firstName')} *</Label>
           <Input
             id="first_name"
             {...register('first_name')}
-            placeholder="ชื่อ"
+            placeholder={guardianT('firstName')}
           />
           {errors.first_name && (
             <p className="text-sm text-destructive">{errors.first_name.message}</p>
@@ -138,11 +144,11 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="last_name">นามสกุล *</Label>
+          <Label htmlFor="last_name">{guardianT('lastName')} *</Label>
           <Input
             id="last_name"
             {...register('last_name')}
-            placeholder="นามสกุล"
+            placeholder={guardianT('lastName')}
           />
           {errors.last_name && (
             <p className="text-sm text-destructive">{errors.last_name.message}</p>
@@ -151,13 +157,13 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="relation">ความสัมพันธ์ *</Label>
+        <Label htmlFor="relation">{guardianT('relationship')} *</Label>
         <Select
           value={relationValue || 'guardian'}
           onValueChange={(val) => setValue('relation', val as GuardianManageInput['relation'])}
         >
           <SelectTrigger>
-            <SelectValue placeholder="เลือกความสัมพันธ์" />
+            <SelectValue placeholder={guardianT('relationship')} />
           </SelectTrigger>
           <SelectContent>
             {RELATION_OPTIONS.map((opt) => (
@@ -174,11 +180,11 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor="phone">เบอร์โทร</Label>
+          <Label htmlFor="phone">{guardianT('phone')}</Label>
           <Input
             id="phone"
             {...register('phone')}
-            placeholder="0xx-xxx-xxxx"
+            placeholder={commonT('phone')}
           />
           {errors.phone && (
             <p className="text-sm text-destructive">{errors.phone.message}</p>
@@ -186,12 +192,12 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="email">อีเมล</Label>
+          <Label htmlFor="email">{guardianT('email')}</Label>
           <Input
             id="email"
             type="email"
             {...register('email')}
-            placeholder="example@email.com"
+            placeholder="name@example.com"
           />
           {errors.email && (
             <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -200,29 +206,29 @@ export function GuardianForm({ studentId, guardian, onSuccess, onCancel }: Guard
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="occupation">อาชีพ</Label>
+        <Label htmlFor="occupation">{guardianT('occupation')}</Label>
         <Input
           id="occupation"
           {...register('occupation')}
-          placeholder="อาชีพ"
+          placeholder={guardianT('occupation')}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="address">ที่อยู่</Label>
+        <Label htmlFor="address">{guardianT('address')}</Label>
         <Input
           id="address"
           {...register('address')}
-          placeholder="ที่อยู่"
+          placeholder={guardianT('address')}
         />
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>
-          ยกเลิก
+          {commonT('cancel')}
         </Button>
         <Button type="submit" disabled={submitting}>
-          {submitting ? 'กำลังบันทึก...' : isEdit ? 'บันทึก' : 'เพิ่ม'}
+          {submitting ? commonT('saving') : isEdit ? commonT('save') : guardianT('add')}
         </Button>
       </div>
     </form>

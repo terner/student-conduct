@@ -15,22 +15,14 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
-import { Empty } from '@/components/ui/empty';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { toast } from 'sonner';
 import { listGuardians, deleteGuardian } from '@/lib/actions/guardian.action';
 import { GuardianForm } from './guardian-form';
@@ -64,7 +56,8 @@ interface GuardianListProps {
 }
 
 export function GuardianList({ studentId, studentName }: GuardianListProps) {
-  const t = useTranslations();
+  const guardianT = useTranslations('guardian');
+  const commonT = useTranslations('common');
   const [guardians, setGuardians] = useState<GuardianData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -100,11 +93,11 @@ export function GuardianList({ studentId, studentName }: GuardianListProps) {
     setDeleting(true);
     const result = await deleteGuardian(deletingGuardian.link_id, studentId);
     if (result.success) {
-      toast.success('ลบผู้ปกครองสำเร็จ');
+      toast.success(guardianT('deleteSuccess'));
       setDeletingGuardian(null);
       await loadGuardians();
     } else {
-      toast.error(result.error?.message || 'เกิดข้อผิดพลาด');
+      toast.error(result.error?.message ?? commonT('unknownError'));
     }
     setDeleting(false);
   }
@@ -128,33 +121,45 @@ export function GuardianList({ studentId, studentName }: GuardianListProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5" />
-          <h3 className="text-lg font-semibold">ผู้ปกครอง</h3>
+          <h3 className="text-lg font-semibold">{guardianT('title')}</h3>
           {guardians.length > 0 && (
             <Badge variant="secondary">{guardians.length}</Badge>
           )}
         </div>
         <Button size="sm" onClick={handleAdd}>
           <Plus className="mr-1 h-4 w-4" />
-          เพิ่มผู้ปกครอง
+          {guardianT('add')}
         </Button>
       </div>
 
       {guardians.length === 0 ? (
-        <Empty
-          icon={<Users className="h-8 w-8 text-muted-foreground" />}
-          title="ยังไม่มีผู้ปกครอง"
-          description={studentName ? `เพิ่มผู้ปกครองของ${studentName}` : 'เพิ่มข้อมูลผู้ปกครอง'}
-        />
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Users className="h-8 w-8 text-muted-foreground" />
+            </EmptyMedia>
+            <EmptyTitle>{guardianT('empty')}</EmptyTitle>
+            <EmptyDescription>
+              {studentName ? `${guardianT('add')} ${studentName}` : guardianT('emptyDescription')}
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button size="sm" onClick={handleAdd}>
+              <Plus className="mr-1 h-4 w-4" />
+              {guardianT('add')}
+            </Button>
+          </EmptyContent>
+        </Empty>
       ) : (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ชื่อ-นามสกุล</TableHead>
-                <TableHead>ความสัมพันธ์</TableHead>
-                <TableHead>เบอร์โทร</TableHead>
-                <TableHead>อีเมล</TableHead>
-                <TableHead className="w-[100px]">จัดการ</TableHead>
+                <TableHead>{guardianT('name')}</TableHead>
+                <TableHead>{guardianT('relationship')}</TableHead>
+                <TableHead>{guardianT('phone')}</TableHead>
+                <TableHead>{guardianT('email')}</TableHead>
+                <TableHead className="w-[100px]">{commonT('actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -163,12 +168,12 @@ export function GuardianList({ studentId, studentName }: GuardianListProps) {
                   <TableCell className="font-medium">
                     {g.full_name || [g.prefix, g.first_name, g.last_name].filter(Boolean).join(' ')}
                     {g.is_primary && (
-                      <Badge variant="outline" className="ml-2 text-xs">หลัก</Badge>
+                      <Badge variant="outline" className="ml-2 text-xs">{guardianT('primary')}</Badge>
                     )}
                   </TableCell>
-                  <TableCell>{RELATION_LABELS[g.relation] || g.relation}</TableCell>
-                  <TableCell>{g.phone || '-'}</TableCell>
-                  <TableCell>{g.email || '-'}</TableCell>
+                  <TableCell>{RELATION_LABELS[g.relation] ?? g.relation}</TableCell>
+                  <TableCell>{g.phone}</TableCell>
+                  <TableCell>{g.email}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button
@@ -201,7 +206,7 @@ export function GuardianList({ studentId, studentName }: GuardianListProps) {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingGuardian ? 'แก้ไขผู้ปกครอง' : 'เพิ่มผู้ปกครอง'}
+              {editingGuardian ? guardianT('edit') : guardianT('add')}
             </DialogTitle>
           </DialogHeader>
           <GuardianForm
@@ -214,26 +219,29 @@ export function GuardianList({ studentId, studentName }: GuardianListProps) {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deletingGuardian} onOpenChange={(open) => !open && setDeletingGuardian(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>ยืนยันการลบ</AlertDialogTitle>
-            <AlertDialogDescription>
-              ต้องการลบผู้ปกครอง {deletingGuardian?.full_name || ''} ออกจากรายการใช่หรือไม่?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-            <AlertDialogAction
+      <Dialog open={!!deletingGuardian} onOpenChange={(open) => !open && setDeletingGuardian(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{guardianT('deleteConfirm')}</DialogTitle>
+            <DialogDescription>
+              {guardianT('deleteDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDeletingGuardian(null)}>
+              {commonT('cancel')}
+            </Button>
+            <Button
+              type="button"
               onClick={handleDelete}
               disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="destructive"
             >
-              {deleting ? 'กำลังลบ...' : 'ลบ'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              {deleting ? commonT('processing') : guardianT('delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

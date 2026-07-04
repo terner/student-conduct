@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { Fragment, useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Shield, Save, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -9,10 +9,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { createAdminClient } from '@/lib/supabase/server';
-import { getRolePermissions, updateRolePermissions, getProfileOverrides, setProfileOverride, clearProfileOverride } from '@/lib/actions/permission.action';
+import { getRolePermissions, updateRolePermissions } from '@/lib/actions/permission.action';
 
 interface Permission {
   id: string;
@@ -42,7 +40,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function PermissionsPage() {
-  const settingsT = useTranslations('settings');
+  const permissionT = useTranslations('permission');
   const commonT = useTranslations('common');
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<Map<string, Set<string>>>(new Map());
@@ -52,9 +50,7 @@ export default function PermissionsPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [permResult, rpResult] = await Promise.all([
-      getRolePermissions(),
-    ]);
+    const permResult = await getRolePermissions();
     if (permResult.success && permResult.data) {
       setPermissions(permResult.data.permissions);
       const rpMap = new Map<string, Set<string>>();
@@ -63,6 +59,8 @@ export default function PermissionsPage() {
         rpMap.get(rp.role)!.add(rp.permission_id);
       }
       setRolePermissions(rpMap);
+    } else if ('error' in permResult && permResult.error) {
+      toast.error(permResult.error.message);
     }
     setLoading(false);
   }, []);
@@ -94,10 +92,10 @@ export default function PermissionsPage() {
     });
     const result = await updateRolePermissions(data);
     if (result.success) {
-      toast.success('บันทึกสิทธิ์สำเร็จ');
+      toast.success(permissionT('saveSuccess'));
       setHasChanges(false);
     } else {
-      toast.error(result.error?.message || 'เกิดข้อผิดพลาด');
+      toast.error(result.error?.message ?? commonT('unknownError'));
     }
     setSaving(false);
   }
@@ -124,29 +122,29 @@ export default function PermissionsPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Shield className="h-6 w-6" />
-            จัดการสิทธิ์
+            {permissionT('title')}
           </h1>
-          <p className="text-muted-foreground mt-1">กำหนดสิทธิ์การเข้าถึงระบบตามบทบาท</p>
+          <p className="text-muted-foreground mt-1">{permissionT('description')}</p>
         </div>
         <div className="flex gap-2">
           {hasChanges && (
             <Button variant="outline" onClick={() => { loadData(); setHasChanges(false); }}>
               <RotateCcw className="mr-2 h-4 w-4" />
-              ยกเลิก
+              {permissionT('cancel')}
             </Button>
           )}
           <Button onClick={handleSave} disabled={!hasChanges || saving}>
             <Save className="mr-2 h-4 w-4" />
-            {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+            {saving ? commonT('saving') : permissionT('save')}
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>สิทธิ์ตามบทบาท</CardTitle>
+          <CardTitle>{permissionT('permissions')}</CardTitle>
           <CardDescription>
-            เลือกสิทธิ์ที่แต่ละบทบาทสามารถเข้าถึงได้ • superadmin มีสิทธิ์ทั้งหมดโดยอัตโนมัติ
+            {permissionT('description')} • {permissionT('superadminNote')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -154,7 +152,7 @@ export default function PermissionsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[200px]">สิทธิ์</TableHead>
+                  <TableHead className="min-w-[200px]">{permissionT('permissions')}</TableHead>
                   {ROLES.map(role => (
                     <TableHead key={role} className="text-center w-[120px]">
                       <Badge variant={role === 'superadmin' ? 'default' : 'outline'}>
@@ -166,7 +164,7 @@ export default function PermissionsPage() {
               </TableHeader>
               <TableBody>
                 {Object.entries(grouped).map(([category, perms]) => (
-                  <>
+                  <Fragment key={category}>
                     <TableRow key={`cat-${category}`}>
                       <TableCell colSpan={ROLES.length + 1} className="bg-muted/50 font-semibold text-sm py-2">
                         {category}
@@ -196,7 +194,7 @@ export default function PermissionsPage() {
                         ))}
                       </TableRow>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
               </TableBody>
             </Table>

@@ -1278,6 +1278,27 @@
     "saveSuccess": "บันทึกสิทธิ์สำเร็จ",
     "superadminNote": "superadmin มีสิทธิ์ทั้งหมดโดยอัตโนมัติ"
   },
+  "lineRegister": {
+    "title": "ลงทะเบียนผู้ปกครอง",
+    "description": "เชื่อมต่อ LINE เพื่อรับแจ้งเตือนคะแนนความประพฤติ",
+    "connecting": "กำลังเชื่อมต่อ LINE...",
+    "liffIdMissing": "LIFF ID ยังไม่ได้ตั้งค่า",
+    "connectError": "ไม่สามารถเชื่อมต่อ LINE ได้ กรุณาลองใหม่",
+    "studentIdRequired": "กรุณากรอกรหัสนักเรียน",
+    "studentIdLabel": "รหัสนักเรียน",
+    "studentIdPlaceholder": "กรอกรหัสนักเรียน",
+    "studentFound": "พบข้อมูลนักเรียน",
+    "studentNotFound": "ไม่พบรหัสนักเรียนนี้ในระบบ",
+    "nameLabel": "ชื่อ",
+    "classroomLabel": "ห้อง",
+    "relation": "ความสัมพันธ์",
+    "phoneRequired": "กรุณากรอกเบอร์โทร",
+    "register": "ลงทะเบียน",
+    "registerSuccess": "ลงทะเบียนสำเร็จ",
+    "registerFailed": "ลงทะเบียนไม่สำเร็จ",
+    "doneTitle": "ลงทะเบียนสำเร็จ!",
+    "doneDescription": "ระบบจะแจ้งเตือนผ่าน LINE เมื่อมีเหตุการณ์สำคัญ"
+  },
   "bond": {
     "generate": "สร้างเอกสารทัณฑ์บน",
     "generateSuccess": "สร้างเอกสารทัณฑ์บนสำเร็จ",

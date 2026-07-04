@@ -1,5 +1,5 @@
 export const STUDENT_PREFIXES = ['เด็กชาย', 'เด็กหญิง', 'นาย', 'นางสาว', 'นาง'] as const;
-export const GUARDIAN_PREFIXES = ['นาย', 'นาง', 'นางสาว', 'คุณ'] as const;
+export const GUARDIAN_PREFIXES = ['นาย', 'นางสาว', 'นาง', 'คุณ'] as const;
 export const TEACHER_PREFIXES = ['นาย', 'นาง', 'นางสาว'] as const;
 
 export const DEFAULT_STUDENT_PREFIX = STUDENT_PREFIXES[0];
