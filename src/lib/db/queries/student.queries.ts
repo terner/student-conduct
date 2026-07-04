@@ -1,6 +1,7 @@
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import type { Student } from '@/types';
 import { buildGuardianFullName, parseGuardianFullName } from '@/lib/guardian';
+import { LEGACY_TEACHER_PREFIX, STUDENT_PREFIXES } from '@/lib/domain/person';
 
 export type StudentWithProfile = Student & {
   prefix: string;
@@ -62,8 +63,8 @@ function escapePostgrestPattern(value: string) {
 function formatTeacherName(profile?: Record<string, unknown>) {
   const prefix = String(profile?.prefix || '').trim();
   let fullName = String(profile?.full_name || '').trim();
-  if (fullName.startsWith('ครู')) {
-    fullName = fullName.slice('ครู'.length).trim();
+  if (fullName.startsWith(LEGACY_TEACHER_PREFIX)) {
+    fullName = fullName.slice(LEGACY_TEACHER_PREFIX.length).trim();
   }
   return prefix && fullName && !fullName.startsWith(prefix) ? `${prefix}${fullName}` : fullName;
 }
@@ -72,9 +73,8 @@ function formatTeacherName(profile?: Record<string, unknown>) {
 function parseProfile(profile: Record<string, unknown>): { prefix: string; first_name: string; last_name: string } {
   let fullName = ((profile.full_name as string) || '').trim();
   let prefix = ((profile.prefix as string) || '').trim();
-  const knownPrefixes = ['เด็กชาย', 'เด็กหญิง', 'นาย', 'นางสาว', 'นาง'];
   if (!prefix) {
-    prefix = knownPrefixes.find((p) => fullName.startsWith(p)) || '';
+    prefix = STUDENT_PREFIXES.find((p) => fullName.startsWith(p)) || '';
   }
   if (prefix && fullName.startsWith(prefix)) {
     fullName = fullName.slice(prefix.length).trim();
@@ -599,7 +599,7 @@ export async function createStudent(data: {
   });
 
   if (authError) throw authError;
-  if (!authUser.user) throw new Error('Failed to create auth user');
+  if (!authUser.user) throw new Error('AUTH_USER_CREATE_FAILED');
 
   // 2. Create profile
   const { data: profile, error: profileError } = await supabase

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ClassroomTable } from '@/components/features/classrooms/classroom-table';
 import { ClassroomForm } from '@/components/features/classrooms/classroom-form';
-import { SimplePagination } from '@/components/ui/simple-pagination';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
 import { getClassrooms, addClassroom, editClassroom, removeClassroom } from '@/lib/actions/classroom.action';
 import { getEducationStages } from '@/lib/actions/education-stage.action';
 import type { ClassroomWithDetails } from '@/lib/db/queries/classroom.queries';
@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 import { useTranslations } from 'next-intl';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 interface StageOption {
   id: string;
@@ -34,6 +34,7 @@ export default function ClassroomsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<ClassroomWithDetails | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -44,8 +45,8 @@ export default function ClassroomsPage() {
   const [allGradeOptions, setAllGradeOptions] = useState<{ id: string; grade_level: number }[]>([]);
 
   const getStageLabel = (stage: StageOption) => {
-    if (stage.code === 'secondary') return 'มัธยมต้น';
-    if (stage.code === 'highschool') return 'มัธยมปลาย';
+    if (stage.code === 'secondary') return classroomT('secondaryStage');
+    if (stage.code === 'highschool') return classroomT('highschoolStage');
     return stage.name_th;
   };
 
@@ -81,7 +82,7 @@ export default function ClassroomsPage() {
       toast(classroomT('loadError'), { description: !result.success ? result.error.message : undefined });
     }
     setLoading(false);
-  }, [selectedAcademicYearId, filterStageId, filterGrade]);
+  }, [classroomT, selectedAcademicYearId, filterStageId, filterGrade]);
 
   useEffect(() => {
     void Promise.resolve().then(fetchData);
@@ -99,11 +100,14 @@ export default function ClassroomsPage() {
     );
   }, [data, search, filterClassroom]);
 
-  const pagedData = useMemo(() => filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredData, page]);
+  const pagedData = useMemo(
+    () => filteredData.slice((page - 1) * pageSize, page * pageSize),
+    [filteredData, page, pageSize],
+  );
 
   useEffect(() => {
     void Promise.resolve().then(() => setPage(1));
-  }, [search]);
+  }, [search, filterStageId, filterGrade, filterClassroom, pageSize]);
 
   const gradeOptions = useMemo(() => {
     // Use unfiltered options so dropdown doesn't collapse when filtering
@@ -142,6 +146,17 @@ export default function ClassroomsPage() {
     setFilterClassroom('');
   };
 
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const from = filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const to = filteredData.length === 0 ? 0 : Math.min((currentPage - 1) * pageSize + pagedData.length, filteredData.length);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      void Promise.resolve().then(() => setPage(1));
+    }
+  }, [page, totalPages]);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -157,7 +172,7 @@ export default function ClassroomsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="ค้นหาชื่อห้อง หรือครูประจำชั้น"
+              placeholder={classroomT('searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="h-10 pl-9"
@@ -174,7 +189,7 @@ export default function ClassroomsPage() {
             }}
           >
             <SelectTrigger className="!h-10 w-full">
-              <SelectValue placeholder="ทุกระดับ" />
+              <SelectValue placeholder={classroomT('allStages')} />
             </SelectTrigger>
             <SelectContent>
               {stages.map(s => (
@@ -188,15 +203,17 @@ export default function ClassroomsPage() {
             onValueChange={(v: string | null) => setFilterGrade(v || '')}
             itemToStringLabel={(value) => {
               const g = gradeOptions.find(g => g.id === value);
-              return g ? `ชั้น ${g.grade_level}` : '';
+              return g ? classroomT('gradeLabel', { grade: g.grade_level }) : '';
             }}
           >
             <SelectTrigger className="!h-10 w-full">
-              <SelectValue placeholder="ทุกชั้นปี" />
+              <SelectValue placeholder={classroomT('allGradeLevels')} />
             </SelectTrigger>
             <SelectContent>
               {gradeOptions.map(g => (
-                <SelectItem key={g.id} value={g.id} label={`ชั้น ${g.grade_level}`}>{`ชั้น ${g.grade_level}`}</SelectItem>
+                <SelectItem key={g.id} value={g.id} label={classroomT('gradeLabel', { grade: g.grade_level })}>
+                  {classroomT('gradeLabel', { grade: g.grade_level })}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -210,7 +227,7 @@ export default function ClassroomsPage() {
             }}
           >
             <SelectTrigger className="!h-10 w-full">
-              <SelectValue placeholder="ทุกห้อง" />
+              <SelectValue placeholder={classroomT('allClassrooms')} />
             </SelectTrigger>
             <SelectContent>
               {data.map(c => (
@@ -226,8 +243,22 @@ export default function ClassroomsPage() {
         </div>
       </div>
 
-      <ClassroomTable data={pagedData} loading={loading} onEdit={(c) => { setEditItem(c); setShowForm(true); }} onDelete={handleDelete} />
-      <SimplePagination page={page} pageSize={PAGE_SIZE} total={filteredData.length} onPageChange={setPage} />
+      {!loading && filteredData.length > 0 && (
+        <TablePaginationToolbar
+          page={page}
+          pageSize={pageSize}
+          total={filteredData.length}
+          summary={classroomT('resultsSummary', { from, to, total: filteredData.length })}
+          rowsPerPageLabel={classroomT('rowsPerPage')}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageSizeChange={setPageSize}
+          onPageChange={setPage}
+        />
+      )}
+
+      <div className="space-y-4">
+        <ClassroomTable data={pagedData} loading={loading} onEdit={(c) => { setEditItem(c); setShowForm(true); }} onDelete={handleDelete} />
+      </div>
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent>

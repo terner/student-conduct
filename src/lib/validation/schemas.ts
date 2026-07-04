@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import thMessages from '../../../messages/th.json';
 import { THAI_PHONE_REGEX } from '@/lib/phone';
+import {
+  DEFAULT_STUDENT_PREFIX,
+  DEFAULT_TEACHER_PREFIX,
+  GUARDIAN_PREFIXES,
+  STUDENT_PREFIXES,
+  TEACHER_PREFIXES,
+} from '@/lib/domain/person';
 
 // ─── Helpers ───
 const studentIdRegex = /^\d+$/;
@@ -88,11 +95,11 @@ export const profileSchema = z.object({
 });
 
 // ─── Student ───
-export const studentPrefixEnum = ['เด็กชาย', 'เด็กหญิง', 'นาย', 'นางสาว', 'นาง'] as const;
-export const guardianPrefixEnum = ['นาย', 'นาง', 'นางสาว', 'คุณ'] as const;
+export const studentPrefixEnum = STUDENT_PREFIXES;
+export const guardianPrefixEnum = GUARDIAN_PREFIXES;
 
 export const studentSchema = z.object({
-  prefix: z.enum(studentPrefixEnum).default('เด็กชาย'),
+  prefix: z.enum(studentPrefixEnum).default(DEFAULT_STUDENT_PREFIX),
   first_name: z
     .string()
     .min(2, errorMessages.tooShort(2))
@@ -237,10 +244,10 @@ export const classroomSchema = z.object({
 });
 
 // ─── Teacher ───
-export const teacherPrefixEnum = ['นาย', 'นาง', 'นางสาว'] as const;
+export const teacherPrefixEnum = TEACHER_PREFIXES;
 
 export const teacherSchema = z.object({
-  prefix: z.enum(teacherPrefixEnum).default('นาย'),
+  prefix: z.enum(teacherPrefixEnum).default(DEFAULT_TEACHER_PREFIX),
   first_name: z
     .string()
     .max(50, errorMessages.tooLong(50)),

@@ -1,8 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { History, AlertCircle, TrendingDown, TrendingUp, Minus, ImageIcon } from 'lucide-react';
+import { History, AlertCircle, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -12,13 +13,35 @@ import { StudentDetail } from '@/components/features/students/student-detail';
 import { getStudentDashboard } from '@/lib/actions/student.action';
 import { checkMustChangePassword, checkPDPAConsent } from '@/lib/actions/dashboard.action';
 import { useTranslations } from 'next-intl';
+import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString('th-TH', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
+interface StudentDashboardSummary {
+  current_score: number;
+  total_deducted: number;
+  total_added: number;
+  base_score?: number;
 }
+
+interface StudentDashboardEvidence {
+  id: string;
+  file_url?: string | null;
+  file_name?: string | null;
+}
+
+interface StudentDashboardTransaction {
+  id: string;
+  points: number;
+  note?: string | null;
+  recorded_at: string;
+  category_name?: string | null;
+  category_type?: string | null;
+  recorded_by_name?: string | null;
+  evidence?: StudentDashboardEvidence[];
+}
+
+type StudentDashboardStudent = Partial<StudentWithProfile> & {
+  full_name?: string | null;
+};
 
 function formatDateShort(value: string) {
   return new Date(value).toLocaleDateString('th-TH', {
@@ -33,9 +56,9 @@ export default function StudentDashboardPage() {
   const commonT = useTranslations('common');
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [studentInfo, setStudentInfo] = useState<any>(null);
-  const [summary, setSummary] = useState<any>(null);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [studentInfo, setStudentInfo] = useState<StudentDashboardStudent | null>(null);
+  const [summary, setSummary] = useState<StudentDashboardSummary | null>(null);
+  const [transactions, setTransactions] = useState<StudentDashboardTransaction[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -53,9 +76,9 @@ export default function StudentDashboardPage() {
 
       const res = await getStudentDashboard();
       if (res.success && res.data) {
-        setStudentInfo(res.data.student);
-        setSummary(res.data.summary);
-        setTransactions(res.data.transactions || []);
+        setStudentInfo(res.data.student as StudentDashboardStudent);
+        setSummary(res.data.summary as StudentDashboardSummary);
+        setTransactions((res.data.transactions ?? []) as StudentDashboardTransaction[]);
       }
       setLoading(false);
     }
@@ -74,7 +97,6 @@ export default function StudentDashboardPage() {
   }
 
   const hasScores = transactions.length > 0;
-  const recentPoints = transactions.slice(0, 3).map((t: any) => t.points);
 
   return (
     <div className="space-y-6 p-6">
@@ -89,18 +111,18 @@ export default function StudentDashboardPage() {
         <StudentDetail
           student={{
             ...studentInfo,
-            first_name: studentInfo.first_name || studentInfo.full_name || '',
-            last_name: studentInfo.last_name || '',
-            classroom_name: studentInfo.classroom_name || '',
-            education_stage_name: studentInfo.education_stage_name || '',
-            homeroom_teacher_name: studentInfo.homeroom_teacher_name || '',
-            advisor_teacher_name: studentInfo.advisor_teacher_name || '',
-            guardian_full_name: studentInfo.guardian_full_name || '',
-            guardian_relation: studentInfo.guardian_relation || '',
-            guardian_phone: studentInfo.guardian_phone || '',
-            current_status: studentInfo.current_status || 'active',
-          }}
-          scoreSummary={summary}
+            first_name: studentInfo.first_name ?? studentInfo.full_name ?? '',
+            last_name: studentInfo.last_name ?? '',
+            classroom_name: studentInfo.classroom_name ?? '',
+            education_stage_name: studentInfo.education_stage_name ?? '',
+            homeroom_teacher_name: studentInfo.homeroom_teacher_name ?? '',
+            advisor_teacher_name: studentInfo.advisor_teacher_name ?? '',
+            guardian_full_name: studentInfo.guardian_full_name ?? '',
+            guardian_relation: studentInfo.guardian_relation ?? '',
+            guardian_phone: studentInfo.guardian_phone ?? '',
+            current_status: studentInfo.current_status ?? 'active',
+          } as StudentWithProfile}
+          scoreSummary={summary ?? undefined}
         />
       )}
 
@@ -141,8 +163,8 @@ export default function StudentDashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map((t: any, i: number) => (
-                    <TableRow key={i} className="transition-colors hover:bg-muted/40">
+                  {transactions.map((t) => (
+                    <TableRow key={t.id} className="transition-colors hover:bg-muted/40">
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="text-xs font-medium">{formatDateShort(t.recorded_at)}</span>
@@ -153,7 +175,7 @@ export default function StudentDashboardPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm">{t.category_name || commonT('notAvailable')}</span>
+                          {t.category_name && <span className="text-sm">{t.category_name}</span>}
                           {t.category_type && (
                             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${t.category_type === 'positive' ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'}`}>
                               {t.category_type === 'positive' ? studentT('added') : studentT('deducted')}
@@ -174,21 +196,30 @@ export default function StudentDashboardPage() {
                       <TableCell className="hidden sm:table-cell">
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-muted-foreground line-clamp-1 max-w-[200px]">
-                            {t.note || '—'}
+                            {t.note}
                           </span>
-                          {t.evidence?.length > 0 && (
+                          {t.evidence && t.evidence.length > 0 && (
                             <div className="flex gap-1 shrink-0">
-                              {t.evidence.map((e: any) => (
-                                <a key={e.id} href={e.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                                  <img src={e.file_url} alt={e.file_name || 'หลักฐาน'} className="size-8 rounded border object-cover hover:ring-2 hover:ring-primary transition-all" />
-                                </a>
+                              {t.evidence.map((e) => (
+                                e.file_url && e.file_name ? (
+                                  <a key={e.id} href={e.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                    <Image
+                                      src={e.file_url}
+                                      alt={e.file_name}
+                                      width={32}
+                                      height={32}
+                                      unoptimized
+                                      className="size-8 rounded border object-cover transition-all hover:ring-2 hover:ring-primary"
+                                    />
+                                  </a>
+                                ) : null
                               ))}
                             </div>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        <span className="text-xs text-muted-foreground">{t.recorded_by_name || '—'}</span>
+                        {t.recorded_by_name && <span className="text-xs text-muted-foreground">{t.recorded_by_name}</span>}
                       </TableCell>
                     </TableRow>
                   ))}

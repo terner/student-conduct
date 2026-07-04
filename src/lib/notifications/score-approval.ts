@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server';
+import { serverMessage } from '@/lib/i18n/server';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -11,7 +12,7 @@ function formatStudentName(student: JsonRecord | null | undefined) {
   const profile = student?.profiles as JsonRecord | undefined;
   const prefix = typeof profile?.prefix === 'string' ? profile.prefix : '';
   const fullName = typeof profile?.full_name === 'string' ? profile.full_name : '';
-  return `${prefix}${fullName}`.trim() || 'นักเรียน';
+  return `${prefix}${fullName}`.trim() || undefined;
 }
 
 function metadataMatches(metadata: unknown, transactionId: string) {
@@ -62,9 +63,29 @@ export async function notifyScoreApprovalPending(input: {
 
     const student = enrollment?.students as JsonRecord | undefined;
     const classroom = enrollment?.classrooms as JsonRecord | undefined;
-    const studentName = formatStudentName(student);
+    const studentName = formatStudentName(student) ?? await serverMessage('notifications.studentNameUnavailable');
     const studentNumber = typeof student?.student_id_number === 'string' ? student.student_id_number : '';
     const classroomName = typeof classroom?.name === 'string' ? classroom.name : '';
+    const studentDescriptor = studentNumber
+      ? await serverMessage('notifications.studentWithNumber', { student: studentName, studentNumber })
+      : studentName;
+    const classroomDescriptor = classroomName
+      ? await serverMessage('notifications.classroomSuffix', { classroom: classroomName })
+      : '';
+    const pointDirection = input.points < 0
+      ? await serverMessage('notifications.pointsDeducted')
+      : await serverMessage('notifications.pointsAdded');
+    const categoryDescriptor = input.categoryName
+      ? await serverMessage('notifications.categorySuffix', { category: input.categoryName })
+      : '';
+    const title = await serverMessage('notifications.scoreApprovalPendingTitle');
+    const body = await serverMessage('notifications.scoreApprovalPendingBody', {
+      student: studentDescriptor,
+      classroom: classroomDescriptor,
+      direction: pointDirection,
+      points: Math.abs(input.points),
+      category: categoryDescriptor,
+    });
 
     const rows = recipientIds
       .filter((recipientId) => !(existing || []).some((notification) => (
@@ -74,8 +95,8 @@ export async function notifyScoreApprovalPending(input: {
       .map((recipientId) => ({
         recipient_id: recipientId,
         type: 'score_approval_pending',
-        title: 'มีคะแนนรออนุมัติ',
-        body: `${studentName}${studentNumber ? ` (${studentNumber})` : ''}${classroomName ? ` ห้อง ${classroomName}` : ''} ${input.points < 0 ? 'ถูกหัก' : 'ได้รับเพิ่ม'} ${Math.abs(input.points)} คะแนน${input.categoryName ? `: ${input.categoryName}` : ''}`,
+        title,
+        body,
         resource_type: 'score_transaction',
         resource_id: input.transactionId,
         metadata: {

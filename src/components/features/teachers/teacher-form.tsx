@@ -1,10 +1,11 @@
 'use client';
 
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
-import { ImageIcon, Loader2, ShieldCheck, Upload, X, User, Briefcase, Mail, Phone, Hash } from 'lucide-react';
+import { ImageIcon, Loader2, ShieldCheck, Upload, X, Briefcase, Mail, Phone, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,8 @@ import { teacherPrefixEnum, teacherSchema, type TeacherInput } from '@/lib/valid
 import { getTeacherPositions, type TeacherPositionItem } from '@/lib/actions/teacher-position.action';
 import { normalizePhoneInput } from '@/lib/phone';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+import { DEFAULT_TEACHER_POSITION, DEFAULT_TEACHER_PREFIX } from '@/lib/domain/person';
 
 interface TeacherFormProps {
   defaultValues?: Partial<TeacherInput>;
@@ -32,20 +35,20 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<z.input<typeof teacherSchema>, unknown, TeacherInput>({
     resolver: zodResolver(teacherSchema),
     defaultValues: defaultValues || {
-      prefix: 'นาย',
+      prefix: DEFAULT_TEACHER_PREFIX,
       first_name: '',
       last_name: '',
       email: '',
       phone: '',
       employee_id: '',
       department: '',
-      position: 'ครู',
+      position: DEFAULT_TEACHER_POSITION,
       system_role: 'teacher',
     },
   });
-  const prefixValue = watch('prefix') || 'นาย';
+  const prefixValue = watch('prefix') || DEFAULT_TEACHER_PREFIX;
   const systemRole = watch('system_role') || (watch('is_admin') ? 'admin' : 'teacher');
-  const positionValue = watch('position') || 'ครู';
+  const positionValue = watch('position') || DEFAULT_TEACHER_POSITION;
   const phoneValue = watch('phone') || '';
   const positionOptions = useMemo(() => {
     if (!positionValue || positions.some((item) => item.name === positionValue)) return positions;
@@ -71,7 +74,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
     event.target.value = '';
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      alert(settingsT('logoFileTooLarge'));
+      toast(settingsT('logoFileTooLarge'));
       return;
     }
 
@@ -85,23 +88,25 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
       const result = await res.json();
       if (res.ok && result.url) {
         setAvatarUrl(result.url);
+      } else if (result.error) {
+        toast(result.error);
       } else {
-        alert(result.error || teacherT('uploadFailed'));
+        toast(teacherT('uploadFailed'));
       }
     } catch {
-      alert(teacherT('uploadError'));
+      toast(teacherT('uploadError'));
     } finally {
       setUploadingAvatar(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit((data) => onSubmit({ ...data, avatar_url: avatarUrl || undefined }))} className="space-y-6">
+    <form onSubmit={handleSubmit((data) => onSubmit({ ...data, avatar_url: avatarUrl || undefined }))} className="space-y-5 sm:space-y-6">
       {/* Avatar — centered */}
       <div className="flex flex-col items-center gap-3">
         {avatarUrl ? (
           <div className="relative">
-            <img src={avatarUrl} alt="" className="size-20 rounded-full border-2 border-border object-cover shadow-sm" />
+            <Image src={avatarUrl} alt={teacherT('profilePhoto')} width={80} height={80} unoptimized className="size-20 rounded-full border-2 border-border object-cover shadow-sm" />
             <button
               type="button"
               className="absolute -right-1 -top-1 rounded-full bg-destructive p-1 text-destructive-foreground shadow"
@@ -130,7 +135,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
       {/* ชื่อ-นามสกุล */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">{teacherT('fullNameRequired')}</Label>
-        <div className="grid gap-2 sm:grid-cols-[100px_1fr_1fr]">
+        <div className="grid gap-2 md:grid-cols-[100px_minmax(0,1fr)_minmax(0,1fr)]">
           <Select
             value={prefixValue}
             onValueChange={(v) => v && setValue('prefix', v as TeacherInput['prefix'])}
@@ -156,8 +161,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
         </div>
       </div>
 
-      {/* ตำแหน่ง + แผนก */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm">
             <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
@@ -186,7 +190,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
       </div>
 
       {/* อีเมล + เบอร์โทร */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="email" className="flex items-center gap-1.5 text-sm">
             <Mail className="h-3.5 w-3.5 text-muted-foreground" />
@@ -227,7 +231,6 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
 
       <Separator />
 
-      {/* สิทธิ์ในระบบ */}
       <div className="space-y-2">
         <Label className="flex items-center gap-1.5 text-sm">
           <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
@@ -242,7 +245,7 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
           }}
           itemToStringLabel={(value) => {
             const labels: Record<string, string> = { teacher: teacherT('teacher'), admin: teacherT('admin'), superadmin: teacherT('superadmin') };
-            return labels[String(value)] || String(value);
+            return labels[String(value)] || '';
           }}
         >
           <SelectTrigger className="!h-10 w-full">
@@ -252,19 +255,19 @@ export function TeacherForm({ defaultValues, onSubmit, onCancel }: TeacherFormPr
             <SelectItem value="teacher" label={teacherT('teacher')}>
               <div className="flex flex-col">
                 <span>{teacherT('teacher')}</span>
-                <span className="text-xs text-muted-foreground">บันทึกคะแนน</span>
+                <span className="text-xs text-muted-foreground">{teacherT('teacherRoleDescription')}</span>
               </div>
             </SelectItem>
             <SelectItem value="admin" label={teacherT('admin')}>
               <div className="flex flex-col">
                 <span>{teacherT('admin')}</span>
-                <span className="text-xs text-muted-foreground">อนุมัติคะแนน, นำเข้าข้อมูล</span>
+                <span className="text-xs text-muted-foreground">{teacherT('adminRoleDescription')}</span>
               </div>
             </SelectItem>
             <SelectItem value="superadmin" label={teacherT('superadmin')}>
               <div className="flex flex-col">
                 <span>{teacherT('superadmin')}</span>
-                <span className="text-xs text-muted-foreground">ตั้งค่าระบบ, จัดการทุกอย่าง</span>
+                <span className="text-xs text-muted-foreground">{teacherT('superadminRoleDescription')}</span>
               </div>
             </SelectItem>
           </SelectContent>

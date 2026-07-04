@@ -190,8 +190,8 @@ export async function POST(request: Request) {
       });
       const message = isInvalidCredentials
         ? apiMessage(request, 'invalidLoginCredentials')
-        : error.message || apiMessage(request, 'genericTryAgain');
-      return NextResponse.json({ error: message, details: error.message }, { status: 401 });
+        : apiMessage(request, 'genericTryAgain');
+      return NextResponse.json({ error: message }, { status: 401 });
     }
 
     if (!data.session) {

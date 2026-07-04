@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Save, ArrowLeft, Lock, User as UserIcon, ImageIcon, Loader2, Upload } from 'lucide-react';
@@ -11,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
 import { getCurrentUserRole, changeProfileName } from '@/lib/actions/dashboard.action';
 import Link from 'next/link';
-import { displayRole, hasAnyRole } from '@/lib/security/roles';
+import { hasAnyRole } from '@/lib/security/roles';
 import { useTranslations } from 'next-intl';
 import { getMyTeacherProfile, updateMyTeacherProfile } from '@/lib/actions/teacher.action';
 import type { TeacherWithProfile } from '@/lib/db/queries/teacher.queries';
@@ -40,6 +41,14 @@ export default function ProfilePage() {
   const [department, setDepartment] = useState('');
   const [position, setPosition] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const profileRoles = Array.isArray(profile.role) ? profile.role : profile.role ? [profile.role] : [];
+  const roleLabelByCode: Record<string, string> = {
+    superadmin: teacherT('superadminRole'),
+    admin: teacherT('adminRole'),
+    teacher: teacherT('teacherRole'),
+    student: teacherT('studentRole'),
+  };
+  const profileRoleLabel = profileRoles.map((roleCode) => roleLabelByCode[roleCode]).filter(Boolean).join(', ');
   const canUploadAvatar = hasAnyRole(profile, ['admin', 'superadmin']);
 
   useEffect(() => {
@@ -122,7 +131,11 @@ export default function ProfilePage() {
       const uploadRes = await fetch('/api/upload/avatar', { method: 'POST', body: formData });
       const upload = await uploadRes.json();
       if (!uploadRes.ok || !upload.url) {
-        toast(upload.error || teacherT('uploadFailed'));
+        if (upload.error) {
+          toast(upload.error);
+        } else {
+          toast(teacherT('uploadFailed'));
+        }
         return;
       }
 
@@ -177,7 +190,7 @@ export default function ProfilePage() {
             {teacherProfile && (
               <div className="flex items-center gap-4 rounded-lg border p-4">
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt={teacherT('profilePhoto')} className="size-20 rounded-full border object-cover" />
+                  <Image src={avatarUrl} alt={teacherT('profilePhoto')} width={80} height={80} unoptimized className="size-20 rounded-full border object-cover" />
                 ) : (
                   <div className="flex size-20 items-center justify-center rounded-full border border-dashed text-muted-foreground">
                     <ImageIcon className="size-7" />
@@ -212,7 +225,7 @@ export default function ProfilePage() {
             <div className="space-y-2">
               <Label>{settingsT('role')}</Label>
               <Input
-                value={displayRole(profile.role)}
+                value={profileRoleLabel}
                 disabled
                 className="bg-muted"
               />

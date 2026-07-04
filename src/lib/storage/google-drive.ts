@@ -25,6 +25,11 @@ type GoogleDriveConfig = {
 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GOOGLE_DRIVE_CONFIG_FAILED = 'GOOGLE_DRIVE_CONFIG_FAILED';
+const GOOGLE_DRIVE_AUTH_FAILED = 'GOOGLE_DRIVE_AUTH_FAILED';
+const GOOGLE_DRIVE_NOT_CONFIGURED = 'GOOGLE_DRIVE_NOT_CONFIGURED';
+const GOOGLE_DRIVE_PERMISSION_FAILED = 'GOOGLE_DRIVE_PERMISSION_FAILED';
+const GOOGLE_DRIVE_UPLOAD_FAILED = 'GOOGLE_DRIVE_UPLOAD_FAILED';
 
 function base64Url(input: string | Buffer) {
   return Buffer.from(input).toString('base64url');
@@ -68,7 +73,8 @@ export async function getGoogleDriveConfig(client: unknown): Promise<GoogleDrive
     .in('key', keys);
 
   if (error) {
-    throw new Error(`โหลดการตั้งค่า Google Drive ไม่สำเร็จ: ${error.message}`);
+    console.error('[Google Drive] Failed to load settings:', error);
+    throw new Error(GOOGLE_DRIVE_CONFIG_FAILED);
   }
 
   const settings = settingMap(data);
@@ -111,19 +117,20 @@ async function getAccessToken(config: GoogleDriveConfig) {
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`Google Drive auth failed: ${detail}`);
+    console.error('[Google Drive] Auth failed:', detail);
+    throw new Error(GOOGLE_DRIVE_AUTH_FAILED);
   }
 
   const data = await response.json() as { access_token?: string };
   if (!data.access_token) {
-    throw new Error('Google Drive auth failed: missing access token');
+    throw new Error(GOOGLE_DRIVE_AUTH_FAILED);
   }
   return data.access_token;
 }
 
 export async function testGoogleDriveConnection(config: GoogleDriveConfig) {
   if (!isGoogleDriveReady(config, 'profile') || !isGoogleDriveReady(config, 'evidence')) {
-    throw new Error('ยังไม่ได้ตั้งค่า Google Drive ให้ครบถ้วน');
+    throw new Error(GOOGLE_DRIVE_NOT_CONFIGURED);
   }
   await getAccessToken(config);
   return { success: true };
@@ -141,7 +148,8 @@ async function makeFilePublic(fileId: string, accessToken: string) {
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`Google Drive permission failed: ${detail}`);
+    console.error('[Google Drive] Permission failed:', detail);
+    throw new Error(GOOGLE_DRIVE_PERMISSION_FAILED);
   }
 }
 
@@ -153,7 +161,7 @@ export async function uploadFileToGoogleDrive(
 ): Promise<GoogleDriveUploadResult> {
   const folderId = target === 'profile' ? config.profileFolderId : config.evidenceFolderId;
   if (!isGoogleDriveReady(config, target)) {
-    throw new Error('ยังไม่ได้ตั้งค่า Google Drive ให้ครบถ้วน');
+    throw new Error(GOOGLE_DRIVE_NOT_CONFIGURED);
   }
 
   const accessToken = await getAccessToken(config);
@@ -182,7 +190,8 @@ export async function uploadFileToGoogleDrive(
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`Google Drive upload failed: ${detail}`);
+    console.error('[Google Drive] Upload failed:', detail);
+    throw new Error(GOOGLE_DRIVE_UPLOAD_FAILED);
   }
 
   const result = await response.json() as Omit<GoogleDriveUploadResult, 'publicUrl'>;

@@ -66,7 +66,7 @@ export default function SchoolStatisticsPage() {
   const commonT = useTranslations('common');
   const selectedAcademicYearId = useSelectedAcademicYearId();
   const [data, setData] = useState<SchoolStatisticsReportData | null>(null);
-  const [academicYearId, setAcademicYearId] = useState<string>(selectedAcademicYearId ?? '');
+  const [academicYearId, setAcademicYearId] = useState<string>(selectedAcademicYearId || '');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -142,7 +142,7 @@ export default function SchoolStatisticsPage() {
             />
           </div>
           <p className="text-muted-foreground mt-1">
-            {reportT('statisticsForYear', { year: data.academic_year ?? '' })}
+            {data.academic_year && reportT('statisticsForYear', { year: data.academic_year })}
           </p>
         </div>
         <Select
@@ -152,8 +152,7 @@ export default function SchoolStatisticsPage() {
           }}
           itemToStringLabel={(value) => {
             const year = data.academic_years.find((item) => item.id === value);
-            if (!year) return String(value ?? '');
-            return `${year.name}${year.is_current ? ` ${reportT('currentYearBadge')}` : ''}`;
+            return year ? `${year.name}${year.is_current ? ` ${reportT('currentYearBadge')}` : ''}` : '';
           }}
         >
           <SelectTrigger className="w-full md:w-[220px]">
@@ -186,7 +185,7 @@ export default function SchoolStatisticsPage() {
               <PieChart>
                 <Pie data={distributionData} dataKey="count" nameKey="label" outerRadius={95} label>
                   {distributionData.map((entry) => (
-                    <Cell key={entry.name} fill={distributionColors[entry.name] || '#64748b'} />
+                    <Cell key={entry.name} fill={distributionColors[entry.name] ?? '#64748b'} />
                   ))}
                 </Pie>
                 <Tooltip />

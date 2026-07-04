@@ -14,6 +14,7 @@ const folderByTarget: Record<BlobUploadTarget, string> = {
   profile: 'profiles',
   evidence: 'evidence',
 };
+const BLOB_NOT_CONFIGURED = 'BLOB_NOT_CONFIGURED';
 
 export function isVercelBlobReady() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
@@ -30,7 +31,7 @@ function accessForTarget(target: BlobUploadTarget): 'public' | 'private' {
 
 export async function uploadFileToVercelBlob(target: BlobUploadTarget, file: File, fileName: string): Promise<BlobUploadResult> {
   if (!isVercelBlobReady()) {
-    throw new Error('ยังไม่ได้ตั้งค่า Vercel Blob token');
+    throw new Error(BLOB_NOT_CONFIGURED);
   }
 
   const pathname = `${folderByTarget[target]}/${fileName}`;
@@ -52,7 +53,7 @@ export async function uploadFileToVercelBlob(target: BlobUploadTarget, file: Fil
 
 export async function deleteVercelBlob(pathnameOrUrl: string) {
   if (!isVercelBlobReady()) {
-    throw new Error('ยังไม่ได้ตั้งค่า Vercel Blob token');
+    throw new Error(BLOB_NOT_CONFIGURED);
   }
   await del(pathnameOrUrl);
 }

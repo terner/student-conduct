@@ -26,7 +26,7 @@ interface NavItem {
   label: string
   icon: LucideIcon
   href: string
-  group: 'main' | 'alert'
+  group: 'main'
   roles?: ('superadmin' | 'admin' | 'teacher' | 'student')[]
 }
 
@@ -79,7 +79,7 @@ export function AppSidebar({ schoolName, schoolLogo, role, firstName, lastName, 
     return itemRoles.some(r => userRoles.includes(r))
   }
 
-  const allNavigation: (NavItem & { group: 'main' | 'alert' })[] = [
+  const allNavigation: NavItem[] = [
     { label: t('dashboard'), icon: LayoutDashboard, href: '/dashboard', roles: ['superadmin', 'admin'], group: 'main' },
     { label: t('students'), icon: Users, href: '/students', roles: ['superadmin'], group: 'main' },
     { label: t('classrooms'), icon: GraduationCap, href: '/classrooms', roles: ['superadmin', 'admin'], group: 'main' },
@@ -89,18 +89,16 @@ export function AppSidebar({ schoolName, schoolLogo, role, firstName, lastName, 
     { label: t('pendingApproval'), icon: CheckCircle2, href: '/score/approval', roles: ['superadmin', 'admin'], group: 'main' },
     { label: t('importData'), icon: Upload, href: '/settings/import', roles: ['superadmin', 'admin'], group: 'main' },
     { label: t('reports'), icon: FileText, href: '/reports', roles: ['superadmin', 'admin'], group: 'main' },
+    { label: t('threshold'), icon: AlertTriangle, href: '/reports/threshold', roles: ['superadmin', 'admin'], group: 'main' },
     { label: t('classroomReport'), icon: FileText, href: '/reports/classroom', roles: ['teacher'], group: 'main' },
     { label: t('teachers'), icon: BookOpen, href: '/teachers', roles: ['superadmin'], group: 'main' },
     { label: t('settings'), icon: Settings, href: '/settings', roles: ['superadmin', 'admin'], group: 'main' },
     { label: 'คู่มือ', icon: BookOpen, href: '/docs', roles: ['superadmin', 'admin'], group: 'main' },
     // Student
     { label: t('myScore'), icon: ClipboardPlus, href: '/student/dashboard', roles: ['student'], group: 'main' },
-    // Alert group
-    { label: t('threshold'), icon: AlertTriangle, href: '/reports/threshold', roles: ['superadmin', 'admin'], group: 'alert' },
   ]
 
   const mainNavItems = allNavigation.filter(i => i.group === 'main' && hasAccess(i.roles))
-  const alertNavItems = allNavigation.filter(i => i.group === 'alert' && hasAccess(i.roles))
   const disabledWhenYearClosed = new Set(['/settings/import', '/score/record'])
   const yearClosedTooltip = t('currentYearOnly')
 
@@ -149,28 +147,6 @@ export function AppSidebar({ schoolName, schoolLogo, role, firstName, lastName, 
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {alertNavItems.length > 0 && (
-        <SidebarGroup>
-          <SidebarGroupLabel>{t('alerts')}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {alertNavItems.map((item) => {
-                const Icon = item.icon
-                const isActive = pathname === item.href
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton render={<Link href={item.href} onClick={closeMobileSidebar} />} isActive={isActive} tooltip={item.label}>
-                      <Icon className="size-4" />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border/60 bg-sidebar p-3">

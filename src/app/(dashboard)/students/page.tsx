@@ -3,15 +3,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, Plus, Upload, Download } from 'lucide-react';
+import { Plus, Upload, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { StudentTable } from '@/components/features/students/student-table';
 import { StudentSearch } from '@/components/features/students/student-search';
 import { StudentForm, type SubmitResult } from '@/components/features/students/student-form';
 import { StudentDetailDialog } from '@/components/features/students/student-detail-dialog';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
 import { getStudents, getStudentScores, getStudentsForCsvExport, addStudent, editStudent, deleteStudent } from '@/lib/actions/student.action';
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
@@ -34,7 +34,7 @@ export default function StudentsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentWithProfile | null>(null);
   const [deletingStudent, setDeletingStudent] = useState<StudentWithProfile | null>(null);
-  const [actionError, setActionError] = useState<{ title: string; message: string } | null>(null);
+  const [actionError, setActionError] = useState<{ title: string; message?: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [searchParams, setSearchParams] = useState<Record<string, string>>({});
@@ -172,7 +172,7 @@ export default function StudentsPage() {
 
     setActionError({
       title: t('addFailedTitle'),
-      message: result.error?.message ?? '',
+      message: result.error?.message,
     });
   };
 
@@ -213,7 +213,7 @@ export default function StudentsPage() {
     setEditingStudent(null);
     setActionError({
       title: t('editFailedTitle'),
-      message: result.error?.message ?? '',
+      message: result.error?.message,
     });
   };
 
@@ -342,52 +342,6 @@ export default function StudentsPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = total === 0 ? 0 : (page - 1) * pageSize + students.length;
-  const pageSizeControl = (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">{t('rowsPerPage')}</span>
-      <Select
-        value={String(pageSize)}
-        onValueChange={handlePageSizeChange}
-        itemToStringLabel={(value) => value ? String(value) : ''}
-      >
-        <SelectTrigger className="!h-9 w-[72px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className="!min-w-[72px]">
-          {PAGE_SIZE_OPTIONS.map((option) => (
-            <SelectItem key={option} value={String(option)} label={String(option)}>
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-  const paginationControls = totalPages > 1 ? (
-    <div className="flex items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={page <= 1}
-        onClick={() => setPage(page - 1)}
-      >
-        <ChevronLeft className="h-4 w-4" />
-        {common('previous')}
-      </Button>
-      <span className="min-w-14 px-2 text-center text-sm text-muted-foreground">
-        {page} / {totalPages}
-      </span>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={page >= totalPages}
-        onClick={() => setPage(page + 1)}
-      >
-        {common('next')}
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  ) : null;
 
   useEffect(() => {
     if (page > totalPages) {
@@ -397,24 +351,24 @@ export default function StudentsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">{t('list')}</h1>
           <p className="text-muted-foreground mt-1">{t('manageDescription')}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportCSV} disabled={total === 0 || exporting}>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleExportCSV} disabled={total === 0 || exporting}>
             <Download className="mr-2 h-4 w-4" />
             {exporting ? t('exportingCsv') : t('exportCsv')}
           </Button>
           {selectedYearOpen && (
-            <Button variant="outline" nativeButton={false} render={<a href="/settings/import" />}>
+            <Button variant="outline" className="flex-1 sm:flex-none" nativeButton={false} render={<a href="/settings/import" />}>
               <Upload className="mr-2 h-4 w-4" />
               {t('importCsv')}
             </Button>
           )}
           {selectedYearOpen && (
-          <Button onClick={() => setShowAddForm(true)}>
+          <Button className="w-full sm:w-auto" onClick={() => setShowAddForm(true)}>
             <Plus className="mr-2 h-4 w-4" />
             {t('add')}
           </Button>
@@ -425,15 +379,18 @@ export default function StudentsPage() {
       <StudentSearch onSearch={handleSearch} />
 
       {!loading && total > 0 && (
-        <div className="flex min-h-10 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            {t('resultsSummary', { total, from, to })}
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            {pageSizeControl}
-            {paginationControls}
-          </div>
-        </div>
+        <TablePaginationToolbar
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          summary={t('resultsSummary', { total, from, to })}
+          onPageChange={setPage}
+          rowsPerPageLabel={t('rowsPerPage')}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageSizeChange={(nextPageSize) => {
+            handlePageSizeChange(String(nextPageSize));
+          }}
+        />
       )}
 
       <StudentTable
@@ -458,7 +415,7 @@ export default function StudentsPage() {
 
       {/* Add Student Dialog */}
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('addNew')}</DialogTitle>
             <DialogDescription>
@@ -474,7 +431,7 @@ export default function StudentsPage() {
 
       {/* Edit Student Dialog */}
       <Dialog open={!!editingStudent} onOpenChange={(open: boolean) => !open && setEditingStudent(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('edit')}</DialogTitle>
             <DialogDescription>
@@ -504,10 +461,10 @@ export default function StudentsPage() {
       </Dialog>
 
       <Dialog open={!!actionError} onOpenChange={(open: boolean) => !open && setActionError(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{actionError?.title}</DialogTitle>
-            <DialogDescription>{actionError?.message}</DialogDescription>
+            {actionError?.message && <DialogDescription>{actionError.message}</DialogDescription>}
           </DialogHeader>
           <DialogFooter>
             <Button onClick={() => setActionError(null)}>{t('acknowledge')}</Button>
@@ -517,17 +474,17 @@ export default function StudentsPage() {
 
       {/* Delete Confirmation */}
       <Dialog open={!!deletingStudent} onOpenChange={(open: boolean) => !open && setDeletingStudent(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
-            <DialogDescription>
-              {deletingStudent
-                ? t('deleteConfirmDescription', {
+            {deletingStudent && (
+              <DialogDescription>
+                {t('deleteConfirmDescription', {
                     name: `${deletingStudent.prefix}${deletingStudent.first_name} ${deletingStudent.last_name}`,
                     id: deletingStudent.student_id_number,
-                  })
-                : ''}
-            </DialogDescription>
+                  })}
+              </DialogDescription>
+            )}
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setDeletingStudent(null)}>{common('cancel')}</Button>

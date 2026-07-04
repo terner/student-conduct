@@ -4,11 +4,12 @@ import Image from 'next/image';
 import { useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, UserCheck, Ban, Loader2, ArrowUpRight, type LucideProps } from 'lucide-react';
+import { XCircle, CheckCircle, Clock, Eye, User, BookOpen, Hash, Calendar, UserCheck, Ban, Loader2, ArrowUpRight, type LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
 import { compareNullableNumber, compareNullableText, statusLabel, textOrEmpty } from '@/components/ui/table-helpers';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
@@ -45,6 +46,11 @@ interface ScoreTransactionTableProps {
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
+  paginationSummary?: string;
+  rowsPerPageLabel?: string;
+  pageSizeOptions?: readonly number[];
+  showPaginationToolbar?: boolean;
   onVoid?: (transactionId: string, reason: string) => Promise<void>;
   onApprove?: (transactionId: string) => Promise<void>;
   showActions?: boolean;
@@ -72,7 +78,9 @@ function compareTransactions(a: ScoreTransactionWithDetails, b: ScoreTransaction
 
 export function ScoreTransactionTable({
   data, loading, total, page = 1, pageSize = 50,
-  onPageChange, onVoid, onApprove, showActions = true, showStudentProfileLink = false,
+  onPageChange, onPageSizeChange, paginationSummary, rowsPerPageLabel, pageSizeOptions,
+  showPaginationToolbar = true,
+  onVoid, onApprove, showActions = true, showStudentProfileLink = false,
 }: ScoreTransactionTableProps) {
   const scoreT = useTranslations('score');
   const commonT = useTranslations('common');
@@ -127,7 +135,9 @@ export function ScoreTransactionTable({
     );
   }
 
-  const totalPages = total ? Math.ceil(total / pageSize) : 1;
+  const currentTotal = total ?? data.length;
+  const from = currentTotal === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = currentTotal === 0 ? 0 : Math.min(page * pageSize, currentTotal);
 
   const handleVoid = async () => {
     if (!voidReason.trim()) return;
@@ -145,6 +155,19 @@ export function ScoreTransactionTable({
 
   return (
     <div className="space-y-4">
+      {showPaginationToolbar && onPageChange ? (
+        <TablePaginationToolbar
+          page={page}
+          pageSize={pageSize}
+          total={currentTotal}
+          summary={paginationSummary ?? commonT('paginationSummary', { start: from, end: to, total: currentTotal })}
+          onPageChange={onPageChange}
+          rowsPerPageLabel={rowsPerPageLabel ?? commonT('rowsPerPage')}
+          pageSizeOptions={onPageSizeChange ? (pageSizeOptions ?? [10, 20, 50, 100]) : undefined}
+          onPageSizeChange={onPageSizeChange}
+        />
+      ) : null}
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -191,7 +214,7 @@ export function ScoreTransactionTable({
                     </span>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
-                    {t.note ?? ''}
+                    {t.note && <span>{t.note}</span>}
                   </TableCell>
                   <TableCell className="text-xs">{textOrEmpty(t.recorded_by_name)}</TableCell>
                   <TableCell>
@@ -243,18 +266,6 @@ export function ScoreTransactionTable({
           </TableBody>
         </Table>
       </div>
-
-      {totalPages > 1 && onPageChange && (
-        <div className="flex items-center justify-center gap-2 py-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-            <ChevronLeft className="h-4 w-4" />{commonT('previous')}
-          </Button>
-          <span className="text-sm text-muted-foreground px-2">{page} / {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-            {commonT('next')}<ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
 
       <Dialog open={voidDialog.open} onOpenChange={(open) => setVoidDialog({ ...voidDialog, open })}>
         <DialogContent className="sm:max-w-md">
@@ -325,7 +336,7 @@ export function ScoreTransactionTable({
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-muted-foreground">{scoreT('points')}</p>
                   <Badge variant="outline" className={detailStatus?.color ?? ''}>
-                    {detailStatus?.labelKey ? scoreT(detailStatus.labelKey) : ''}
+                    {detailStatus?.labelKey && scoreT(detailStatus.labelKey)}
                   </Badge>
                 </div>
                 <p className={`text-2xl font-bold tabular-nums ${detailPoints > 0 ? 'text-green-600' : 'text-destructive'}`}>
@@ -451,21 +462,25 @@ export function ScoreTransactionTable({
 }
 
 function InfoLine({ icon, label, value, mono }: { icon: React.ReactNode; label: string; value?: string | null; mono?: boolean }) {
+  if (!value) return null;
+
   return (
     <div className="flex items-center gap-1.5">
       <span className="shrink-0 text-muted-foreground">{icon}</span>
       <span className="text-muted-foreground shrink-0">{label}:</span>
-      <span className={`truncate ${mono ? 'font-mono' : ''}`}>{value ?? ''}</span>
+      <span className={`truncate ${mono ? 'font-mono' : ''}`}>{value}</span>
     </div>
   );
 }
 
 function TimelineEntry({ icon, label, who, when }: { icon: React.ReactNode; label: string; who?: string | null; when?: string | null }) {
+  if (!who) return null;
+
   return (
     <div className="flex items-center gap-1.5">
       {icon}
       <span className="shrink-0">{label}:</span>
-      <span className="font-medium">{who ?? ''}</span>
+      <span className="font-medium">{who}</span>
       {when && <span className="opacity-60 text-[11px]">{new Date(when).toLocaleString()}</span>}
     </div>
   );

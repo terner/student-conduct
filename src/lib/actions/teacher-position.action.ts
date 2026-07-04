@@ -3,8 +3,8 @@
 import { withAuth } from '@/lib/server-action';
 import { canManageSchoolData } from '@/lib/security/roles';
 import { createClient } from '@/lib/supabase/server';
+import { serverApiMessage } from '@/lib/i18n/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
-import { serverMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -34,7 +34,7 @@ export async function getTeacherPositions(options: { includeInactive?: boolean }
     }
 
     const { data, error } = await query;
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     const positions = (data || []) as TeacherPositionItem[];
     await setTtlCache(cacheKey, positions, MASTER_DATA_TTL_MS);
     return { success: true, data: positions };
@@ -44,11 +44,11 @@ export async function getTeacherPositions(options: { includeInactive?: boolean }
 export async function addTeacherPosition(data: { name: string; sort_order: number }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
     const name = data.name.trim();
     if (!name) {
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverMessage('apiErrors.teacherPositionNameRequired') } };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverApiMessage('teacherPositionRequired') } };
     }
 
     const supabase = await createClient();
@@ -57,7 +57,7 @@ export async function addTeacherPosition(data: { name: string; sort_order: numbe
       sort_order: data.sort_order || 100,
       is_active: true,
     });
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('teacher-positions:');
     return { success: true, data: null };
   });
@@ -70,7 +70,7 @@ export async function updateTeacherPosition(id: string, data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const updateData: Record<string, unknown> = {};
@@ -81,7 +81,7 @@ export async function updateTeacherPosition(id: string, data: {
 
     const supabase = await createClient();
     const { error } = await supabase.from('teacher_positions').update(updateData).eq('id', id);
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('teacher-positions:');
     return { success: true, data: null };
   });
@@ -90,7 +90,7 @@ export async function updateTeacherPosition(id: string, data: {
 export async function deleteTeacherPosition(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const supabase = await createClient();
@@ -110,14 +110,14 @@ export async function deleteTeacherPosition(id: string) {
           .from('teacher_positions')
           .update({ is_active: false, updated_at: new Date().toISOString() })
           .eq('id', id);
-        if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+        if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
         await clearTtlCacheByPrefix('teacher-positions:');
         return { success: true, data: { deactivated: true, used_count: count } };
       }
     }
 
     const { error } = await supabase.from('teacher_positions').delete().eq('id', id);
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('teacher-positions:');
     return { success: true, data: { deactivated: false, used_count: 0 } };
   });

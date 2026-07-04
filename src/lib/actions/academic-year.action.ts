@@ -5,7 +5,7 @@ import { canManageSchoolData } from '@/lib/security/roles';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
 import { buildPromotionEnrollmentRows, type PromotionSourceEnrollment } from '@/lib/academic-year/rollover';
-import { serverMessage } from '@/lib/i18n/server';
+import { serverApiMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -30,7 +30,7 @@ export async function getAcademicYears(options: { bypassCache?: boolean } = {}) 
       .select('id, name, start_date, end_date, is_current, base_score')
       .order('name', { ascending: false });
 
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
     const years = (data || []).map((year) => ({
       id: year.id as string,
@@ -54,12 +54,12 @@ export async function addAcademicYear(input: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const name = input.name.trim();
     if (!name) {
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverMessage('apiErrors.academicYearNameRequired') } };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverApiMessage('academicYearRequired') } };
     }
 
     const supabase = await createClient();
@@ -71,7 +71,7 @@ export async function addAcademicYear(input: {
       is_current: false,
     });
 
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('academic-years:');
     return { success: true, data: null };
   });
@@ -85,12 +85,12 @@ export async function updateAcademicYear(id: string, input: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const name = input.name.trim();
     if (!name) {
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverMessage('apiErrors.academicYearNameRequired') } };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverApiMessage('academicYearRequired') } };
     }
 
     const supabase = await createClient();
@@ -104,17 +104,16 @@ export async function updateAcademicYear(id: string, input: {
       })
       .eq('id', id);
 
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('academic-years:');
     return { success: true, data: null };
   });
 }
 
-async function nextAcademicYearName(name: string) {
+function nextAcademicYearName(name: string) {
   const numeric = Number(name);
   if (Number.isInteger(numeric)) return String(numeric + 1);
-  const suffix = await serverMessage('apiErrors.nextYearSuffix');
-  return `${name} ${suffix}`;
+  return `${name} ใหม่`;
 }
 
 function addOneYear(date: string | null) {
@@ -153,7 +152,7 @@ function classroomKey(classroom: {
 export async function createNextAcademicYearFromCurrent() {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const supabase = await createAdminClient();
@@ -163,13 +162,13 @@ export async function createNextAcademicYearFromCurrent() {
       .eq('is_current', true)
       .maybeSingle();
 
-    if (sourceError) return { success: false, error: { code: 'DB_ERROR', message: sourceError.message } };
+    if (sourceError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     if (!sourceYear?.id) {
-      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: await serverMessage('apiErrors.noCurrentAcademicYear') } };
+      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: await serverApiMessage('noCurrentAcademicYear') } };
     }
 
     if (!sourceYear.end_date) {
-      return { success: false, error: { code: 'MISSING_END_DATE', message: await serverMessage('apiErrors.missingCurrentYearEndDate') } };
+      return { success: false, error: { code: 'MISSING_END_DATE', message: await serverApiMessage('missingCurrentYearEndDate') } };
     }
 
     const today = todayInBangkok();
@@ -178,12 +177,15 @@ export async function createNextAcademicYearFromCurrent() {
         success: false,
         error: {
           code: 'CURRENT_YEAR_NOT_ENDED',
-          message: await serverMessage('apiErrors.currentYearNotEnded', { name: String(sourceYear.name), date: sourceYear.end_date }),
+          message: await serverApiMessage('currentYearNotEnded', {
+            year: String(sourceYear.name),
+            date: String(sourceYear.end_date),
+          }),
         },
       };
     }
 
-    const nextName = await nextAcademicYearName(String(sourceYear.name));
+    const nextName = nextAcademicYearName(String(sourceYear.name));
     const targetYearResult = await supabase
       .from('academic_years')
       .select('id, name')
@@ -192,7 +194,7 @@ export async function createNextAcademicYearFromCurrent() {
     let targetYear = targetYearResult.data;
     const targetError = targetYearResult.error;
 
-    if (targetError) return { success: false, error: { code: 'DB_ERROR', message: targetError.message } };
+    if (targetError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
     let createdYear = false;
     if (!targetYear?.id) {
@@ -208,7 +210,7 @@ export async function createNextAcademicYearFromCurrent() {
         .select('id, name')
         .single();
 
-      if (insertYearError) return { success: false, error: { code: 'DB_ERROR', message: insertYearError.message } };
+      if (insertYearError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
       targetYear = insertedYear;
       createdYear = true;
     }
@@ -219,13 +221,13 @@ export async function createNextAcademicYearFromCurrent() {
       .from('classrooms')
       .select('id, name, grade_level, education_stage_id, grade_level_id')
       .eq('academic_year_id', sourceYear.id);
-    if (sourceClassroomError) return { success: false, error: { code: 'DB_ERROR', message: sourceClassroomError.message } };
+    if (sourceClassroomError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
     const { data: targetClassrooms, error: targetClassroomError } = await supabase
       .from('classrooms')
       .select('id, name, grade_level, education_stage_id, grade_level_id')
       .eq('academic_year_id', targetYearId);
-    if (targetClassroomError) return { success: false, error: { code: 'DB_ERROR', message: targetClassroomError.message } };
+    if (targetClassroomError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
     const targetByKey = new Map((targetClassrooms || []).map((classroom) => [classroomKey(classroom), classroom]));
     const missingClassrooms = (sourceClassrooms || [])
@@ -243,7 +245,7 @@ export async function createNextAcademicYearFromCurrent() {
       const { error: insertClassroomError } = await supabase
         .from('classrooms')
         .insert(missingClassrooms);
-      if (insertClassroomError) return { success: false, error: { code: 'DB_ERROR', message: insertClassroomError.message } };
+      if (insertClassroomError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
       createdClassrooms = missingClassrooms.length;
     }
 
@@ -251,7 +253,7 @@ export async function createNextAcademicYearFromCurrent() {
       .from('classrooms')
       .select('id, name, grade_level, education_stage_id, grade_level_id')
       .eq('academic_year_id', targetYearId);
-    if (refreshClassroomError) return { success: false, error: { code: 'DB_ERROR', message: refreshClassroomError.message } };
+    if (refreshClassroomError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
     const refreshedTargetByKey = new Map((refreshedTargetClassrooms || []).map((classroom) => [classroomKey(classroom), classroom]));
     const sourceToTargetClassroomId = new Map<string, string>();
@@ -267,14 +269,14 @@ export async function createNextAcademicYearFromCurrent() {
         .from('teacher_classrooms')
         .select('teacher_id, classroom_id, assignment_role, assigned_by')
         .in('classroom_id', sourceClassroomIds);
-      if (assignmentError) return { success: false, error: { code: 'DB_ERROR', message: assignmentError.message } };
+      if (assignmentError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
       const targetClassroomIds = Array.from(sourceToTargetClassroomId.values());
       const { data: targetAssignments, error: targetAssignmentError } = await supabase
         .from('teacher_classrooms')
         .select('teacher_id, classroom_id, assignment_role')
         .in('classroom_id', targetClassroomIds);
-      if (targetAssignmentError) return { success: false, error: { code: 'DB_ERROR', message: targetAssignmentError.message } };
+      if (targetAssignmentError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
       const existingAssignments = new Set((targetAssignments || []).map((assignment) => [
         assignment.teacher_id,
@@ -298,7 +300,7 @@ export async function createNextAcademicYearFromCurrent() {
         const { error: insertAssignmentError } = await supabase
           .from('teacher_classrooms')
           .insert(assignmentsToInsert);
-        if (insertAssignmentError) return { success: false, error: { code: 'DB_ERROR', message: insertAssignmentError.message } };
+        if (insertAssignmentError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
         createdAssignments = assignmentsToInsert.length;
       }
     }
@@ -308,7 +310,7 @@ export async function createNextAcademicYearFromCurrent() {
       .select('id, student_id, classroom_id, class_number, enrollment_status')
       .eq('academic_year_id', sourceYear.id)
       .in('enrollment_status', ['active', 'repeated']);
-    if (sourceEnrollmentError) return { success: false, error: { code: 'DB_ERROR', message: sourceEnrollmentError.message } };
+    if (sourceEnrollmentError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
     const sourceStudentIds = (sourceEnrollments || [])
       .map((enrollment) => enrollment.student_id as string | null)
@@ -320,7 +322,7 @@ export async function createNextAcademicYearFromCurrent() {
         .from('student_enrollments')
         .select('student_id, classroom_id, class_number')
         .eq('academic_year_id', targetYearId);
-      if (targetEnrollmentError) return { success: false, error: { code: 'DB_ERROR', message: targetEnrollmentError.message } };
+      if (targetEnrollmentError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
       const existingTargetStudentIds = new Set((targetEnrollments || []).map((enrollment) => enrollment.student_id as string));
       const existingTargetClassNumbers = new Set((targetEnrollments || [])
@@ -338,7 +340,7 @@ export async function createNextAcademicYearFromCurrent() {
         const { error: insertEnrollmentError } = await supabase
           .from('student_enrollments')
           .insert(enrollmentsToInsert);
-        if (insertEnrollmentError) return { success: false, error: { code: 'DB_ERROR', message: insertEnrollmentError.message } };
+        if (insertEnrollmentError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
         createdEnrollments = enrollmentsToInsert.length;
 
         for (const enrollment of enrollmentsToInsert) {
@@ -357,13 +359,13 @@ export async function createNextAcademicYearFromCurrent() {
       .from('academic_years')
       .update({ is_current: true })
       .eq('id', targetYearId);
-    if (activateError) return { success: false, error: { code: 'DB_ERROR', message: activateError.message } };
+    if (activateError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
     const { error: deactivateError } = await supabase
       .from('academic_years')
       .update({ is_current: false })
       .neq('id', targetYearId);
-    if (deactivateError) return { success: false, error: { code: 'DB_ERROR', message: deactivateError.message } };
+    if (deactivateError) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
     await clearTtlCacheByPrefix('academic-years:');
     await clearTtlCacheByPrefix('classrooms:');

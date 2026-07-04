@@ -30,3 +30,17 @@ This version has breaking changes — APIs, conventions, and file structure may 
   - `src/components/ui/table-helpers.ts` for nullable text, score display, joins, status lookup, and compare helpers.
 - Do not render fallback literals in cells (`'-'`, `'N/A'`, raw status codes, or inline translated strings). Empty optional data should be rendered through helper policy.
 - Shared data tables should support column sorting unless the table is a static sample/preview table or the data order is intentionally fixed by the domain.
+
+## Documentation Workflow Rules
+
+- Keep `design.md` for design system decisions, canonical UI patterns, shared layout rules, and cross-screen behavior standards only.
+- Do not write implementation backlog, audit checklists, or page-specific pending work into `design.md`.
+- Keep `tasklist.md` for task backlog only:
+  - pending work
+  - audit findings that require follow-up
+  - implementation sequencing
+  - page-specific cleanup lists
+- When a new UI issue is found:
+  - if it defines or changes a reusable pattern, update `design.md`
+  - if it is work to be done, add or update an item in `tasklist.md`
+- Do not mix pattern documentation and task tracking in the same section.

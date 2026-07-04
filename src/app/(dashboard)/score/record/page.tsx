@@ -3,14 +3,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, RotateCcw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, RotateCcw, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
+import { compareNullableText, textOrEmpty } from '@/components/ui/table-helpers';
 import { getStudentListForSelect, getClassroomsForSelect } from '@/lib/actions/student.action';
 import { getEducationStages } from '@/lib/actions/education-stage.action';
 import { getScoreRecordingAvailability } from '@/lib/actions/score.action';
@@ -54,6 +57,10 @@ interface ScoreRecordPageCache {
   stages: StageOption[];
 }
 
+type ScoreRecordSortField = 'student_id_number' | 'full_name' | 'classroom_name';
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+
 export default function ScoreRecordPage() {
   const t = useTranslations('score');
   const commonT = useTranslations('common');
@@ -68,7 +75,9 @@ export default function ScoreRecordPage() {
   const [filterGrade, setFilterGrade] = useState<string>('');
   const [filterClassroom, setFilterClassroom] = useState<string>('');
   const [page, setPage] = useState(1);
-  const pageSize = 50;
+  const [pageSize, setPageSize] = useState<number>(20);
+  const [sortField, setSortField] = useState<ScoreRecordSortField>('student_id_number');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const [loading, setLoading] = useState(true);
   const [recordingClosedReason, setRecordingClosedReason] = useState('');
@@ -127,7 +136,7 @@ export default function ScoreRecordPage() {
           }
           sessionStorage.removeItem(cacheKey);
         }
-      } catch (e) {
+      } catch {
         sessionStorage.removeItem(cacheKey);
       }
 
@@ -156,7 +165,7 @@ export default function ScoreRecordPage() {
           } satisfies ScoreRecordPageCache));
         }
         setLoading(false);
-      }).catch((err) => {
+      }).catch(() => {
         if (!cancelled) setLoading(false);
       });
     }
@@ -165,7 +174,7 @@ export default function ScoreRecordPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedAcademicYearId]);
+  }, [selectedAcademicYearId, t]);
 
   const getGradeLabelFromClassroomName = (name: string, fallbackGrade: number) => {
     const baseName = name.split('/')[0]?.trim();
@@ -208,17 +217,45 @@ export default function ScoreRecordPage() {
     return result;
   }, [students, search, filterStageId, filterGrade, filterClassroom]);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(filtered.length / pageSize)), [filtered.length]);
+  const sortedStudents = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'student_id_number':
+          comparison = compareNullableText(a.student_id_number, b.student_id_number);
+          break;
+        case 'full_name':
+          comparison = compareNullableText(a.full_name, b.full_name);
+          break;
+        case 'classroom_name':
+          comparison = compareNullableText(a.classroom_name, b.classroom_name);
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filtered, sortDirection, sortField]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filtered.length / pageSize)), [filtered.length, pageSize]);
   const pagedStudents = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, page]);
+    return sortedStudents.slice(start, start + pageSize);
+  }, [page, pageSize, sortedStudents]);
 
   // Reset to page 1 when filters change
   const prevFilterKey = useMemo(() => `${search}|${filterStageId}|${filterGrade}|${filterClassroom}`, [search, filterStageId, filterGrade, filterClassroom]);
   useEffect(() => {
     void Promise.resolve().then(() => setPage(1));
   }, [prevFilterKey]);
+
+  useEffect(() => {
+    void Promise.resolve().then(() => setPage(1));
+  }, [pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      void Promise.resolve().then(() => setPage(totalPages));
+    }
+  }, [page, totalPages]);
 
   const hasFilters = filterStageId || filterGrade || filterClassroom;
 
@@ -254,6 +291,18 @@ export default function ScoreRecordPage() {
       void Promise.resolve().then(() => setFilterClassroom(''));
     }
   }, [filterClassroom, classroomOptions]);
+
+  function handleSort(field: ScoreRecordSortField) {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortField(field);
+    setSortDirection('asc');
+  }
+
+  const from = filtered.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = filtered.length === 0 ? 0 : Math.min(page * pageSize, filtered.length);
 
   return (
     <div className="p-6 space-y-6">
@@ -370,25 +419,54 @@ export default function ScoreRecordPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {t('recordResultsSummary', {
+          <TablePaginationToolbar
+            page={page}
+            pageSize={pageSize}
+            total={filtered.length}
+            summary={
+              t('recordResultsSummary', {
                 total: students.length,
-                from: pageSize * (page - 1) + 1,
-                to: Math.min(page * pageSize, filtered.length),
+                from,
+                to,
                 filtered: filtered.length,
-              })}
-              {(search || hasFilters) && t('recordResultsFilteredSuffix', { total: students.length })}
-            </p>
-          </div>
+              }) + ((search || hasFilters) ? t('recordResultsFilteredSuffix', { total: students.length }) : '')
+            }
+            onPageChange={setPage}
+            rowsPerPageLabel={commonT('rowsPerPage')}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            onPageSizeChange={setPageSize}
+          />
 
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[150px]">{studentT('id')}</TableHead>
-                  <TableHead>{studentT('fullName')}</TableHead>
-                  <TableHead className="w-[120px]">{studentT('classroom')}</TableHead>
+                  <SortableTableHead
+                    field="student_id_number"
+                    activeField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    className="w-[150px]"
+                  >
+                    {studentT('id')}
+                  </SortableTableHead>
+                  <SortableTableHead
+                    field="full_name"
+                    activeField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  >
+                    {studentT('fullName')}
+                  </SortableTableHead>
+                  <SortableTableHead
+                    field="classroom_name"
+                    activeField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    className="w-[120px]"
+                  >
+                    {studentT('classroom')}
+                  </SortableTableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -398,39 +476,14 @@ export default function ScoreRecordPage() {
                     className="cursor-pointer"
                     onClick={() => router.push(`/students?studentId=${s.id}`)}
                   >
-                    <TableCell className="font-mono text-xs">{s.student_id_number}</TableCell>
-                    <TableCell className="font-medium">{s.full_name}</TableCell>
-                    <TableCell>{s.classroom_name}</TableCell>
+                    <TableCell className="font-mono text-xs">{textOrEmpty(s.student_id_number)}</TableCell>
+                    <TableCell className="font-medium">{textOrEmpty(s.full_name)}</TableCell>
+                    <TableCell>{textOrEmpty(s.classroom_name)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 py-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                {commonT('previous')}
-              </Button>
-              <span className="text-sm text-muted-foreground px-2">
-                {page} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage(p => p + 1)}
-              >
-                {commonT('next')}
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
         </div>
       )}
     </div>

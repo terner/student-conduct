@@ -1,3 +1,5 @@
+import { GUARDIAN_PREFIXES } from '@/lib/domain/person';
+
 export interface GuardianNameParts {
   guardian_prefix?: string;
   guardian_first_name?: string;
@@ -5,7 +7,7 @@ export interface GuardianNameParts {
   guardian_full_name?: string;
 }
 
-const KNOWN_GUARDIAN_PREFIXES = ['นาย', 'นางสาว', 'นาง', 'คุณ'];
+const KNOWN_GUARDIAN_PREFIXES = GUARDIAN_PREFIXES;
 
 function trimOrEmpty(value?: string | null) {
   return (value || '').trim();

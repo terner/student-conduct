@@ -11,7 +11,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { SimplePagination } from '@/components/ui/simple-pagination';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { getStudentRankingReport, type RankingSortBy, type StudentRankingRow } from '@/lib/actions/report.action';
 import { getAcademicYears, getClassroomsForSelect } from '@/lib/actions/student.action';
@@ -46,7 +46,7 @@ const sortOptions: Array<{ value: TableSortBy; labelKey: string }> = [
   { value: 'name', labelKey: 'studentName' },
 ];
 const serverSortValues: TableSortBy[] = ['current_score', 'deducted', 'transaction_count', 'latest', 'name'];
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 interface StudentRankingReportData {
   academic_year: string;
@@ -151,6 +151,7 @@ export default function IndividualReportPage() {
   const [reportData, setReportData] = useState<StudentRankingReportData | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentRankingRow | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(20);
   const sortLabel = (value: TableSortBy) => {
     const option = sortOptions.find((item) => item.value === value);
     return option ? reportT(option.labelKey) : '';
@@ -297,7 +298,17 @@ export default function IndividualReportPage() {
     else if (sortBy === 'status') result = statusWeight(a, baseScore) - statusWeight(b, baseScore);
     return result * multiplier || a.full_name.localeCompare(b.full_name);
   });
-  const pagedRows = displayedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(displayedRows.length / pageSize));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const pagedRows = displayedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const from = displayedRows.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const to = displayedRows.length === 0 ? 0 : Math.min((currentPage - 1) * pageSize + pagedRows.length, displayedRows.length);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      void Promise.resolve().then(() => setPage(1));
+    }
+  }, [page, totalPages]);
 
   return (
     <div className="p-6 space-y-6">
@@ -317,6 +328,17 @@ export default function IndividualReportPage() {
           </Button>
         </div>
       </div>
+
+      {summary && (
+        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('studentsLabel')}</p><p className="text-2xl font-bold">{summary.total_students}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('averageScore')}</p><p className="text-2xl font-bold">{summary.average_score}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('minScore')}</p><p className="text-2xl font-bold text-destructive">{summary.min_score}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('maxScore')}</p><p className="text-2xl font-bold text-emerald-600">{summary.max_score}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('deductedTotalShort')}</p><p className="text-2xl font-bold">{summary.total_deducted}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('watchlist')}</p><p className="text-2xl font-bold text-amber-600">{summary.at_risk_count}</p></CardContent></Card>
+        </div>
+      )}
 
       <div className="rounded-md border bg-background p-4">
         <div className="grid gap-3 lg:grid-cols-[160px_150px_150px_minmax(200px,1fr)_140px_140px_150px_170px_auto_auto]">
@@ -393,7 +415,7 @@ export default function IndividualReportPage() {
           <Select
             value={rankMode}
             onValueChange={(value: RankMode | null) => {
-              setRankMode(value || 'risk');
+              setRankMode(value ?? 'risk');
               setSortBy('rank');
               setSortDirection('asc');
             }}
@@ -411,11 +433,11 @@ export default function IndividualReportPage() {
           <Select
             value={sortOptions.some((option) => option.value === sortBy) ? sortBy : null}
             onValueChange={(value: TableSortBy | null) => {
-              const next = value || 'current_score';
+              const next = value ?? 'current_score';
               setSortBy(next);
               setSortDirection(next === 'current_score' ? defaultScoreDirection(rankMode) : defaultDirection(next));
             }}
-            itemToStringLabel={(value) => sortOptions.find((item) => item.value === value) ? sortLabel(value as TableSortBy) : String(value)}
+            itemToStringLabel={(value) => sortOptions.find((item) => item.value === value) ? sortLabel(value as TableSortBy) : ''}
           >
             <SelectTrigger className="!h-10 w-full">
               <ArrowDownUp className="mr-1 h-4 w-4 text-muted-foreground" />
@@ -440,21 +462,26 @@ export default function IndividualReportPage() {
         </div>
       </div>
 
-      {summary && (
-        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('studentsLabel')}</p><p className="text-2xl font-bold">{summary.total_students}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('averageScore')}</p><p className="text-2xl font-bold">{summary.average_score}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('minScore')}</p><p className="text-2xl font-bold text-destructive">{summary.min_score}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('maxScore')}</p><p className="text-2xl font-bold text-emerald-600">{summary.max_score}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('deductedTotalShort')}</p><p className="text-2xl font-bold">{summary.total_deducted}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{reportT('watchlist')}</p><p className="text-2xl font-bold text-amber-600">{summary.at_risk_count}</p></CardContent></Card>
-        </div>
+      {!loading && displayedRows.length > 0 && (
+        <TablePaginationToolbar
+          page={page}
+          pageSize={pageSize}
+          total={displayedRows.length}
+          summary={commonT('paginationSummary', { start: from, end: to, total: displayedRows.length })}
+          rowsPerPageLabel={commonT('rowsPerPage')}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageSizeChange={setPageSize}
+          onPageChange={setPage}
+        />
       )}
-
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-lg">{reportT('rankingTitle', { year: reportData?.academic_year ?? '' })}</CardTitle>
+            <CardTitle className="text-lg">
+              {reportData?.academic_year
+                ? reportT('rankingTitle', { year: reportData.academic_year })
+                : reportT('individualTitle')}
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
               {rankMode === 'risk'
                 ? reportT('riskRankingNote')
@@ -550,9 +577,6 @@ export default function IndividualReportPage() {
               </TableBody>
             </Table>
           )}
-          {!loading && displayedRows.length > 0 && (
-            <SimplePagination page={page} pageSize={PAGE_SIZE} total={displayedRows.length} onPageChange={setPage} />
-          )}
         </CardContent>
       </Card>
 
@@ -564,13 +588,15 @@ export default function IndividualReportPage() {
                 <div className="flex items-start justify-between gap-3 pr-8">
                   <div>
                     <SheetTitle>{selectedStudent.full_name}</SheetTitle>
-                    <SheetDescription>
-                      {reportT('studentYearDescription', {
-                        studentId: selectedStudent.student_id_number,
-                        classroom: selectedStudent.classroom_name,
-                        year: reportData?.academic_year ?? '',
-                      })}
-                    </SheetDescription>
+                    {reportData?.academic_year && (
+                      <SheetDescription>
+                        {reportT('studentYearDescription', {
+                          studentId: selectedStudent.student_id_number,
+                          classroom: selectedStudent.classroom_name,
+                          year: reportData.academic_year,
+                        })}
+                      </SheetDescription>
+                    )}
                   </div>
                   <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/students?studentId=${selectedStudent.id}`} />}>
                     {reportT('profile')}
@@ -620,7 +646,10 @@ export default function IndividualReportPage() {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="font-medium">{tx.category_name}</p>
-                              <p className="text-xs text-muted-foreground">{formatDateTime(tx.recorded_at)} · {tx.recorded_by_name ?? ''}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDateTime(tx.recorded_at)}
+                                {tx.recorded_by_name && ` · ${tx.recorded_by_name}`}
+                              </p>
                             </div>
                             <span className={tx.points > 0 ? 'font-bold text-emerald-600' : 'font-bold text-destructive'}>
                               {tx.points > 0 ? `+${tx.points}` : tx.points}

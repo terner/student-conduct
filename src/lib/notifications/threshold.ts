@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server';
+import { serverMessage } from '@/lib/i18n/server';
 
 type ThresholdRule = {
   deducted: number;
@@ -17,7 +18,7 @@ function formatStudentName(student: JsonRecord | null | undefined) {
   const profile = student?.profiles as JsonRecord | undefined;
   const prefix = typeof profile?.prefix === 'string' ? profile.prefix : '';
   const fullName = typeof profile?.full_name === 'string' ? profile.full_name : '';
-  return `${prefix}${fullName}`.trim() || 'นักเรียน';
+  return `${prefix}${fullName}`.trim() || undefined;
 }
 
 function metadataMatches(metadata: unknown, expected: {
@@ -96,10 +97,16 @@ export async function notifyThresholdReached(input: {
 
     const classroomId = enrollment?.classroom_id as string | undefined;
     const student = enrollment?.students as JsonRecord | undefined;
-    const studentName = formatStudentName(student);
+    const studentName = formatStudentName(student) ?? await serverMessage('notifications.studentNameUnavailable');
     const studentNumber = typeof student?.student_id_number === 'string' ? student.student_id_number : '';
     const classroom = enrollment?.classrooms as JsonRecord | undefined;
     const classroomName = typeof classroom?.name === 'string' ? classroom.name : '';
+    const studentDescriptor = studentNumber
+      ? await serverMessage('notifications.studentWithNumber', { student: studentName, studentNumber })
+      : studentName;
+    const classroomDescriptor = classroomName
+      ? await serverMessage('notifications.classroomSuffix', { classroom: classroomName })
+      : '';
 
     const { data: adminProfiles } = await adminClient
       .from('profiles')
@@ -152,8 +159,12 @@ export async function notifyThresholdReached(input: {
         rows.push({
           recipient_id: recipientId,
           type: 'threshold_reached',
-          title: `นักเรียนถึงเกณฑ์ระดับ ${threshold.level}`,
-          body: `${studentName}${studentNumber ? ` (${studentNumber})` : ''}${classroomName ? ` ห้อง ${classroomName}` : ''} ถูกหักสะสม ${totalDeducted} คะแนน`,
+          title: await serverMessage('notifications.thresholdReachedTitle', { level: threshold.level }),
+          body: await serverMessage('notifications.thresholdReachedBody', {
+            student: studentDescriptor,
+            classroom: classroomDescriptor,
+            deducted: totalDeducted,
+          }),
           resource_type: 'student',
           resource_id: input.studentId,
           metadata: {

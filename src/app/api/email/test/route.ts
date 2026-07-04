@@ -56,11 +56,13 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[Email Test API] Resend error:', error);
+      return NextResponse.json({ error: apiMessage(request, 'emailSendFailed') }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, id: data?.id });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : apiMessage(request, 'emailSendFailed') }, { status: 500 });
+    console.error('[Email Test API] Failed:', err);
+    return NextResponse.json({ error: apiMessage(request, 'emailSendFailed') }, { status: 500 });
   }
 }

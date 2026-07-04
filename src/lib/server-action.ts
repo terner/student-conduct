@@ -2,6 +2,7 @@
 
 import { createAdminClient, getUserFromCookie } from '@/lib/supabase/server';
 import { getRoles } from '@/lib/security/roles';
+import { serverApiMessage } from '@/lib/i18n/server';
 
 export type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -52,28 +53,18 @@ export async function withAuth<T>(
         success: false,
         error: {
           code: error || 'UNAUTHORIZED',
-          message: 'ไม่ได้รับอนุญาตให้ดำเนินการ',
+          message: await serverApiMessage(error === 'FORBIDDEN' ? 'forbidden' : 'unauthorized'),
         },
       };
     }
     return await handler(profile);
   } catch (err) {
     console.error('[withAuth] Handler error:', err);
-    let message = 'เกิดข้อผิดพลาด';
-    if (err instanceof Error) {
-      message = err.message || 'เกิดข้อผิดพลาด';
-    } else if (err && typeof err === 'object') {
-      const obj = err as Record<string, unknown>;
-      message = typeof obj.message === 'string' ? obj.message
-        : typeof obj.error === 'string' ? obj.error
-        : typeof obj.code === 'string' ? obj.code
-        : String(err);
-    }
     return {
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: message || 'เกิดข้อผิดพลาด',
+        message: await serverApiMessage('internalError'),
       },
     };
   }

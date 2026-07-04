@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScoreTransactionTable } from '@/components/features/scores/score-transaction-table';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
 import { getScores, getCategories } from '@/lib/actions/score.action';
 import { getClassroomsForSelect } from '@/lib/actions/student.action';
 import { getEducationStages } from '@/lib/actions/education-stage.action';
@@ -42,6 +43,7 @@ export default function ScoreHistoryPage() {
   const [data, setData] = useState<ScoreTransactionWithDetails[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
@@ -77,7 +79,7 @@ export default function ScoreHistoryPage() {
     setLoading(true);
     const result = await getScores({
       page: pageNum,
-      page_size: 20,
+      page_size: pageSize,
       search: searchTerm || undefined,
       classroom_id: filterClassroom || undefined,
       category_id: filterCategory || undefined,
@@ -88,14 +90,23 @@ export default function ScoreHistoryPage() {
       setTotal(result.data.total);
     }
     setLoading(false);
-  }, [search, filterClassroom, filterCategory, selectedAcademicYearId]);
+  }, [search, filterClassroom, filterCategory, selectedAcademicYearId, pageSize]);
 
   useEffect(() => {
     void Promise.resolve().then(() => {
+      if (page === 1) {
+        fetchData(1, search);
+        return;
+      }
       setPage(1);
-      fetchData(1, search);
     });
-  }, [filterClassroom, filterCategory, selectedAcademicYearId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchData, filterClassroom, filterCategory, page, pageSize, search, selectedAcademicYearId]);
+
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      fetchData(page);
+    });
+  }, [page, fetchData]);
 
   // Derived: filter classrooms by stage
   const stageClassrooms = useMemo(() => {
@@ -157,6 +168,8 @@ export default function ScoreHistoryPage() {
   }, [filterClassroom, classroomOptions]);
 
   const hasFilters = filterStageId || filterGrade || filterClassroom || filterCategory;
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = total === 0 ? 0 : Math.min(page * pageSize, total);
 
   const clearFilters = () => {
     setSearch('');
@@ -295,15 +308,30 @@ export default function ScoreHistoryPage() {
       </div>
 
       {/* Results */}
+      {!loading && total > 0 && (
+        <TablePaginationToolbar
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          summary={scoreT('historyResultsSummary', { from, to, total })}
+          onPageChange={setPage}
+          rowsPerPageLabel={commonT('rowsPerPage')}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onPageSizeChange={setPageSize}
+        />
+      )}
+
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="p-0">
           <ScoreTransactionTable
             data={data}
             loading={loading}
             total={total}
             page={page}
-            pageSize={20}
+            pageSize={pageSize}
             onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            showPaginationToolbar={false}
             showActions={false}
           />
         </CardContent>

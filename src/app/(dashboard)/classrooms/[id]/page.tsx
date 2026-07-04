@@ -79,6 +79,14 @@ export default function ClassroomDetailPage() {
     </div>
   );
 
+  const classroomSummary = [
+    classroom?.education_stage_name,
+    classroom?.grade_level_name || classroom?.grade_level
+      ? classroomT('gradeLabel', { grade: classroom.grade_level_name ?? classroom.grade_level })
+      : undefined,
+    classroomT('studentCountLabel', { count: classroom?.student_count ?? 0 }),
+  ].filter(Boolean).join(' · ');
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
@@ -86,7 +94,7 @@ export default function ClassroomDetailPage() {
         <div>
           <h1 className="text-2xl font-bold">{classroom?.name}</h1>
           <p className="text-muted-foreground text-sm">
-            {classroom?.education_stage_name || commonT('notAvailable')} · {classroomT('gradeLabel', { grade: classroom?.grade_level_name || classroom?.grade_level || '-' })} · {classroomT('studentCountLabel', { count: classroom?.student_count || 0 })}
+            {classroomSummary}
           </p>
         </div>
       </div>
@@ -106,11 +114,11 @@ export default function ClassroomDetailPage() {
           <CardHeader><CardTitle className="text-lg">{classroomT('stats')}</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div className="text-center p-3 rounded-lg bg-muted">
-              <div className="text-2xl font-bold">{classroom?.student_count || 0}</div>
+              <div className="text-2xl font-bold">{classroom?.student_count ?? 0}</div>
               <div className="text-xs text-muted-foreground">{classroomT('studentsCount')}</div>
             </div>
             <div className="text-center p-3 rounded-lg bg-muted">
-              <div className="text-2xl font-bold">{classroom?.teacher_count || 0}</div>
+              <div className="text-2xl font-bold">{classroom?.teacher_count ?? 0}</div>
               <div className="text-xs text-muted-foreground">{classroomT('teacherCount')}</div>
             </div>
           </CardContent>

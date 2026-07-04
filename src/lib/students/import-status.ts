@@ -1,3 +1,5 @@
+export const DEFAULT_ENROLLMENT_STATUS = 'active';
+
 export function normalizeEnrollmentStatus(value: string) {
   const normalized = value.trim().toLowerCase();
   if (['active', 'promoted', 'repeated', 'transferred', 'inactive', 'graduated'].includes(normalized)) {
@@ -7,12 +9,12 @@ export function normalizeEnrollmentStatus(value: string) {
   if (['จบ', 'จบการศึกษา'].includes(normalized)) return 'graduated';
   if (['ซ้ำชั้น'].includes(normalized)) return 'repeated';
   if (['ไม่ใช้งาน', 'พักการเรียน'].includes(normalized)) return 'inactive';
-  return 'active';
+  return DEFAULT_ENROLLMENT_STATUS;
 }
 
 export function studentCurrentStatusFromEnrollment(enrollmentStatus: string) {
   if (enrollmentStatus === 'transferred') return 'transferred';
   if (enrollmentStatus === 'graduated') return 'graduated';
   if (enrollmentStatus === 'inactive') return 'inactive';
-  return 'active';
+  return DEFAULT_ENROLLMENT_STATUS;
 }

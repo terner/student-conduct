@@ -135,7 +135,7 @@ export default function ClassroomReportPage() {
             }}
               itemToStringLabel={(value) => {
                 const c = classrooms.find(c => c.id === value);
-                return c ? c.name : String(value);
+                return c?.name ?? '';
               }}
             >
               <SelectTrigger className="min-w-0">
@@ -155,7 +155,7 @@ export default function ClassroomReportPage() {
             <Select
               value={rankMode}
               onValueChange={(value: 'risk' | 'score' | null) => {
-                const next = value || 'risk';
+                const next = value ?? 'risk';
                 setRankMode(next);
                 if (selectedId) loadReport(selectedId, next);
               }}

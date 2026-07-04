@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ApiResponse } from '@/types';
+import { serverApiMessage } from '@/lib/i18n/server';
 
 type ValidationError = NonNullable<ApiResponse<never>['error']> & {
   details: Record<string, string[]>;
@@ -19,8 +20,15 @@ export function formatZodError<T>(error: z.ZodError<T>): ValidationError {
 
   return {
     code: 'VALIDATION_ERROR',
-    message: 'ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบ',
+    message: 'VALIDATION_ERROR',
     details,
+  };
+}
+
+export async function formatZodErrorAsync<T>(error: z.ZodError<T>): Promise<ValidationError> {
+  return {
+    ...formatZodError(error),
+    message: await serverApiMessage('validationError'),
   };
 }
 
@@ -40,7 +48,25 @@ export function safeParse<T>(
   if (result.success) {
     return { success: true, data: result.data };
   }
-  return { success: false, error: formatZodError(result.error) };
+  return {
+    success: false,
+    error: {
+      code: 'VALIDATION_ERROR',
+      message: 'VALIDATION_ERROR',
+      details: result.error.flatten().fieldErrors as Record<string, string[]>,
+    },
+  };
+}
+
+export async function safeParseAsync<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown
+): Promise<{ success: true; data: T } | { success: false; error: ValidationError }> {
+  const result = schema.safeParse(data);
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+  return { success: false, error: await formatZodErrorAsync(result.error) };
 }
 
 /**
@@ -67,13 +93,13 @@ export async function validatedAction<TInput, TOutput>(
       success: false,
       error: {
         code: 'XSS_DETECTED',
-        message: 'ตรวจพบรูปแบบข้อมูลที่ไม่ปลอดภัย',
+        message: await serverApiMessage('xssDetected'),
       },
     };
   }
 
   // 2. Validation
-  const parsed = safeParse(schema, input);
+  const parsed = await safeParseAsync(schema, input);
   if (!parsed.success) {
     return { success: false, error: parsed.error };
   }
@@ -81,12 +107,12 @@ export async function validatedAction<TInput, TOutput>(
   // 3. Execute handler with validated data
   try {
     return await handler(parsed.data, profile);
-  } catch (err) {
+  } catch {
     return {
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด กรุณาลองใหม่',
+        message: await serverApiMessage('internalError'),
       },
     };
   }

@@ -71,7 +71,8 @@ export async function PATCH(request: NextRequest) {
     .eq('recipient_id', profile.id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[Notifications API] Mark read failed:', error);
+    return NextResponse.json({ error: apiMessage(request, 'notificationUpdateFailed') }, { status: 500 });
   }
 
   return NextResponse.json({ success: true }, { status: 200 });

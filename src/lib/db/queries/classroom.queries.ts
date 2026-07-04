@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Classroom } from '@/types';
+import { LEGACY_TEACHER_PREFIX } from '@/lib/domain/person';
 
 function formatTeacherName(profile?: Record<string, unknown>) {
   const prefix = String(profile?.prefix || '').trim();
   let fullName = String(profile?.full_name || '').trim();
-  if (fullName.startsWith('ครู')) {
-    fullName = fullName.slice('ครู'.length).trim();
+  if (fullName.startsWith(LEGACY_TEACHER_PREFIX)) {
+    fullName = fullName.slice(LEGACY_TEACHER_PREFIX.length).trim();
   }
   return prefix && fullName && !fullName.startsWith(prefix) ? `${prefix}${fullName}` : fullName;
 }
@@ -274,7 +275,7 @@ export async function deleteClassroom(id: string) {
     .eq('classroom_id', id);
 
   if (count && count > 0) {
-    throw new Error('ไม่สามารถลบห้องเรียนที่มีนักเรียนอยู่');
+    throw new Error('CLASSROOM_HAS_STUDENTS');
   }
 
   const { error } = await supabase

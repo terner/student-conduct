@@ -1,6 +1,6 @@
 'use server';
 
-import { withAuth, type ActionResult } from '@/lib/server-action';
+import { withAuth } from '@/lib/server-action';
 import { canApproveScores, canManageSchoolData, hasRole } from '@/lib/security/roles';
 import { listClassrooms, getClassroomById, createClassroom, updateClassroom, deleteClassroom } from '@/lib/db';
 import { classroomSchema } from '@/lib/validation/schemas';
@@ -8,7 +8,7 @@ import { validateXSS } from '@/lib/security/validate-input';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
 import { logAudit } from '@/lib/audit/log';
-import { serverMessage } from '@/lib/i18n/server';
+import { serverApiMessage } from '@/lib/i18n/server';
 
 const SHORT_LIST_TTL_MS = 60 * 1000;
 
@@ -25,17 +25,17 @@ function todayInBangkok() {
   return `${year}-${month}-${day}`;
 }
 
-async function getAcademicYearClosedReason(year: {
+function getAcademicYearClosedReason(year: {
   start_date?: string | null;
   end_date?: string | null;
 }, today = todayInBangkok()) {
   if (year.start_date && today < year.start_date) {
-    return serverMessage('apiErrors.academicYearNotStarted', { date: year.start_date });
+    return { key: 'academicYearNotStarted', values: { date: year.start_date } };
   }
   if (year.end_date && today > year.end_date) {
-    return serverMessage('apiErrors.academicYearEnded', { date: year.end_date });
+    return { key: 'academicYearEnded', values: { date: year.end_date } };
   }
-  return '';
+  return null;
 }
 
 async function ensureCurrentAcademicYearOpen(
@@ -49,14 +49,19 @@ async function ensureCurrentAcademicYearOpen(
 
   if (error) throw error;
   if (!acYear?.id) {
-    return { success: false as const, error: { code: 'NO_CURRENT_YEAR', message: await serverMessage('apiErrors.noCurrentAcademicYear') } };
+    return { success: false as const, error: { code: 'NO_CURRENT_YEAR', message: await serverApiMessage('noCurrentAcademicYear') } };
   }
 
-  const closedReason = await getAcademicYearClosedReason(acYear);
+  const closedReason = getAcademicYearClosedReason(acYear);
   if (closedReason) {
     return {
       success: false as const,
-      error: { code: 'ACADEMIC_YEAR_CLOSED', message: await serverMessage('apiErrors.classroomEditClosedAcademicYear', { reason: closedReason }) },
+      error: {
+        code: 'ACADEMIC_YEAR_CLOSED',
+        message: await serverApiMessage('classroomEditClosedAcademicYear', {
+          reason: await serverApiMessage(closedReason.key, closedReason.values),
+        }),
+      },
     };
   }
 
@@ -78,10 +83,10 @@ async function ensureClassroomEditableInCurrentYear(
 
   if (error) throw error;
   if (!classroom) {
-    return { success: false as const, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.classroomNotFound') } };
+    return { success: false as const, error: { code: 'NOT_FOUND', message: await serverApiMessage('classroomNotFound') } };
   }
   if (classroom.academic_year_id !== currentYearResult.academicYear.id) {
-    return { success: false as const, error: { code: 'ACADEMIC_YEAR_NOT_CURRENT', message: await serverMessage('apiErrors.classroomEditCurrentYearOnly') } };
+    return { success: false as const, error: { code: 'ACADEMIC_YEAR_NOT_CURRENT', message: await serverApiMessage('classroomEditCurrentYearOnly') } };
   }
 
   return { success: true as const, academicYear: currentYearResult.academicYear };
@@ -154,7 +159,7 @@ export async function getClassrooms(params?: {
     const canViewAll = canManageSchoolData(profile) || canApproveScores(profile);
     const isTeacher = hasRole(profile, 'teacher');
     if (!canViewAll && !isTeacher) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.classroomViewForbidden') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('classroomViewForbidden') } };
     }
 
     const assignedClassroomIds = canViewAll ? [] : await getAssignedClassroomIds(profile.id);
@@ -183,12 +188,12 @@ export async function getClassrooms(params?: {
 export async function getClassroom(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const classroom = await getClassroomById(id);
     if (!classroom) {
-      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.classroomNotFound') } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverApiMessage('classroomNotFound') } };
     }
     return { success: true, data: classroom };
   });
@@ -217,7 +222,7 @@ export async function addClassroom(data: {
       .maybeSingle();
 
     if (!gradeLevel) {
-      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.gradeLevelNotFound') } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverApiMessage('gradeLevelNotFound') } };
     }
 
     const roomCount = validated.name ? 1 : (validated.room_count || 1);
@@ -239,7 +244,9 @@ export async function addClassroom(data: {
         success: false,
         error: {
           code: 'CONFLICT',
-          message: await serverMessage('apiErrors.classroomAlreadyExists', { names: existingClassrooms.map(c => c.name).join(', ') }),
+          message: await serverApiMessage('classroomAlreadyExists', {
+            classrooms: existingClassrooms.map(c => c.name).join(', '),
+          }),
         },
       };
     }
@@ -250,7 +257,7 @@ export async function addClassroom(data: {
       const name = classroomNames[index];
       const xssCheck = validateXSS({ name });
       if (xssCheck) {
-        return { success: false, error: { code: 'XSS_DETECTED', message: await serverMessage('apiErrors.xssDetected') } };
+        return { success: false, error: { code: 'XSS_DETECTED', message: await serverApiMessage('xssDetected') } };
       }
 
       const result = await createClassroom({
@@ -283,7 +290,7 @@ export async function setClassroomTeacherAssignment(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const supabase = await createClient();
@@ -306,7 +313,7 @@ export async function setClassroomTeacherAssignment(data: {
       });
 
     if (error) {
-      return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+      return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     }
 
     await clearTtlCacheByPrefix('classrooms:');
@@ -330,7 +337,7 @@ export async function editClassroom(id: string, data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const supabase = await createClient();
@@ -358,7 +365,7 @@ export async function editClassroom(id: string, data: {
 export async function removeClassroom(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     try {
@@ -379,11 +386,13 @@ export async function removeClassroom(id: string) {
       });
       return { success: true, data: { id } };
     } catch (err) {
+      console.error('[deleteClassroomAction] Failed:', err);
+      const hasStudents = err instanceof Error && err.message === 'CLASSROOM_HAS_STUDENTS';
       return {
         success: false,
         error: {
           code: 'CONFLICT',
-          message: err instanceof Error ? err.message : await serverMessage('apiErrors.classroomDeleteFailed'),
+          message: await serverApiMessage(hasStudents ? 'classroomDeleteHasStudents' : 'classroomDeleteFailed'),
         },
       };
     }

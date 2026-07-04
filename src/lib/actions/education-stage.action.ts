@@ -3,8 +3,8 @@
 import { withAuth } from '@/lib/server-action';
 import { canManageSchoolData } from '@/lib/security/roles';
 import { createClient } from '@/lib/supabase/server';
+import { serverApiMessage } from '@/lib/i18n/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
-import { serverMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -32,11 +32,11 @@ export async function addEducationStage(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
     const supabase = await createClient();
     const { error } = await supabase.from('education_stages').insert(data);
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('education-stages:');
     return { success: true, data: null };
   });
@@ -50,11 +50,11 @@ export async function updateEducationStage(id: string, data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
     const supabase = await createClient();
     const { error } = await supabase.from('education_stages').update(data).eq('id', id);
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('education-stages:');
     return { success: true, data: null };
   });
@@ -63,15 +63,15 @@ export async function updateEducationStage(id: string, data: {
 export async function deleteEducationStage(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
     const supabase = await createClient();
     const { count } = await supabase.from('classrooms').select('*', { count: 'exact', head: true }).eq('education_stage_id', id);
     if (count && count > 0) {
-      return { success: false, error: { code: 'IN_USE', message: await serverMessage('apiErrors.educationStageInUse', { count }) } };
+      return { success: false, error: { code: 'IN_USE', message: await serverApiMessage('educationStageInUse', { count }) } };
     }
     const { error } = await supabase.from('education_stages').delete().eq('id', id);
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('education-stages:');
     return { success: true, data: null };
   });

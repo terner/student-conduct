@@ -10,9 +10,11 @@ import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl
 import { logAudit } from '@/lib/audit/log';
 import { buildGuardianFullName } from '@/lib/guardian';
 import { normalizePhoneInput } from '@/lib/phone';
-import { normalizeEnrollmentStatus, studentCurrentStatusFromEnrollment } from '@/lib/students/import-status';
+import { DEFAULT_ENROLLMENT_STATUS, normalizeEnrollmentStatus, studentCurrentStatusFromEnrollment } from '@/lib/students/import-status';
 import type { StudentWithProfile } from '@/lib/db/queries/student.queries';
-import { serverMessage } from '@/lib/i18n/server';
+import { serverApiMessage, serverMessage } from '@/lib/i18n/server';
+import { STUDENT_CSV_HEADERS, readCsvString, readCsvValue } from '@/lib/domain/csv';
+import { DEFAULT_GUARDIAN_RELATION } from '@/lib/domain/person';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 const SHORT_LIST_TTL_MS = 60 * 1000;
@@ -361,7 +363,7 @@ export async function getStudentsForCsvExport(params: {
     if (params.status) query = query.eq('enrollment_status', params.status);
     const { data, error } = await query.order('class_number', { ascending: true });
     if (error) {
-      return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+      return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     }
 
     const rows = (data || [])
@@ -940,7 +942,7 @@ export async function getStudentListForSelect(academicYearId?: string) {
 export async function importStudentsCsv(rows: Record<string, unknown>[]) {
   return withAuth(async (profile) => {
     if (!canImportData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.importDataForbidden') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('importDataForbidden') } };
     }
 
     const adminClient = await createAdminClient();
@@ -950,23 +952,23 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
     for (let i = 0; i < rows.length; i++) {
       try {
         const row = rows[i];
-        const studentId = String(row['รหัสนักเรียน'] || row['student_id'] || row['student_id_number'] || '');
-        const prefix = String(row['คำนำหน้า'] || row['prefix'] || '');
-        const firstName = String(row['ชื่อ'] || row['first_name'] || '');
-        const lastName = String(row['นามสกุล'] || row['last_name'] || '');
-        const classroomName = String(row['ห้อง'] || row['classroom'] || '');
-        const classNum = row['เลขที่ในห้อง'] || row['เลขที่'] || row['class_number'];
+        const studentId = readCsvString(row, STUDENT_CSV_HEADERS.studentId);
+        const prefix = readCsvString(row, STUDENT_CSV_HEADERS.prefix);
+        const firstName = readCsvString(row, STUDENT_CSV_HEADERS.firstName);
+        const lastName = readCsvString(row, STUDENT_CSV_HEADERS.lastName);
+        const classroomName = readCsvString(row, STUDENT_CSV_HEADERS.classroom);
+        const classNum = readCsvValue(row, STUDENT_CSV_HEADERS.classNumber);
         const classNumber = classNum !== undefined && classNum !== '' ? Number(classNum) : undefined;
-        const status = String(row['สถานะ'] || row['status'] || 'active');
-        const guardianPrefix = String(row['คำนำหน้าผู้ปกครอง'] || row['guardian_prefix'] || '').trim();
-        const guardianFirstName = String(row['ชื่อผู้ปกครอง'] || row['guardian_first_name'] || '').trim();
-        const guardianLastName = String(row['นามสกุลผู้ปกครอง'] || row['guardian_last_name'] || '').trim();
-        const guardianRelation = String(row['ความสัมพันธ์'] || row['guardian_relation'] || 'guardian');
-        const guardianPhone = normalizePhoneInput(String(row['เบอร์โทรผู้ปกครอง'] || row['guardian_phone'] || ''));
-        const csvGradeLevel = Number(row['ชั้นปี'] || row['grade_level'] || 0);
+        const status = readCsvString(row, STUDENT_CSV_HEADERS.status, DEFAULT_ENROLLMENT_STATUS);
+        const guardianPrefix = readCsvString(row, STUDENT_CSV_HEADERS.guardianPrefix).trim();
+        const guardianFirstName = readCsvString(row, STUDENT_CSV_HEADERS.guardianFirstName).trim();
+        const guardianLastName = readCsvString(row, STUDENT_CSV_HEADERS.guardianLastName).trim();
+        const guardianRelation = readCsvString(row, STUDENT_CSV_HEADERS.guardianRelation, DEFAULT_GUARDIAN_RELATION);
+        const guardianPhone = normalizePhoneInput(readCsvString(row, STUDENT_CSV_HEADERS.guardianPhone));
+        const csvGradeLevel = Number(readCsvValue(row, STUDENT_CSV_HEADERS.gradeLevel) ?? 0);
 
         if (!studentId || !firstName || !lastName || !classroomName) {
-          errors.push({ row: i + 1, message: await serverMessage('apiErrors.studentImportMissingRequiredFields') });
+          errors.push({ row: i + 1, message: await serverApiMessage('studentImportMissingRequiredFields') });
           continue;
         }
 
@@ -977,7 +979,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
           .maybeSingle();
 
         if (!acYear?.id) {
-          errors.push({ row: i + 1, message: await serverMessage('apiErrors.noCurrentAcademicYear') });
+          errors.push({ row: i + 1, message: await serverApiMessage('noCurrentAcademicYear') });
           continue;
         }
 
@@ -985,7 +987,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         if (closedReason) {
           errors.push({
             row: i + 1,
-            message: await serverMessage('apiErrors.studentImportClosedAcademicYear', {
+            message: await serverApiMessage('studentImportClosedAcademicYear', {
               year: acYear.name,
               reason: closedReason,
             }),
@@ -1009,7 +1011,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         if (!classroom) {
           errors.push({
             row: i + 1,
-            message: await serverMessage('apiErrors.studentImportClassroomNotFound', { classroom: classroomName }),
+            message: await serverApiMessage('studentImportClassroomNotFound', { classroom: classroomName }),
           });
           continue;
         }
@@ -1037,7 +1039,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
               })
               .eq('id', existingStudent.profile_id);
             if (profileUpdateError) {
-              errors.push({ row: i + 1, message: profileUpdateError.message });
+              errors.push({ row: i + 1, message: await serverApiMessage('studentImportCreateProfileFailed') });
               continue;
             }
           }
@@ -1050,7 +1052,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
             })
             .eq('id', studentRecordId);
           if (studentUpdateError) {
-            errors.push({ row: i + 1, message: studentUpdateError.message });
+            errors.push({ row: i + 1, message: await serverApiMessage('studentImportCreateStudentFailed') });
             continue;
           }
 
@@ -1061,7 +1063,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
             .eq('academic_year_id', acYear.id)
             .maybeSingle();
           if (currentEnrollmentError) {
-            errors.push({ row: i + 1, message: currentEnrollmentError.message });
+            errors.push({ row: i + 1, message: await serverApiMessage('studentImportCreateStudentFailed') });
             continue;
           }
 
@@ -1080,7 +1082,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
               .update(enrollmentData)
               .eq('id', currentEnrollment.id);
             if (enrollmentUpdateError) {
-              errors.push({ row: i + 1, message: enrollmentUpdateError.message });
+              errors.push({ row: i + 1, message: await serverApiMessage('studentImportCreateStudentFailed') });
               continue;
             }
           } else {
@@ -1105,7 +1107,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
                 previous_enrollment_id: previousEnrollment?.id || null,
               });
             if (enrollmentInsertError) {
-              errors.push({ row: i + 1, message: enrollmentInsertError.message });
+              errors.push({ row: i + 1, message: await serverApiMessage('studentImportCreateStudentFailed') });
               continue;
             }
           }
@@ -1131,7 +1133,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         });
 
         if (authError || !authUser?.user) {
-          errors.push({ row: i + 1, message: await serverMessage('apiErrors.studentImportCreateAuthFailed') });
+          errors.push({ row: i + 1, message: await serverApiMessage('studentImportCreateAuthFailed') });
           continue;
         }
 
@@ -1151,7 +1153,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
 
         if (!profile) {
           await adminClient.auth.admin.deleteUser(authUser.user.id);
-          errors.push({ row: i + 1, message: await serverMessage('apiErrors.studentImportCreateProfileFailed') });
+          errors.push({ row: i + 1, message: await serverApiMessage('studentImportCreateProfileFailed') });
           continue;
         }
 
@@ -1169,7 +1171,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
 
         if (!studentRecord) {
           await adminClient.auth.admin.deleteUser(authUser.user.id);
-          errors.push({ row: i + 1, message: await serverMessage('apiErrors.studentImportCreateStudentFailed') });
+          errors.push({ row: i + 1, message: await serverApiMessage('studentImportCreateStudentFailed') });
           continue;
         }
 
@@ -1187,7 +1189,7 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
         const { error: enrollmentError } = await adminClient.from('student_enrollments').insert(enrollmentData);
         if (enrollmentError) {
           await adminClient.auth.admin.deleteUser(authUser.user.id);
-          errors.push({ row: i + 1, message: enrollmentError.message });
+          errors.push({ row: i + 1, message: await serverApiMessage('studentImportCreateStudentFailed') });
           continue;
         }
 
@@ -1201,9 +1203,10 @@ export async function importStudentsCsv(rows: Record<string, unknown>[]) {
 
         imported++;
       } catch (err) {
+        console.error('[importStudentsCsv] Row import failed:', err);
         errors.push({
           row: i + 1,
-          message: err instanceof Error ? err.message : await serverMessage('apiErrors.unknownError'),
+          message: await serverApiMessage('unknownError'),
         });
       }
     }
@@ -1237,7 +1240,7 @@ function normalizeGuardianRelation(value: string) {
     'อื่นๆ': 'other',
     'อื่น ๆ': 'other',
   };
-  return relationMap[normalized] || 'guardian';
+  return relationMap[normalized] || DEFAULT_GUARDIAN_RELATION;
 }
 
 /**

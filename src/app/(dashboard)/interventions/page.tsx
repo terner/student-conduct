@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
-import { SimplePagination } from '@/components/ui/simple-pagination';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
 import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
 import { compareNullableText, textOrEmpty } from '@/components/ui/table-helpers';
 import { createClient } from '@/lib/supabase/client';
@@ -46,15 +46,17 @@ const typeIcon: Record<string, ComponentType<LucideProps>> = {
   phone_call: Phone, parent_meeting: MessageSquare, warning: AlertTriangle,
   home_visit: Home, counseling: MessageSquare, bond: FileText,
 };
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 type InterventionSortField = 'occurred_at' | 'student' | 'type' | 'summary' | 'outcome';
 
 export default function InterventionsPage() {
   const interventionT = useTranslations('intervention');
   const studentT = useTranslations('student');
+  const commonT = useTranslations('common');
   const [interventions, setInterventions] = useState<InterventionRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(20);
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<InterventionSortField>('occurred_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -68,23 +70,23 @@ export default function InterventionsPage() {
     other: interventionT('other'),
   }), [interventionT]);
 
-  const load = useCallback(async (nextPage: number) => {
+  const load = useCallback(async (nextPage: number, nextPageSize: number) => {
     setLoading(true);
     const supabase = createClient();
-    const from = (nextPage - 1) * PAGE_SIZE;
+    const from = (nextPage - 1) * nextPageSize;
     const { data, count } = await supabase
       .from('intervention_logs')
       .select('*, students(student_id_number, profiles!inner(full_name, prefix))', { count: 'exact' })
       .order('occurred_at', { ascending: false })
-      .range(from, from + PAGE_SIZE - 1);
+      .range(from, from + nextPageSize - 1);
     if (data) setInterventions(data as InterventionRow[]);
     setTotal(count ?? 0);
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    void Promise.resolve().then(() => load(page));
-  }, [load, page]);
+    void Promise.resolve().then(() => load(page, pageSize));
+  }, [load, page, pageSize]);
 
   function handleSort(field: InterventionSortField) {
     if (sortField === field) {
@@ -119,6 +121,17 @@ export default function InterventionsPage() {
     });
   }, [interventions, sortDirection, sortField, typeLabel]);
 
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const from = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const to = total === 0 ? 0 : Math.min((currentPage - 1) * pageSize + sortedInterventions.length, total);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      void Promise.resolve().then(() => setPage(1));
+    }
+  }, [page, totalPages]);
+
   if (loading) return <div className="flex justify-center py-12"><Spinner className="size-8" /></div>;
 
   return (
@@ -136,8 +149,19 @@ export default function InterventionsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <>
+          <TablePaginationToolbar
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            summary={commonT('paginationSummary', { start: from, end: to, total })}
+            rowsPerPageLabel={commonT('rowsPerPage')}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            onPageSizeChange={setPageSize}
+            onPageChange={setPage}
+          />
+          <Card>
+            <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -178,9 +202,9 @@ export default function InterventionsPage() {
                 })}
               </TableBody>
             </Table>
-          </CardContent>
-          <SimplePagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
-        </Card>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

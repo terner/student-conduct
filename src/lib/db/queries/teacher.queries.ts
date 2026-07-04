@@ -1,6 +1,12 @@
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Teacher } from '@/types';
+import {
+  DEFAULT_TEACHER_POSITION,
+  DEFAULT_TEACHER_PREFIX,
+  LEGACY_TEACHER_PREFIX,
+  TEACHER_PREFIXES,
+} from '@/lib/domain/person';
 
 export interface TeacherWithProfile extends Teacher {
   full_name?: string;
@@ -17,21 +23,19 @@ export interface TeacherWithProfile extends Teacher {
   }[];
 }
 
-const teacherPrefixes = ['นาย', 'นางสาว', 'นาง'] as const;
-
 function parseTeacherProfile(profile?: Record<string, unknown>) {
   let fullName = String(profile?.full_name || '').trim();
   let prefix = String(profile?.prefix || '').trim();
 
-  if (!prefix || prefix === 'ครู') {
-    prefix = teacherPrefixes.find((item) => fullName.startsWith(item)) || 'นาย';
+  if (!prefix || prefix === LEGACY_TEACHER_PREFIX) {
+    prefix = TEACHER_PREFIXES.find((item) => fullName.startsWith(item)) || DEFAULT_TEACHER_PREFIX;
   }
 
   if (fullName.startsWith(prefix)) {
     fullName = fullName.slice(prefix.length).trim();
   }
-  if (fullName.startsWith('ครู')) {
-    fullName = fullName.slice('ครู'.length).trim();
+  if (fullName.startsWith(LEGACY_TEACHER_PREFIX)) {
+    fullName = fullName.slice(LEGACY_TEACHER_PREFIX.length).trim();
   }
 
   const spaceIdx = fullName.indexOf(' ');
@@ -106,7 +110,7 @@ export async function listTeachers(params: { search?: string; department?: strin
     employee_id: (t.employee_id as string | null) || undefined,
     phone: t.phone as string | undefined,
     department: t.department as string | undefined,
-    position: t.position as string | undefined || 'ครู',
+    position: (t.position as string | undefined) || DEFAULT_TEACHER_POSITION,
     roles: normalizeRoles((t.profiles as Record<string, unknown>)?.role),
     avatar_url: (t.profiles as Record<string, unknown>)?.avatar_url as string | undefined,
     is_active: (t.profiles as Record<string, unknown>)?.is_active as boolean | undefined,
@@ -167,7 +171,7 @@ export async function getTeacherById(id: string, client?: SupabaseClient): Promi
     employee_id: data.employee_id || undefined,
     phone: data.phone,
     department: data.department,
-    position: data.position || 'ครู',
+    position: data.position || DEFAULT_TEACHER_POSITION,
     roles: normalizeRoles(data.profiles?.role),
     avatar_url: data.profiles?.avatar_url || undefined,
     is_active: data.profiles?.is_active ?? true,
@@ -220,7 +224,7 @@ export async function createTeacher(data: {
 }) {
   const supabase = await createAdminClient();
   const roles = rolesForTeacher(data.system_role, data.is_admin);
-  const prefix = data.prefix || 'นาย';
+  const prefix = data.prefix || DEFAULT_TEACHER_PREFIX;
   const fullName = `${data.first_name} ${data.last_name}`;
 
   // 1. Create auth user
@@ -232,7 +236,7 @@ export async function createTeacher(data: {
   });
 
   if (authError) throw authError;
-  if (!authUser.user) throw new Error('Failed to create auth user');
+  if (!authUser.user) throw new Error('AUTH_USER_CREATE_FAILED');
 
   // 2. Create profile
   const { data: profile, error: profileError } = await supabase
@@ -264,7 +268,7 @@ export async function createTeacher(data: {
       phone: data.phone || null,
       email: data.email,
       department: data.department || null,
-      position: data.position || 'ครู',
+      position: data.position || DEFAULT_TEACHER_POSITION,
     })
     .select('id')
     .single();
@@ -342,7 +346,7 @@ export async function updateTeacher(id: string, data: {
   if (data.email !== undefined) updateData.email = data.email || null;
   if (data.phone !== undefined) updateData.phone = data.phone || null;
   if (data.department !== undefined) updateData.department = data.department;
-  if (data.position !== undefined) updateData.position = data.position || 'ครู';
+  if (data.position !== undefined) updateData.position = data.position || DEFAULT_TEACHER_POSITION;
 
   if (Object.keys(updateData).length > 0) {
     const { error } = await supabase

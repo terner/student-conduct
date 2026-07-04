@@ -3,8 +3,8 @@
 import { withAuth } from '@/lib/server-action';
 import { canManageSchoolData } from '@/lib/security/roles';
 import { createClient } from '@/lib/supabase/server';
+import { serverApiMessage } from '@/lib/i18n/server';
 import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl-cache';
-import { serverMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -44,7 +44,7 @@ export async function getGradeLevels(options: {
     }
 
     const { data, error } = await query;
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
 
     const levels = (data || []).map((row) => ({
       id: row.id as string,
@@ -70,7 +70,7 @@ export async function addGradeLevel(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const supabase = await createClient();
@@ -82,7 +82,7 @@ export async function addGradeLevel(data: {
       sort_order: data.sort_order,
       is_active: true,
     });
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('grade-levels:');
     return { success: true, data: null };
   });
@@ -97,7 +97,7 @@ export async function updateGradeLevel(id: string, data: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -109,7 +109,7 @@ export async function updateGradeLevel(id: string, data: {
 
     const supabase = await createClient();
     const { error } = await supabase.from('grade_levels').update(updateData).eq('id', id);
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('grade-levels:');
     return { success: true, data: null };
   });
@@ -118,7 +118,7 @@ export async function updateGradeLevel(id: string, data: {
 export async function deleteGradeLevel(id: string) {
   return withAuth(async (profile) => {
     if (!canManageSchoolData(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const supabase = await createClient();
@@ -132,13 +132,13 @@ export async function deleteGradeLevel(id: string) {
         .from('grade_levels')
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('id', id);
-      if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+      if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
       await clearTtlCacheByPrefix('grade-levels:');
       return { success: true, data: { deactivated: true, used_count: count } };
     }
 
     const { error } = await supabase.from('grade_levels').delete().eq('id', id);
-    if (error) return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     await clearTtlCacheByPrefix('grade-levels:');
     return { success: true, data: { deactivated: false, used_count: 0 } };
   });

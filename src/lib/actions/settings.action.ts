@@ -4,7 +4,7 @@ import { withAuth } from '@/lib/server-action';
 import { canManageSettings, getRoles } from '@/lib/security/roles';
 import { createAdminClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
-import { serverMessage } from '@/lib/i18n/server';
+import { serverApiMessage } from '@/lib/i18n/server';
 
 export async function getSettingsPageData() {
   return withAuth(async (profile) => {
@@ -20,7 +20,7 @@ export async function getSettingsPageData() {
       .select('key, value');
 
     if (error) {
-      return { success: false, error: { code: 'INTERNAL_ERROR', message: error.message } };
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: await serverApiMessage('databaseError') } };
     }
 
     const settings: Record<string, unknown> = {};
@@ -48,7 +48,7 @@ export async function saveSystemSettings(input: {
 }) {
   return withAuth(async (profile) => {
     if (!canManageSettings(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const adminClient = await createAdminClient();
@@ -82,7 +82,7 @@ export async function saveSystemSettings(input: {
       .upsert(rows, { onConflict: 'key' });
 
     if (error) {
-      return { success: false, error: { code: 'INTERNAL_ERROR', message: error.message } };
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: await serverApiMessage('databaseError') } };
     }
 
     await logAudit({

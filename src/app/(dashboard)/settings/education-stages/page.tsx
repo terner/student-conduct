@@ -214,10 +214,10 @@ export default function EducationStagesPage() {
   }
 
   function deleteLabel() {
-    if (!deleteTarget) return '';
-    if (deleteTarget.type === 'stage') return stages.find(s => s.id === deleteTarget.id)?.name_th || '';
-    if (deleteTarget.type === 'grade_level') return levels.find(l => l.id === deleteTarget.id)?.name || '';
-    return classrooms.find(c => c.id === deleteTarget.id)?.name || '';
+    if (!deleteTarget) return undefined;
+    if (deleteTarget.type === 'stage') return stages.find(s => s.id === deleteTarget.id)?.name_th;
+    if (deleteTarget.type === 'grade_level') return levels.find(l => l.id === deleteTarget.id)?.name;
+    return classrooms.find(c => c.id === deleteTarget.id)?.name;
   }
 
   // ─── Filter ──────────────────────────────
@@ -256,6 +256,8 @@ export default function EducationStagesPage() {
   // ─── Render ──────────────────────────────
 
   if (loading) return <div className="flex justify-center py-20"><Spinner className="size-8" /></div>;
+
+  const deleteTargetLabel = deleteLabel();
 
   return (
     <div className="flex flex-col h-[calc(100dvh-4rem)]">
@@ -464,7 +466,7 @@ export default function EducationStagesPage() {
                     return (
                       <>
                         <InfoRow label={settingsT('stageNameTh')} value={s.name_th} />
-                        <InfoRow label={settingsT('stageNameEn')} value={s.name_en ?? ''} />
+                        <InfoRow label={settingsT('stageNameEn')} value={s.name_en} />
                         <InfoRow label={settingsT('stageStatus')} value={s.is_active ? commonT('active') : commonT('inactive')} />
                         <InfoRow label={settingsT('stageLevelCount')} value={`${levelCount(s.id)} ${classroomT('gradeLevel')}`} />
                       </>
@@ -476,7 +478,7 @@ export default function EducationStagesPage() {
                     return (
                       <>
                         <InfoRow label={settingsT('itemName')} value={l.name} />
-                        <InfoRow label={settingsT('educationStageLabel')} value={s ? stageLabel(s) : ''} />
+                        <InfoRow label={settingsT('educationStageLabel')} value={s ? stageLabel(s) : undefined} />
                         <InfoRow label={settingsT('stageStatus')} value={l.is_active ? commonT('active') : commonT('inactive')} />
                         <InfoRow label={settingsT('classroomCountLabel')} value={`${classroomCount(l.id)} ${classroomT('classroomFull')}`} />
                       </>
@@ -488,10 +490,10 @@ export default function EducationStagesPage() {
                     return (
                       <>
                         <InfoRow label={settingsT('classroomNameLabel')} value={cr.name} />
-                        <InfoRow label={classroomT('gradeLevel')} value={l?.name ?? ''} />
-                        <InfoRow label={settingsT('educationStageLabel')} value={cr.education_stage_name ?? ''} />
-                        <InfoRow label={settingsT('homeroomTeacher')} value={cr.homeroom_teacher_name ?? ''} />
-                        <InfoRow label={settingsT('assistantTeacher')} value={cr.advisor_teacher_name ?? ''} />
+                        <InfoRow label={classroomT('gradeLevel')} value={l?.name} />
+                        <InfoRow label={settingsT('educationStageLabel')} value={cr.education_stage_name} />
+                        <InfoRow label={settingsT('homeroomTeacher')} value={cr.homeroom_teacher_name} />
+                        <InfoRow label={settingsT('assistantTeacher')} value={cr.advisor_teacher_name} />
                         <InfoRow label={settingsT('studentCountLabel')} value={`${cr.student_count ?? 0} ${settingsT('studentsCountSuffix')}`} />
                         <InfoRow label={settingsT('teacherCountLabel')} value={`${cr.teacher_count ?? 0} ${settingsT('teachersCountSuffix')}`} />
                       </>
@@ -577,7 +579,7 @@ export default function EducationStagesPage() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>{settingsT('deleteConfirmTitle')}</DialogTitle>
-            <DialogDescription>{settingsT('deleteItemDescription', { name: deleteLabel() })}</DialogDescription>
+            {deleteTargetLabel && <DialogDescription>{settingsT('deleteItemDescription', { name: deleteTargetLabel })}</DialogDescription>}
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>{commonT('cancel')}</Button>
@@ -591,7 +593,9 @@ export default function EducationStagesPage() {
 
 // ─── Info Row ──────────────────────────────────
 
-function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function InfoRow({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
+  if (!value) return null;
+
   return (
     <div className="flex items-center justify-between gap-3 py-1">
       <dt className="text-muted-foreground shrink-0">{label}</dt>

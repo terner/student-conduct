@@ -2,11 +2,12 @@
 
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import { Edit, MoreHorizontal, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Edit, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
 import { compareNullableNumber, compareNullableText, scoreText, statusLabel, textOrEmpty } from '@/components/ui/table-helpers';
 import {
   DropdownMenu,
@@ -117,40 +118,75 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
 
   const totalPages = total ? Math.ceil(total / pageSize) : 1;
   const showPagination = !hidePagination && totalPages > 1 && onPageChange;
-  const paginationControls = showPagination ? (
-    <div className="flex items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={page <= 1}
-        onClick={() => onPageChange(page - 1)}
-      >
-        <ChevronLeft className="h-4 w-4" />
-        {common('previous')}
-      </Button>
-      <span className="min-w-14 px-2 text-center text-sm text-muted-foreground">
-        {page} / {totalPages}
-      </span>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={page >= totalPages}
-        onClick={() => onPageChange(page + 1)}
-      >
-        {common('next')}
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  ) : null;
+  const from = total ? (page - 1) * pageSize + 1 : 0;
+  const to = total ? Math.min(page * pageSize, total) : 0;
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border">
-        {paginationControls && (
-          <div className="flex min-h-12 items-center justify-end border-b px-3 py-2">
-            {paginationControls}
-          </div>
-        )}
+      {showPagination && onPageChange ? (
+        <TablePaginationToolbar
+          page={page}
+          pageSize={pageSize}
+          total={total ?? data.length}
+          summary={common('paginationSummary', { start: from, end: to, total: total ?? data.length })}
+          onPageChange={onPageChange}
+          rowsPerPageLabel={common('rowsPerPage')}
+        />
+      ) : null}
+
+      <div className="space-y-3 lg:hidden">
+        {sortedData.map((student) => {
+          const classroomMeta = [
+            textOrEmpty(student.classroom_name),
+            student.class_number == null ? '' : `${t('classNumber')} ${student.class_number}`,
+          ].filter(Boolean).join(' ');
+
+          return (
+            <div
+              key={student.id}
+              role="button"
+              tabIndex={0}
+              className="rounded-xl border bg-background p-4 text-left"
+              onClick={() => handleView(student)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                handleView(student);
+              }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="truncate font-medium">{studentFullName(student)}</p>
+                    <Badge className={statusColors[student.current_status] ?? ''} variant="outline">
+                      {statusLabel(student.current_status, statusLabels)}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                    <StudentMetaInline label={t('id')} value={student.student_id_number} valueClassName="font-mono" />
+                    {classroomMeta ? <StudentMetaInline label={t('classroomFull')} value={classroomMeta} /> : null}
+                  </div>
+                </div>
+                <div onClick={(event) => event.stopPropagation()}>
+                  <StudentRowActions
+                    student={student}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    editLabel={common('edit')}
+                    deleteLabel={common('delete')}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                <StudentInfoLine label={t('score')} value={scoreText(student.current_score, t('scoreCapped'))} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden rounded-md border lg:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -171,16 +207,8 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
                 className="cursor-pointer hover:bg-accent/50"
                 onClick={() => handleView(student)}
               >
-                <TableCell className="font-mono text-xs">
-                  <button type="button" className="hover:text-primary hover:underline" onClick={(e) => { e.stopPropagation(); handleView(student); }}>
-                    {student.student_id_number}
-                  </button>
-                </TableCell>
-                <TableCell>
-                  <button type="button" className="font-medium hover:text-primary hover:underline" onClick={(e) => { e.stopPropagation(); handleView(student); }}>
-                    {studentFullName(student)}
-                  </button>
-                </TableCell>
+                <TableCell className="font-mono text-xs">{student.student_id_number}</TableCell>
+                <TableCell className="font-medium">{studentFullName(student)}</TableCell>
                 <TableCell>{textOrEmpty(student.classroom_name)}</TableCell>
                 <TableCell>{student.class_number == null ? '' : String(student.class_number)}</TableCell>
                 <TableCell>{textOrEmpty(student.education_stage_name)}</TableCell>
@@ -191,28 +219,13 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {onEdit && (
-                      <DropdownMenuItem onClick={() => onEdit(student)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        {common('edit')}
-                      </DropdownMenuItem>
-                      )}
-                      {onDelete && (
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => onDelete(student)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        {common('delete')}
-                      </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <StudentRowActions
+                    student={student}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    editLabel={common('edit')}
+                    deleteLabel={common('delete')}
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -220,5 +233,70 @@ export function StudentTable({ data, loading, total, page = 1, pageSize = 20, on
         </Table>
       </div>
     </div>
+  );
+}
+
+function StudentInfoLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
+function StudentMetaInline({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-1.5">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className={`min-w-0 truncate ${valueClassName ?? ''}`}>{value}</span>
+    </div>
+  );
+}
+
+function StudentRowActions({
+  student,
+  onEdit,
+  onDelete,
+  editLabel,
+  deleteLabel,
+}: {
+  student: StudentWithProfile;
+  onEdit?: (student: StudentWithProfile) => void;
+  onDelete?: (student: StudentWithProfile) => void;
+  editLabel: string;
+  deleteLabel: string;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
+        <MoreHorizontal className="h-4 w-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {onEdit ? (
+          <DropdownMenuItem onClick={() => onEdit(student)}>
+            <Edit className="mr-2 h-4 w-4" />
+            {editLabel}
+          </DropdownMenuItem>
+        ) : null}
+        {onDelete ? (
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={() => onDelete(student)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {deleteLabel}
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
-import { SimplePagination } from '@/components/ui/simple-pagination';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
 import { createClient } from '@/lib/supabase/client';
 import { useTranslations } from 'next-intl';
 import { exportToCSV } from '@/lib/utils/export';
@@ -33,8 +33,9 @@ interface BondDocumentRow {
 }
 
 function formatProfileFullName(profile?: BondProfile | null) {
-  const prefix = (profile?.prefix ?? '').trim();
-  const fullName = (profile?.full_name ?? '').trim();
+  const prefix = profile?.prefix?.trim();
+  const fullName = profile?.full_name?.trim();
+  if (!fullName) return undefined;
   if (!prefix) return fullName;
   return fullName.startsWith(prefix) ? fullName : `${prefix}${fullName}`;
 }
@@ -46,7 +47,7 @@ function formatDateTime(value: string) {
   });
 }
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 export default function BondDocumentsPage() {
   const thresholdT = useTranslations('threshold');
@@ -55,30 +56,42 @@ export default function BondDocumentsPage() {
   const [bonds, setBonds] = useState<BondDocumentRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(20);
   const [loading, setLoading] = useState(true);
 
-  const loadBonds = useCallback(async (nextPage: number) => {
+  const loadBonds = useCallback(async (nextPage: number, nextPageSize: number) => {
     setLoading(true);
     const supabase = createClient();
-    const from = (nextPage - 1) * PAGE_SIZE;
+    const from = (nextPage - 1) * nextPageSize;
     const { data, count } = await supabase
       .from('bond_documents')
       .select('*, students(student_id_number, profiles!inner(full_name, prefix)), academic_years(name)', { count: 'exact' })
       .order('created_at', { ascending: false })
-      .range(from, from + PAGE_SIZE - 1);
+      .range(from, from + nextPageSize - 1);
     if (data) setBonds(data as BondDocumentRow[]);
-    setTotal(count || 0);
+    setTotal(count ?? 0);
     setLoading(false);
   }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      void loadBonds(page);
+      void loadBonds(page, pageSize);
     }, 0);
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [loadBonds, page]);
+  }, [loadBonds, page, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const from = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const to = total === 0 ? 0 : Math.min((currentPage - 1) * pageSize + bonds.length, total);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      void Promise.resolve().then(() => setPage(1));
+    }
+  }, [page, totalPages]);
 
   const statusColor: Record<string, string> = {
     draft: 'bg-gray-500', generated: 'bg-blue-500', signed: 'bg-green-500', cancelled: 'bg-red-500',
@@ -131,8 +144,19 @@ export default function BondDocumentsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <>
+          <TablePaginationToolbar
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            summary={commonT('paginationSummary', { start: from, end: to, total })}
+            rowsPerPageLabel={commonT('rowsPerPage')}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            onPageSizeChange={setPageSize}
+            onPageChange={setPage}
+          />
+          <Card>
+            <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -149,21 +173,23 @@ export default function BondDocumentsPage() {
                   <TableRow key={b.id}>
                     <TableCell className="font-mono text-xs">{b.document_no}</TableCell>
                     <TableCell>{formatProfileFullName(b.students?.profiles)}</TableCell>
-                    <TableCell>{b.academic_years?.name ?? ''}</TableCell>
+                    <TableCell>{b.academic_years?.name}</TableCell>
                     <TableCell>{b.threshold_deducted}</TableCell>
                     <TableCell>
-                      <Badge className={`${statusColor[b.status] ?? ''} text-white`}>
-                        {statusLabel[b.status] ?? ''}
-                      </Badge>
+                      {statusLabel[b.status] && (
+                        <Badge className={`${statusColor[b.status] ?? ''} text-white`}>
+                          {statusLabel[b.status]}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs">{formatDateTime(b.created_at)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-          <SimplePagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
-        </Card>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

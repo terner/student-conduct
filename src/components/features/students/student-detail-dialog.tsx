@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { ArrowLeft, AlertCircle, Edit3, ClipboardPlus, Loader2, Printer, KeyRound, Copy, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Edit3, ClipboardPlus, Loader2, Printer, KeyRound, Copy, CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { StudentDetail } from '@/components/features/students/student-detail';
 import { GuardianList } from '@/components/features/guardians/guardian-list';
 import { StudentForm, type SubmitResult } from '@/components/features/students/student-form';
@@ -25,6 +25,7 @@ import { studentPrefixEnum, type StudentInput } from '@/lib/validation/schemas';
 import type { ScoreCategory } from '@/types';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 import { useTranslations } from 'next-intl';
+import { DEFAULT_STUDENT_PREFIX } from '@/lib/domain/person';
 
 interface StudentDetailDialogProps {
   studentId: string;
@@ -55,7 +56,7 @@ interface IndividualReportData {
 function normalizeStudentPrefix(value?: string): StudentInput['prefix'] {
   return studentPrefixEnum.includes(value as StudentInput['prefix'])
     ? value as StudentInput['prefix']
-    : 'เด็กชาย';
+    : DEFAULT_STUDENT_PREFIX;
 }
 
 function normalizeGuardianRelation(value?: string): StudentInput['guardian_relation'] {
@@ -122,12 +123,11 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
   const [resetPasswordResult, setResetPasswordResult] = useState<string | null>(null);
   const [categories, setCategories] = useState<ScoreCategory[]>([]);
   const [canManage, setCanManage] = useState(false);
-  const [canEditProfile, setCanEditProfile] = useState(false);
   const [canResetPassword, setCanResetPassword] = useState(false);
   const [canChangeStatus, setCanChangeStatus] = useState(false);
   const [scoreRecordingAvailability, setScoreRecordingAvailability] = useState<{
     can_record: boolean;
-    reason: string;
+    reason?: string;
   } | null>(null);
   const [showRecordDialog, setShowRecordDialog] = useState(false);
   const [recordType, setRecordType] = useState<'deduct' | 'add'>('deduct');
@@ -189,7 +189,6 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
 
     if (roleRes.success && roleRes.data) {
       setCanManage(roleRes.data.canManage);
-      setCanEditProfile(Boolean(roleRes.data.canEditProfile));
       setCanResetPassword(Boolean(roleRes.data.canResetPassword));
       setCanChangeStatus(Boolean(roleRes.data.canChangeStatus));
     }
@@ -373,7 +372,7 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
 
   const canRecordScoreInSelectedYear = canManage && scoreRecordingAvailability?.can_record === true;
   const canEditStudentInSelectedYear = canChangeStatus && scoreRecordingAvailability?.can_record === true;
-  const scoreActionUnavailableReason = scoreRecordingAvailability?.reason || studentT('currentYearOnly');
+  const scoreActionUnavailableReason = scoreRecordingAvailability?.reason ?? studentT('currentYearOnly');
   const hasActiveActionPanel = showRecordDialog || showEditForm || Boolean(resetPasswordResult);
 
   useEffect(() => {
@@ -423,7 +422,7 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
 
   return (
     <Dialog open onOpenChange={handleModalOpenChange}>
-      <DialogContent showCloseButton={false} className="h-dvh w-screen max-w-none overflow-hidden rounded-none p-0 print:static print:h-auto print:w-full print:max-w-none print:translate-x-0 print:translate-y-0 print:overflow-visible print:rounded-none print:bg-white print:ring-0 sm:h-[min(94dvh,940px)] sm:w-[calc(100vw-1rem)] sm:max-w-7xl sm:rounded-xl">
+      <DialogContent showCloseButton={false} className="inset-0 top-0 left-0 h-dvh w-screen max-w-none translate-x-0 translate-y-0 overflow-hidden rounded-none p-0 print:static print:h-auto print:w-full print:max-w-none print:translate-x-0 print:translate-y-0 print:overflow-visible print:rounded-none print:bg-white print:ring-0 sm:top-1/2 sm:left-1/2 sm:h-[min(94dvh,940px)] sm:w-[calc(100vw-1rem)] sm:max-w-7xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl">
         <div className="flex h-full flex-col print:block">
           <DialogHeader className="border-b bg-background px-4 py-3 print:hidden sm:px-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -445,22 +444,31 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
                     {student.first_name.slice(0, 1)}
                   </div>
                 )}
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <DialogTitle className="truncate text-xl font-bold leading-tight">
-                      {student.prefix}{student.first_name} {student.last_name}
-                    </DialogTitle>
-                    <Badge
-                      variant="outline"
-                      className={student.current_status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}
-                    >
-                      {getStatusLabel(student.current_status)}
-                    </Badge>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <DialogTitle className="min-w-0 break-words text-lg font-bold leading-tight sm:truncate sm:text-xl">
+                        {student.prefix}{student.first_name} {student.last_name}
+                      </DialogTitle>
+                      <DialogDescription className="mt-1 break-words text-sm">
+                        {studentT('id')}: <span className="font-mono">{student.student_id_number}</span>
+                        {student.classroom_name ? ` · ${studentT('classroom')} ${student.classroom_name}` : ''}
+                      </DialogDescription>
+                    </div>
+                    <div className="flex shrink-0 items-start gap-2">
+                      <Badge
+                        variant="outline"
+                        className="shrink-0"
+                      >
+                        {getStatusLabel(student.current_status)}
+                      </Badge>
+                      <DialogClose
+                        render={<Button type="button" variant="ghost" size="icon" className="shrink-0 sm:hidden" aria-label={commonT('close')} />}
+                      >
+                        <X className="h-5 w-5" />
+                      </DialogClose>
+                    </div>
                   </div>
-                  <DialogDescription className="mt-1">
-                    {studentT('id')}: <span className="font-mono">{student.student_id_number}</span>
-                    {student.classroom_name ? ` · ${studentT('classroom')} ${student.classroom_name}` : ''}
-                  </DialogDescription>
                 </div>
               </div>
               <div className="hidden flex-wrap gap-2 pl-12 sm:pl-16 lg:flex lg:pl-0">
@@ -505,8 +513,8 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
               </div>
             </div>
           </DialogHeader>
-          <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto print:h-auto print:overflow-visible">
-          <div className={`flex flex-col gap-5 p-4 print:space-y-3 print:bg-white print:p-0 print:pb-0 print:text-xs print:text-black sm:p-5 ${hasActiveActionPanel ? 'pb-6 sm:pb-6' : 'pb-24 sm:pb-24 lg:pb-6'}`}>
+          <div ref={contentRef} className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y print:h-auto print:overflow-visible">
+          <div className={`flex min-h-full flex-col gap-5 overflow-x-hidden p-4 print:space-y-3 print:bg-white print:p-0 print:pb-0 print:text-xs print:text-black sm:p-5 ${hasActiveActionPanel ? 'pb-6 sm:pb-6' : 'pb-24 sm:pb-24 lg:pb-6'}`}>
       <div className="hidden border-b border-neutral-300 pb-3 print:block">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -534,11 +542,12 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
       </div>
       {!hasActiveActionPanel && (
       <div className="absolute inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 backdrop-blur print:hidden lg:hidden">
-        <div className={`grid gap-2 ${canManage || canEditProfile ? 'grid-cols-[auto_1fr_auto]' : 'grid-cols-1'}`}>
+        <div className="flex items-stretch gap-2">
           <Button
             type="button"
             variant="outline"
             size="icon"
+            className="shrink-0"
             onClick={handlePrint}
             aria-label={studentT('exportPdf')}
           >
@@ -547,6 +556,7 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
           {canManage && (
             <Button
               type="button"
+              className="min-w-0 flex-1"
               disabled={!canRecordScoreInSelectedYear}
               title={canRecordScoreInSelectedYear ? undefined : scoreActionUnavailableReason}
               onClick={openRecordPanel}
@@ -559,6 +569,8 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
             <Button
               type="button"
               variant="outline"
+              size="icon"
+              className="shrink-0"
               disabled={!canEditStudentInSelectedYear}
               title={canEditStudentInSelectedYear ? undefined : scoreActionUnavailableReason}
               onClick={openEditPanel}
@@ -571,6 +583,8 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
             <Button
               type="button"
               variant="outline"
+              size="icon"
+              className="shrink-0"
               disabled={resettingPassword}
               onClick={handleResetPassword}
               aria-label={studentT('resetPasswordAction')}
@@ -598,7 +612,50 @@ export function StudentDetailDialog({ studentId, onClose }: StudentDetailDialogP
             <CardTitle className="text-lg print:text-[12px] print:font-semibold">{studentT('scoreHistoryLatest')}</CardTitle>
           </CardHeader>
           <CardContent className="print:px-3 print:py-2">
-            <div className="overflow-x-auto print:overflow-visible">
+            <div className="space-y-3 md:hidden print:hidden">
+              {reportData.transactions.slice(0, 8).map((t) => (
+                <div key={t.id} className="rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">{t.category_name}</p>
+                      <p className="text-xs text-muted-foreground">{formatDateTime(t.recorded_at)}</p>
+                    </div>
+                    <span className={t.points > 0 ? 'text-sm font-medium text-green-600' : 'text-sm font-medium text-destructive'}>
+                      {t.points > 0 ? `+${t.points}` : t.points}
+                    </span>
+                  </div>
+                  <div className="mt-2 space-y-2 text-sm">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-muted-foreground">{scoreT('recordedBy')}</span>
+                      <span>{t.recorded_by_name ?? ''}</span>
+                    </div>
+                    {t.note ? (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">{studentT('note')}</span>
+                        <span className="break-words text-muted-foreground">{t.note}</span>
+                      </div>
+                    ) : null}
+                    {t.evidence && t.evidence.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {t.evidence.map((e) => (
+                          <a key={e.id} href={e.file_url} target="_blank" rel="noopener noreferrer">
+                            <Image
+                              src={e.file_url}
+                              alt={e.file_name ?? ''}
+                              width={40}
+                              height={40}
+                              unoptimized
+                              className="size-10 rounded border object-cover"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block print:block print:overflow-visible">
             <Table className="print:text-[10px] print:[&_td]:border print:[&_td]:border-neutral-300 print:[&_td]:px-2 print:[&_td]:py-1.5 print:[&_th]:border print:[&_th]:border-neutral-300 print:[&_th]:bg-neutral-100 print:[&_th]:px-2 print:[&_th]:py-1.5">
               <TableHeader>
                 <TableRow>

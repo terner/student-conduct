@@ -6,13 +6,13 @@ import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components
 import { Spinner } from '@/components/ui/spinner';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SimplePagination } from '@/components/ui/simple-pagination';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
 import { SortableTableHead, type SortDirection } from '@/components/ui/sortable-table-head';
 import { compareNullableText, textOrEmpty } from '@/components/ui/table-helpers';
 import { createClient } from '@/lib/supabase/client';
 import { useLocale, useTranslations } from 'next-intl';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 interface LogRow {
   id: string;
@@ -46,23 +46,25 @@ export default function AuditLogPage() {
   const [actionTotal, setActionTotal] = useState(0);
   const [auditPage, setAuditPage] = useState(1);
   const [actionPage, setActionPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState<number>(20);
+  const [actionPageSize, setActionPageSize] = useState<number>(20);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
       setLoading(true);
       const supabase = createClient();
-      const auditFrom = (auditPage - 1) * PAGE_SIZE;
-      const actionFrom = (actionPage - 1) * PAGE_SIZE;
+      const auditFrom = (auditPage - 1) * auditPageSize;
+      const actionFrom = (actionPage - 1) * actionPageSize;
       const { data: auditData } = await supabase
         .from('audit_logs')
         .select('*, profiles(full_name)', { count: 'exact' })
         .order('created_at', { ascending: false })
-        .range(auditFrom, auditFrom + PAGE_SIZE - 1);
+        .range(auditFrom, auditFrom + auditPageSize - 1);
       const { data: actionData } = await supabase
         .from('action_logs')
         .select('*, profiles(full_name)', { count: 'exact' })
         .order('created_at', { ascending: false })
-        .range(actionFrom, actionFrom + PAGE_SIZE - 1);
+        .range(actionFrom, actionFrom + actionPageSize - 1);
 
       if (auditData) setAuditLogs(auditData as LogRow[]);
       if (actionData) setActionLogs(actionData as LogRow[]);
@@ -71,7 +73,7 @@ export default function AuditLogPage() {
       setAuditTotal(auditCount || 0);
       setActionTotal(actionCount || 0);
       setLoading(false);
-  }, [auditPage, actionPage]);
+  }, [actionPage, actionPageSize, auditPage, auditPageSize]);
 
   useEffect(() => {
     void Promise.resolve().then(load);
@@ -101,8 +103,9 @@ export default function AuditLogPage() {
             targetIdKey="target_id"
             locale={locale}
             page={auditPage}
-            pageSize={PAGE_SIZE}
+            pageSize={auditPageSize}
             total={auditTotal}
+            onPageSizeChange={setAuditPageSize}
             onPageChange={setAuditPage}
           />
         </TabsContent>
@@ -116,8 +119,9 @@ export default function AuditLogPage() {
             targetIdKey="resource_id"
             locale={locale}
             page={actionPage}
-            pageSize={PAGE_SIZE}
+            pageSize={actionPageSize}
             total={actionTotal}
+            onPageSizeChange={setActionPageSize}
             onPageChange={setActionPage}
           />
         </TabsContent>
@@ -137,6 +141,7 @@ function LogTable({
   page,
   pageSize,
   total,
+  onPageSizeChange,
   onPageChange,
 }: {
   rows: LogRow[];
@@ -149,9 +154,11 @@ function LogTable({
   page: number;
   pageSize: number;
   total: number;
+  onPageSizeChange: (pageSize: number) => void;
   onPageChange: (page: number) => void;
 }) {
   const settingsT = useTranslations('settings');
+  const commonT = useTranslations('common');
   const [sortField, setSortField] = useState<LogSortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -185,6 +192,11 @@ function LogTable({
     });
   }, [eventKey, rows, sortDirection, sortField, targetIdKey, targetTypeKey]);
 
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const from = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const to = total === 0 ? 0 : Math.min((currentPage - 1) * pageSize + sortedRows.length, total);
+
   if (rows.length === 0) {
     return (
       <Empty>
@@ -197,8 +209,19 @@ function LogTable({
   }
 
   return (
-    <Card>
-      <CardContent className="p-0">
+    <>
+      <TablePaginationToolbar
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        summary={commonT('paginationSummary', { start: from, end: to, total })}
+        rowsPerPageLabel={commonT('rowsPerPage')}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        onPageSizeChange={onPageSizeChange}
+        onPageChange={onPageChange}
+      />
+      <Card>
+        <CardContent className="p-0">
         <Table>
           <TableHeader>
             <TableRow>
@@ -231,8 +254,8 @@ function LogTable({
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-      <SimplePagination page={page} pageSize={pageSize} total={total} onPageChange={onPageChange} />
-    </Card>
+        </CardContent>
+      </Card>
+    </>
   );
 }

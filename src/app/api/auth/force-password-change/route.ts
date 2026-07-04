@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { apiMessage } from '@/lib/i18n/api'
-import { serverMessage } from '@/lib/i18n/server'
 
 export async function POST(request: Request) {
   try {
@@ -16,11 +15,7 @@ export async function POST(request: Request) {
 
     if (updateError) {
       return NextResponse.json(
-        {
-          error: await serverMessage('authPages.forcePasswordChange.updateFailed', {
-            message: updateError.message,
-          }),
-        },
+        { error: apiMessage(request, 'forcePasswordChangeUpdateFailed') },
         { status: 500 }
       )
     }
@@ -28,7 +23,7 @@ export async function POST(request: Request) {
     if (!profiles || profiles.length === 0) {
       return NextResponse.json({
         success: true,
-        message: await serverMessage('authPages.forcePasswordChange.noneUpdated'),
+        message: apiMessage(request, 'forcePasswordChangeNoneUpdated'),
         count: 0
       })
     }
@@ -42,7 +37,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: await serverMessage('authPages.forcePasswordChange.updated', { count: profiles.length }),
+      message: apiMessage(request, 'forcePasswordChangeUpdated', { count: profiles.length }),
       count: profiles.length,
       details: grouped
     })

@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getCategories, removeCategory, saveCategory } from '@/lib/actions/score.action';
 import { ScoreCategoryForm } from '@/components/features/scores/score-category-form';
 import type { ScoreCategory } from '@/types';
@@ -20,6 +20,7 @@ export default function ScoreCategoryPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editCategory, setEditCategory] = useState<ScoreCategory | null>(null);
+  const [deleteCategory, setDeleteCategory] = useState<ScoreCategory | null>(null);
 
   useEffect(() => {
     void Promise.resolve().then(loadCategories);
@@ -45,13 +46,14 @@ export default function ScoreCategoryPage() {
     loadCategories();
   }
 
-  async function handleDelete(category: ScoreCategory) {
-    if (!confirm(t('deleteCategoryConfirm', { name: category.name }))) return;
-    const result = await removeCategory(category.id);
+  async function handleDelete() {
+    if (!deleteCategory) return;
+    const result = await removeCategory(deleteCategory.id);
     if (!result.success) {
       toast(commonT('error'), { description: result.error?.message });
       return;
     }
+    setDeleteCategory(null);
     toast(t('deleteCategorySuccess'));
     loadCategories();
   }
@@ -69,6 +71,9 @@ export default function ScoreCategoryPage() {
         </Button>
       </div>
 
+      {loading ? (
+        <p className="text-sm text-muted-foreground">{commonT('loading')}</p>
+      ) : (
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -87,7 +92,7 @@ export default function ScoreCategoryPage() {
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditCategory(c); setShowForm(true); }}>
                     <Pencil className="h-3 w-3" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label={t('deleteCategory')} onClick={() => handleDelete(c)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label={t('deleteCategory')} onClick={() => setDeleteCategory(c)}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
@@ -112,7 +117,7 @@ export default function ScoreCategoryPage() {
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditCategory(c); setShowForm(true); }}>
                     <Pencil className="h-3 w-3" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label={t('deleteCategory')} onClick={() => handleDelete(c)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label={t('deleteCategory')} onClick={() => setDeleteCategory(c)}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
@@ -121,6 +126,7 @@ export default function ScoreCategoryPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent>
@@ -132,6 +138,21 @@ export default function ScoreCategoryPage() {
             onSubmit={handleSave}
             onCancel={() => { setShowForm(false); setEditCategory(null); }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteCategory} onOpenChange={(open) => !open && setDeleteCategory(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('deleteCategory')}</DialogTitle>
+            {deleteCategory && (
+              <DialogDescription>{t('deleteCategoryConfirm', { name: deleteCategory.name })}</DialogDescription>
+            )}
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteCategory(null)}>{commonT('cancel')}</Button>
+            <Button variant="destructive" onClick={handleDelete}>{commonT('delete')}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

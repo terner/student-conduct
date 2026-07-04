@@ -15,6 +15,8 @@ import { getAcademicYears, getClassroomsForSelect } from '@/lib/actions/student.
 import { getEducationStages } from '@/lib/actions/education-stage.action';
 import { parseGuardianFullName } from '@/lib/guardian';
 import { normalizePhoneInput } from '@/lib/phone';
+import { toast } from 'sonner';
+import { DEFAULT_STUDENT_PREFIX } from '@/lib/domain/person';
 
 export interface SubmitResult {
   fieldErrors?: Record<string, string>;
@@ -50,20 +52,8 @@ interface StageOption {
   name_th: string;
 }
 
-const PREFIX_LABELS: Record<string, string> = {
-  'เด็กชาย': 'เด็กชาย',
-  'เด็กหญิง': 'เด็กหญิง',
-  'นาย': 'นาย',
-  'นางสาว': 'นางสาว',
-  'นาง': 'นาง',
-};
-
-const GUARDIAN_PREFIX_LABELS: Record<string, string> = {
-  'นาย': 'นาย',
-  'นาง': 'นาง',
-  'นางสาว': 'นางสาว',
-  'คุณ': 'คุณ',
-};
+const PREFIX_LABELS = Object.fromEntries(studentPrefixEnum.map((prefix) => [prefix, prefix])) as Record<string, string>;
+const GUARDIAN_PREFIX_LABELS = Object.fromEntries(guardianPrefixEnum.map((prefix) => [prefix, prefix])) as Record<string, string>;
 
 const EMPTY_GUARDIAN_PREFIX = '__none__';
 type GuardianPrefix = (typeof guardianPrefixEnum)[number];
@@ -106,7 +96,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
   } = useForm({
     resolver: zodResolver(studentSchema),
     defaultValues: ({
-      prefix: 'เด็กชาย',
+      prefix: DEFAULT_STUDENT_PREFIX,
       first_name: '',
       last_name: '',
       student_id_number: '',
@@ -253,7 +243,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     e.target.value = '';
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      alert(settingsT('logoFileTooLarge'));
+      toast(settingsT('logoFileTooLarge'));
       return;
     }
     setUploadingAvatar(true);
@@ -266,11 +256,13 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
       const result = await res.json();
       if (res.ok && result.url) {
         setAvatarUrl(result.url);
+      } else if (result.error) {
+        toast(result.error);
       } else {
-        alert(result.error || t('uploadFailed'));
+        toast(t('uploadFailed'));
       }
     } catch {
-      alert(t('uploadError'));
+      toast(t('uploadError'));
     } finally {
       setUploadingAvatar(false);
     }
@@ -287,7 +279,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
     })} className="space-y-4">
       <div className="space-y-2">
         <Label>{t('photo')}</Label>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           {avatarUrl ? (
             <div className="relative">
               <Image src={avatarUrl} alt={t('photo')} width={64} height={64} unoptimized className="size-16 rounded-full object-cover border" />
@@ -304,7 +296,7 @@ export function StudentForm({ defaultValues, classrooms: propClassrooms, onSubmi
               <ImageIcon className="size-6" />
             </div>
           )}
-          <label className="cursor-pointer">
+          <label className="cursor-pointer self-start">
             <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               {uploadingAvatar ? (
                 <Loader2 className="size-4 animate-spin" />

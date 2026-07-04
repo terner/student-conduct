@@ -21,7 +21,7 @@ import { clearTtlCacheByPrefix, getTtlCache, setTtlCache } from '@/lib/cache/ttl
 import { logAudit } from '@/lib/audit/log';
 import { notifyThresholdReached } from '@/lib/notifications/threshold';
 import { notifyScoreApprovalPending, resolveScoreApprovalPendingNotifications } from '@/lib/notifications/score-approval';
-import { serverMessage } from '@/lib/i18n/server';
+import { serverApiMessage } from '@/lib/i18n/server';
 
 const MASTER_DATA_TTL_MS = 10 * 60 * 1000;
 
@@ -43,12 +43,12 @@ async function getAcademicYearClosedReason(year: {
   end_date?: string | null;
 }, today = todayInBangkok()) {
   if (year.start_date && today < year.start_date) {
-    return serverMessage('apiErrors.academicYearNotStarted', { date: year.start_date });
+    return serverApiMessage('academicYearNotStarted', { date: year.start_date });
   }
   if (year.end_date && today > year.end_date) {
-    return serverMessage('apiErrors.academicYearEnded', { date: year.end_date });
+    return serverApiMessage('academicYearEnded', { date: year.end_date });
   }
-  return '';
+  return undefined;
 }
 
 async function resolveAcademicYearForScoring(
@@ -84,14 +84,14 @@ async function ensureAcademicYearOpenForScoring(
   if (!academicYear?.id) {
     return {
       success: false as const,
-      error: { code: 'NO_CURRENT_YEAR', message: await serverMessage('apiErrors.noCurrentAcademicYear') },
+      error: { code: 'NO_CURRENT_YEAR', message: await serverApiMessage('noCurrentAcademicYear') },
     };
   }
 
   if (!academicYear.is_current) {
     return {
       success: false as const,
-      error: { code: 'ACADEMIC_YEAR_NOT_CURRENT', message: await serverMessage('apiErrors.scoreCurrentYearOnly') },
+      error: { code: 'ACADEMIC_YEAR_NOT_CURRENT', message: await serverApiMessage('scoreCurrentYearOnly') },
       academicYear,
     };
   }
@@ -100,7 +100,7 @@ async function ensureAcademicYearOpenForScoring(
   if (closedReason) {
     return {
       success: false as const,
-      error: { code: 'ACADEMIC_YEAR_CLOSED', message: await serverMessage('apiErrors.scoreRecordClosedAcademicYear', { reason: closedReason }) },
+      error: { code: 'ACADEMIC_YEAR_CLOSED', message: await serverApiMessage('scoreRecordClosedAcademicYear', { reason: closedReason }) },
       academicYear,
     };
   }
@@ -111,24 +111,24 @@ async function ensureAcademicYearOpenForScoring(
 export async function getScoreRecordingAvailability(academicYearId?: string) {
   return withAuth(async (profile) => {
     if (!canRecordScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreRecordForbidden') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('scoreRecordForbidden') } };
     }
 
     const supabase = await createAdminClient();
     const academicYear = await resolveAcademicYearForScoring(supabase, academicYearId);
     if (!academicYear?.id) {
-      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: await serverMessage('apiErrors.noCurrentAcademicYear') } };
+      return { success: false, error: { code: 'NO_CURRENT_YEAR', message: await serverApiMessage('noCurrentAcademicYear') } };
     }
 
     const closedReason = await getAcademicYearClosedReason(academicYear);
-    const notCurrentReason = academicYear.is_current ? '' : await serverMessage('apiErrors.scoreCurrentYearOnly');
+    const notCurrentReason = academicYear.is_current ? undefined : await serverApiMessage('scoreCurrentYearOnly');
     return {
       success: true,
       data: {
         academic_year_id: academicYear.id as string,
         academic_year_name: academicYear.name as string,
         can_record: !notCurrentReason && !closedReason,
-        reason: notCurrentReason || closedReason,
+        reason: notCurrentReason ?? closedReason,
         start_date: (academicYear.start_date as string | null) || null,
         end_date: (academicYear.end_date as string | null) || null,
       },
@@ -150,7 +150,7 @@ export async function getScores(params: {
 }) {
   return withAuth(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreHistoryForbidden') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('scoreHistoryForbidden') } };
     }
 
     const result = await listScoreTransactions(params);
@@ -190,14 +190,14 @@ export async function recordScore(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canRecordScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreRecordForbidden') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('scoreRecordForbidden') } };
     }
 
     const validated = scoreRecordSchema.parse(data);
 
     const xssCheck = validateXSS({ note: validated.note || '' });
     if (xssCheck) {
-      return { success: false, error: { code: 'XSS_DETECTED', message: await serverMessage('apiErrors.xssDetected') } };
+      return { success: false, error: { code: 'XSS_DETECTED', message: await serverApiMessage('xssDetected') } };
     }
 
     const supabase = await createAdminClient();
@@ -216,7 +216,7 @@ export async function recordScore(data: {
         .maybeSingle();
 
       if (!enrollment) {
-        return { success: false, error: { code: 'INVALID_ACADEMIC_YEAR', message: await serverMessage('apiErrors.invalidStudentAcademicYear') } };
+        return { success: false, error: { code: 'INVALID_ACADEMIC_YEAR', message: await serverApiMessage('invalidStudentAcademicYear') } };
       }
     }
 
@@ -228,7 +228,7 @@ export async function recordScore(data: {
       .single();
 
     if (category?.requires_evidence && !data.has_evidence) {
-      return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: await serverMessage('apiErrors.scoreEvidenceRequired') } };
+      return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: await serverApiMessage('scoreEvidenceRequired') } };
     }
 
     const result = await createScoreTransaction({
@@ -306,7 +306,7 @@ export async function recordBulkScore(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canRecordScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreRecordForbidden') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('scoreRecordForbidden') } };
     }
 
     const supabase = await createClient();
@@ -321,7 +321,7 @@ export async function recordBulkScore(data: {
       .single();
 
     if (category?.requires_evidence) {
-      return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: await serverMessage('apiErrors.scoreBulkEvidenceUnsupported') } };
+      return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: await serverApiMessage('scoreBulkEvidenceUnsupported') } };
     }
 
     const results = [];
@@ -369,7 +369,7 @@ export async function recordBulkScore(data: {
 export async function voidScore(transactionId: string, voidReason: string) {
   return withAuth(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreVoidForbidden') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('scoreVoidForbidden') } };
     }
 
     const validated = scoreVoidSchema.parse({ transaction_id: transactionId, void_reason: voidReason });
@@ -382,10 +382,10 @@ export async function voidScore(transactionId: string, voidReason: string) {
       .maybeSingle();
 
     if (!before) {
-      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.scoreTransactionNotFound') } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverApiMessage('scoreTransactionNotFound') } };
     }
     if (before.status === 'voided') {
-      return { success: false, error: { code: 'CONFLICT', message: await serverMessage('apiErrors.scoreTransactionAlreadyVoided') } };
+      return { success: false, error: { code: 'CONFLICT', message: await serverApiMessage('scoreTransactionAlreadyVoided') } };
     }
 
     if (before.academic_year_id) {
@@ -410,7 +410,7 @@ export async function voidScore(transactionId: string, voidReason: string) {
 export async function approveScore(transactionId: string) {
   return withAuth(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.scoreApproveForbidden') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('scoreApproveForbidden') } };
     }
 
     const supabase = await createClient();
@@ -421,10 +421,10 @@ export async function approveScore(transactionId: string) {
       .maybeSingle();
 
     if (!transaction) {
-      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.scoreTransactionNotFound') } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverApiMessage('scoreTransactionNotFound') } };
     }
     if (transaction.status !== 'pending') {
-      return { success: false, error: { code: 'CONFLICT', message: await serverMessage('apiErrors.scoreApprovePendingOnly') } };
+      return { success: false, error: { code: 'CONFLICT', message: await serverApiMessage('scoreApprovePendingOnly') } };
     }
 
     if (transaction.academic_year_id) {
@@ -439,7 +439,7 @@ export async function approveScore(transactionId: string) {
         .eq('transaction_id', transactionId);
 
       if (!count) {
-        return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: await serverMessage('apiErrors.scoreApprovalEvidenceRequired') } };
+        return { success: false, error: { code: 'EVIDENCE_REQUIRED', message: await serverApiMessage('scoreApprovalEvidenceRequired') } };
       }
     }
 
@@ -500,13 +500,13 @@ export async function saveCategory(data: {
 }) {
   return withAuth(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     const validated = scoreCategorySchema.parse(data);
     const xssCheck = validateXSS({ name: validated.name, description: validated.description || '' });
     if (xssCheck) {
-      return { success: false, error: { code: 'XSS_DETECTED', message: await serverMessage('apiErrors.xssDetected') } };
+      return { success: false, error: { code: 'XSS_DETECTED', message: await serverApiMessage('xssDetected') } };
     }
 
     await upsertScoreCategory(validated);
@@ -525,11 +525,11 @@ export async function saveCategory(data: {
 export async function removeCategory(categoryId: string) {
   return withAuth(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.superadminOnly') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('superadminOnly') } };
     }
 
     if (!categoryId) {
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverMessage('apiErrors.scoreCategoryNotFound') } };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: await serverApiMessage('scoreCategoryNotFound') } };
     }
 
     await deactivateScoreCategory(categoryId);

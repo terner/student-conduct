@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiMessage } from '@/lib/i18n/api';
 
 /**
  * Middleware to detect and block XSS attempts in request bodies
@@ -58,14 +59,14 @@ export function containsXSS(obj: unknown): boolean {
  *     // ... continue
  *   }
  */
-export function validateXSS(body: unknown): NextResponse | null {
+export function validateXSS(body: unknown, request?: Request): NextResponse | null {
   if (containsXSS(body)) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'XSS_DETECTED',
-          message: 'ตรวจพบรูปแบบข้อมูลที่ไม่ปลอดภัย กรุณาตรวจสอบข้อมูลอีกครั้ง',
+          message: request ? apiMessage(request, 'xssDetected') : 'XSS_DETECTED',
         },
       },
       { status: 400 }
@@ -90,7 +91,7 @@ export function validateContentType(req: NextRequest): NextResponse | null {
           success: false,
           error: {
             code: 'INVALID_CONTENT_TYPE',
-            message: 'Content-Type ไม่ถูกต้อง',
+            message: apiMessage(req, 'invalidContentType'),
           },
         },
         { status: 415 }

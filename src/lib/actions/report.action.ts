@@ -6,7 +6,7 @@ import { canApproveScores, hasRole } from '@/lib/security/roles';
 import { getScoreSummary } from '@/lib/db';
 import type { StudentThresholdInfo } from '@/types';
 import { logAction } from '@/lib/audit/log';
-import { serverMessage } from '@/lib/i18n/server';
+import { serverApiMessage } from '@/lib/i18n/server';
 
 export type RankingSortBy = 'current_score' | 'deducted' | 'transaction_count' | 'latest' | 'name';
 
@@ -543,7 +543,7 @@ export async function getDashboardStats() {
 export async function getSchoolStatisticsReport(academicYearId?: string) {
   return withAuth<SchoolStatisticsReportData>(async (profile) => {
     if (!canApproveScores(profile)) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.schoolStatisticsForbidden') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('schoolStatisticsForbidden') } };
     }
 
     const supabase = await createAdminClient();
@@ -807,7 +807,7 @@ export async function getIndividualReport(studentId: string, academicYearId?: st
         .maybeSingle();
 
       if (!currentYear?.id) {
-        return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.noCurrentAcademicYear') } };
+        return { success: false, error: { code: 'NOT_FOUND', message: await serverApiMessage('noCurrentAcademicYear') } };
       }
 
       const { data: currentEnrollment } = await supabase
@@ -819,7 +819,7 @@ export async function getIndividualReport(studentId: string, academicYearId?: st
         .maybeSingle();
 
       if (!currentEnrollment) {
-        return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.currentYearSelfOnly') } };
+        return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('currentYearSelfOnly') } };
       }
 
       effectiveAcademicYearId = currentYear.id as string;
@@ -847,7 +847,7 @@ export async function getIndividualReport(studentId: string, academicYearId?: st
       .single();
 
     if (!student) {
-      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.studentNotFound') } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverApiMessage('studentNotFound') } };
     }
 
     const studentClassroom = student.classrooms as { name?: string; grade_level?: number; education_stage_id?: string } | null;
@@ -909,13 +909,13 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
     const canViewAll = canApproveScores(profile);
     const isTeacher = hasRole(profile, 'teacher');
     if (!canViewAll && !isTeacher) {
-      return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.classroomReportForbidden') } };
+      return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('classroomReportForbidden') } };
     }
 
     if (!canViewAll) {
       const assignedClassroomIds = await getTeacherAssignedClassroomIds(profile.id);
       if (!assignedClassroomIds.includes(classroomId)) {
-        return { success: false, error: { code: 'FORBIDDEN', message: await serverMessage('apiErrors.assignedClassroomOnly') } };
+        return { success: false, error: { code: 'FORBIDDEN', message: await serverApiMessage('assignedClassroomOnly') } };
       }
     }
 
@@ -939,7 +939,7 @@ export async function getClassroomReport(classroomId: string, rankMode: 'risk' |
       .single();
 
     if (!classroom) {
-      return { success: false, error: { code: 'NOT_FOUND', message: await serverMessage('apiErrors.classroomNotFound') } };
+      return { success: false, error: { code: 'NOT_FOUND', message: await serverApiMessage('classroomNotFound') } };
     }
 
     const classroomRecord = classroom as unknown as ClassroomSnapshot;
@@ -1118,7 +1118,7 @@ export async function getThresholdReport(academicYearId?: string) {
         success: false,
         error: {
           code: 'FORBIDDEN',
-          message: await serverMessage('apiErrors.thresholdReportForbidden'),
+          message: await serverApiMessage('thresholdReportForbidden'),
         },
       };
     }

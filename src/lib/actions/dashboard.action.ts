@@ -4,7 +4,7 @@ import { withAuth } from '@/lib/server-action';
 import { hasRole, getRoles } from '@/lib/security/roles';
 import { getDashboardData } from '@/lib/db';
 import { createClient, createAdminClient, getUserFromCookie } from '@/lib/supabase/server';
-import { serverMessage } from '@/lib/i18n/server';
+import { serverApiMessage, serverMessage } from '@/lib/i18n/server';
 
 /**
  * Consolidated dashboard data fetch.
@@ -37,10 +37,10 @@ export async function getDashboard(params: { academic_year_id?: string } = {}) {
           await supabase.from('notifications').insert({
             recipient_id: profile.id,
             type: notificationType,
-            title: await serverMessage('settings.academicYearEndingTitle', { year: data.academic_year_ending.name }),
+            title: await serverMessage('dashboard.academicYearEndingTitle', { year: data.academic_year_ending.name }),
             body: data.academic_year_ending.days_remaining === 0
-              ? await serverMessage('settings.academicYearEndingToday')
-              : await serverMessage('settings.academicYearEndingInDays', {
+              ? await serverMessage('dashboard.academicYearEndingToday')
+              : await serverMessage('dashboard.academicYearEndingInDays', {
                 days: data.academic_year_ending.days_remaining,
                 endDate: data.academic_year_ending.end_date,
               }),
@@ -88,7 +88,7 @@ export async function checkPDPAConsent() {
       .maybeSingle();
 
     if (error) {
-      return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+      return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     }
 
     if (!data) {
@@ -126,7 +126,7 @@ export async function acceptPDPA() {
       accepted_by: profile.id,
     });
     if (error) {
-      return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+      return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     }
     return { success: true, data: { consented: true } };
   });
@@ -162,7 +162,7 @@ export async function changeProfileName(firstName: string, lastName: string) {
       .eq('id', profile.id);
 
     if (error) {
-      return { success: false, error: { code: 'DB_ERROR', message: error.message } };
+      return { success: false, error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') } };
     }
     return { success: true, data: { full_name: fullName } };
   });
@@ -187,7 +187,7 @@ export async function changePassword(newPassword: string) {
     if (authError) {
       return {
         success: false,
-        error: { code: 'AUTH_ERROR', message: authError.message },
+        error: { code: 'AUTH_ERROR', message: await serverApiMessage('authPasswordResetFailed') },
       };
     }
 
@@ -200,7 +200,7 @@ export async function changePassword(newPassword: string) {
     if (profileError) {
       return {
         success: false,
-        error: { code: 'DB_ERROR', message: profileError.message },
+        error: { code: 'DB_ERROR', message: await serverApiMessage('databaseError') },
       };
     }
 
@@ -248,7 +248,7 @@ export async function changePasswordWithOld(oldPassword: string, newPassword: st
     if (updateError) {
       return {
         success: false,
-        error: { code: 'AUTH_ERROR', message: updateError.message },
+        error: { code: 'AUTH_ERROR', message: await serverApiMessage('authPasswordResetFailed') },
       };
     }
 

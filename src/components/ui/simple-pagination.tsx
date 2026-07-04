@@ -28,12 +28,12 @@ export function SimplePagination({ page, pageSize, total, onPageChange, classNam
           total,
         })}
       </span>
-      <div className="flex items-center justify-end gap-2">
-        <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
+      <div className="flex items-center justify-center gap-3 md:justify-end">
+        <Button variant="outline" size="default" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
           <ChevronLeft className="h-4 w-4" />{commonT('previous')}
         </Button>
-        <span className="px-2">{currentPage} / {totalPages}</span>
-        <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+        <span className="flex h-8 min-w-14 items-center justify-center text-center">{currentPage} / {totalPages}</span>
+        <Button variant="outline" size="default" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
           {commonT('next')}<ChevronRight className="h-4 w-4" />
         </Button>
       </div>

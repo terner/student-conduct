@@ -24,3 +24,12 @@ export async function serverMessage(path: string, values?: Record<string, string
   const value = readPath(messages, path);
   return typeof value === 'string' ? formatMessage(value, values) : path;
 }
+
+export async function serverApiMessage(key: string, values?: Record<string, string | number>) {
+  const locale = await getLocale();
+  const messages = locale === 'en' ? en : th;
+  const value = readPath(messages, `apiErrors.${key}`);
+  const fallback = readPath(messages, 'apiErrors.internalError');
+  const template = typeof value === 'string' ? value : fallback;
+  return typeof template === 'string' ? formatMessage(template, values) : '';
+}

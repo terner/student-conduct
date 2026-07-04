@@ -19,7 +19,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ path
   const result = await get(blobPath, { access: 'private' });
 
   if (!result || result.statusCode === 304 || !result.stream) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ error: apiMessage(request, 'notFound') }, { status: 404 });
   }
 
   const headers = new Headers();

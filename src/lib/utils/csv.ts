@@ -1,4 +1,11 @@
 import Papa from 'papaparse';
+import {
+  REQUIRED_STUDENT_ENGLISH_CSV_HEADERS,
+  REQUIRED_STUDENT_THAI_CSV_HEADERS,
+  STUDENT_CSV_HEADERS,
+  readCsvString,
+  readCsvValue,
+} from '@/lib/domain/csv';
 
 export interface CsvImportResult {
   success: number;
@@ -87,19 +94,19 @@ export function exportCsv(
  */
 export function mapCsvRowToStudent(row: Record<string, unknown>) {
   return {
-    academic_year: String(row['ปีการศึกษา'] || row['academic_year'] || ''),
-    student_id: String(row['รหัสนักเรียน'] || row['student_id'] || row['student_id_number'] || ''),
-    prefix: String(row['คำนำหน้า'] || row['prefix'] || ''),
-    class_number: Number(row['เลขที่ในห้อง'] || row['เลขที่'] || row['class_number'] || 0),
-    first_name: String(row['ชื่อ'] || row['first_name'] || ''),
-    last_name: String(row['นามสกุล'] || row['last_name'] || ''),
-    education_stage_id: String(row['ระดับ'] || row['education_stage_id'] || row['education_stage'] || ''),
-    grade_level: Number(row['ชั้นปี'] || row['grade_level'] || 1),
-    classroom: String(row['ห้อง'] || row['classroom'] || ''),
-    status: String(row['สถานะ'] || row['status'] || 'active'),
-    guardian_full_name: String(row['ชื่อผู้ปกครอง'] || row['guardian_full_name'] || row['guardian_name'] || ''),
-    guardian_relation: String(row['ความสัมพันธ์'] || row['guardian_relation'] || ''),
-    guardian_phone: String(row['เบอร์โทรผู้ปกครอง'] || row['guardian_phone'] || ''),
+    academic_year: readCsvString(row, STUDENT_CSV_HEADERS.academicYear),
+    student_id: readCsvString(row, STUDENT_CSV_HEADERS.studentId),
+    prefix: readCsvString(row, STUDENT_CSV_HEADERS.prefix),
+    class_number: Number(readCsvValue(row, STUDENT_CSV_HEADERS.classNumber) ?? 0),
+    first_name: readCsvString(row, STUDENT_CSV_HEADERS.firstName),
+    last_name: readCsvString(row, STUDENT_CSV_HEADERS.lastName),
+    education_stage_id: readCsvString(row, STUDENT_CSV_HEADERS.educationStage),
+    grade_level: Number(readCsvValue(row, STUDENT_CSV_HEADERS.gradeLevel) ?? 1),
+    classroom: readCsvString(row, STUDENT_CSV_HEADERS.classroom),
+    status: readCsvString(row, STUDENT_CSV_HEADERS.status, 'active'),
+    guardian_full_name: readCsvString(row, STUDENT_CSV_HEADERS.guardianFullName),
+    guardian_relation: readCsvString(row, STUDENT_CSV_HEADERS.guardianRelation),
+    guardian_phone: readCsvString(row, STUDENT_CSV_HEADERS.guardianPhone),
   };
 }
 
@@ -107,15 +114,12 @@ export function mapCsvRowToStudent(row: Record<string, unknown>) {
  * Validate CSV headers for student import
  */
 export function validateCsvHeaders(headers: string[]): string[] {
-  const requiredThaiHeaders = ['รหัสนักเรียน', 'ชื่อ', 'นามสกุล', 'ชั้นปี', 'ห้อง'];
-  const requiredEngHeaders = ['student_id', 'first_name', 'last_name', 'grade_level', 'classroom'];
-
   const missing: string[] = [];
-  const hasThai = requiredThaiHeaders.some(h => headers.includes(h));
-  const hasEng = requiredEngHeaders.some(h => headers.includes(h));
+  const hasThai = REQUIRED_STUDENT_THAI_CSV_HEADERS.some(h => headers.includes(h));
+  const hasEng = REQUIRED_STUDENT_ENGLISH_CSV_HEADERS.some(h => headers.includes(h));
 
   if (!hasThai && !hasEng) {
-    return requiredThaiHeaders;
+    return [...REQUIRED_STUDENT_THAI_CSV_HEADERS];
   }
 
   return missing;

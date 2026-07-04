@@ -53,18 +53,3 @@ export function canImportData(profile: { role?: string | string[] | null }): boo
 export function canRecordScores(profile: { role?: string | string[] | null }): boolean {
   return hasAnyRole(profile, ['superadmin', 'admin', 'teacher']);
 }
-
-/**
- * Display-friendly role name (handles both single and multi-role)
- */
-export function displayRole(role: string | string[] | null | undefined): string {
-  if (!role) return 'นักเรียน';
-  const roles = Array.isArray(role) ? role : [role];
-  const labels: Record<string, string> = {
-    superadmin: 'ผู้ดูแลสูงสุด',
-    admin: 'ผู้ดูแลระบบ',
-    teacher: 'ครู',
-    student: 'นักเรียน',
-  };
-  return roles.map(r => labels[r] || r).join(', ');
-}

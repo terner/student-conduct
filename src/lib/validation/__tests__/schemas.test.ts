@@ -25,6 +25,7 @@ import {
   studentImportSchema,
   bondDocumentSchema,
 } from '../schemas';
+import { DEFAULT_STUDENT_PREFIX, GUARDIAN_PREFIXES, STUDENT_PREFIXES } from '@/lib/domain/person';
 
 describe('loginEmailSchema', () => {
   it('accepts valid email + password', () => {
@@ -149,7 +150,7 @@ describe('changePasswordSchema', () => {
 
 describe('studentSchema', () => {
   const valid = {
-    prefix: 'เด็กชาย',
+    prefix: DEFAULT_STUDENT_PREFIX,
     first_name: 'ธนพล',
     last_name: 'ใจดี',
     student_id_number: '1234567890',
@@ -163,14 +164,14 @@ describe('studentSchema', () => {
   });
 
   it('accepts valid prefix enum values', () => {
-    for (const prefix of ['เด็กชาย', 'เด็กหญิง', 'นาย', 'นางสาว', 'นาง'] as const) {
+    for (const prefix of STUDENT_PREFIXES) {
       const result = studentSchema.safeParse({ ...valid, prefix });
       expect(result.success).toBe(true);
     }
   });
 
   it('rejects invalid prefix', () => {
-    const result = studentSchema.safeParse({ ...valid, prefix: 'คุณ' });
+    const result = studentSchema.safeParse({ ...valid, prefix: GUARDIAN_PREFIXES[3] });
     expect(result.success).toBe(false);
   });
 
@@ -204,11 +205,11 @@ describe('studentSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('defaults prefix to เด็กชาย', () => {
+  it('defaults prefix to default student prefix', () => {
     const result = studentSchema.safeParse({ ...valid, prefix: undefined });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.prefix).toBe('เด็กชาย');
+      expect(result.data.prefix).toBe(DEFAULT_STUDENT_PREFIX);
     }
   });
 

@@ -207,9 +207,125 @@
 - [x] เพิ่ม storage test connection ใน Settings, upload validation/rate limit กลาง, API error messages ตาม locale, evidence bucket fallback เป็น `evidence`, และ audit IP/user-agent สำหรับ upload/storage test
 - [x] เพิ่ม threshold notification จาก event record/approve คะแนนปีปัจจุบัน พร้อม recipient admin/superadmin + homeroom/assistant, duplicate guard ผ่าน metadata และ mark-read ownership
 - [x] เพิ่ม pagination/load-more ให้หน้า list หลักแล้ว: `/teachers`, `/classrooms`, `/classrooms/[id]`, `/reports/individual`, `/reports/threshold`, `/reports/bond`, `/settings/logs`, `/interventions`, และ notification bell
+- [x] ปรับ shared data table layout ให้ใช้ page-level pagination toolbar ตรงกันแล้วใน `/classrooms`, `/teachers`, `/score/record`, `/score/history`, `/interventions`, `/settings/logs`, `/reports/individual`, `/reports/bond`, `/reports/threshold`
 - [x] Build ผ่านด้วย `npm run build`
 
 ## 📋 ฟีเจอร์ที่ยังต้องทำต่อ
+
+### UI / UX Task Backlog
+
+#### Modal Standardization
+- [ ] Standardize operational modals to the shared modal pattern in `design.md`
+  - scope:
+    - `src/components/features/scores/score-transaction-table.tsx`
+    - `src/app/(dashboard)/reports/individual/page.tsx`
+    - `src/app/(dashboard)/classrooms/page.tsx`
+    - `src/app/(dashboard)/classrooms/[id]/page.tsx`
+    - `src/app/(dashboard)/students/page.tsx`
+    - `src/app/(dashboard)/teachers/page.tsx`
+    - `src/app/(dashboard)/score/categories/page.tsx`
+    - `src/app/(dashboard)/settings/education-stages/page.tsx`
+    - `src/app/(dashboard)/settings/teacher-positions/page.tsx`
+    - `src/components/ui/dialog.tsx`
+    - `src/components/ui/command.tsx`
+  - requirements:
+    - mobile = full-screen sheet for detail / long-form modals
+    - desktop = centered modal
+    - explicit close affordance
+    - internal scroll containment
+    - no duplicated header/body summary data
+    - no hardcoded copy / no fallback literals
+  - detailed follow-up:
+    - [ ] Scores: convert transaction detail dialog to shared shell and normalize void confirm mobile footer behavior
+    - [ ] Reports Individual: audit current sheet behavior and decide keep-as-sheet vs normalize pattern
+    - [ ] Classrooms: normalize add/edit modal shell and verify nested student detail behavior
+    - [ ] Students: normalize add/edit/error/delete modal shells
+    - [ ] Teachers: normalize teacher form modal shell and modal-to-modal transitions
+    - [ ] Score Categories: normalize add/edit/delete modal shells
+    - [ ] Settings Education Stages: normalize all form/delete modals as one settings modal family
+    - [ ] Settings Teacher Positions: normalize add/edit/delete modals
+    - [ ] Shared dialog infrastructure: split compact confirm, form modal, and detail modal patterns without over-generalizing
+    - [ ] Verification pass: mobile overflow, desktop centering, scroll, close affordance, no duplicate summary, no hardcoded/fallback
+
+#### Settings Page Design / Responsive
+- [ ] Redesign `/settings` to match shared admin surface expectations
+  - file: `src/app/(dashboard)/settings/page.tsx`
+  - goals:
+    - stronger information hierarchy
+    - mobile-safe layout
+    - cleaner subsection grouping
+    - no fallback / no hardcoded copy
+  - tasks:
+    - [ ] Header and primary save action responsiveness
+      - [x] mobile header/action layout changed to stacked title + full-width save button
+      - [x] desktop keeps single-row title + action layout
+      - [x] add mobile bottom save action bar for long-form usability
+      - [x] finalize save pattern as desktop top action + mobile bottom action bar
+      - mobile stacked layout
+      - desktop single-row layout
+      - decide sticky top action vs bottom mobile action vs repeated save affordance
+      - keep save/loading feedback close to the action
+    - [ ] Settings navigation tabs
+      - [x] replace wrap-prone mobile tabs with horizontal scroll tabs
+      - replace wrapped tab row with stable responsive navigation
+      - ensure active section remains obvious
+      - evaluate desktop side-nav vs top tabs
+    - [ ] Section surface consistency
+      - [x] align major tabs around the same subsection surface pattern (`rounded-lg border p-4`)
+      - [x] normalize content spacing rhythm across school, scores, thresholds, academic structure, and storage
+      - normalize section intro, field grouping, subsection separation, and spacing rhythm
+      - reduce card-inside-card feeling
+    - [ ] School info section
+      - [x] move school names + logo into responsive two-column layout
+      - [x] change logo upload affordance from plain text link to action block
+      - make logo preview/upload responsive
+      - improve upload affordance hierarchy
+      - keep preview/remove/upload grouped
+    - [ ] Score settings section
+      - [x] regroup base score and score floor into compact responsive grid
+      - regroup compact numeric controls into responsive grid
+      - improve scanability without extra decoration
+    - [ ] Thresholds section
+      - [x] redesign threshold item layout to stack cleanly on small screens
+      - redesign threshold item layout for mobile
+      - stack deducted/action/color/remove on small screens
+      - stabilize desktop widths
+      - review add button crowding in card header
+    - [ ] Academic structure section
+      - [x] wrap launcher actions in the same subsection surface pattern as other settings tabs
+      - align launcher buttons to one shared admin shortcut pattern
+    - [ ] Storage section
+      - [x] separate provider selection from provider-specific config and email settings
+      - [x] move provider selection into its own subsection surface and make test action mobile-safe
+      - split into provider selection, provider-specific settings, connection test, email delivery settings
+      - reduce form fatigue and unrelated field adjacency
+    - [ ] Storage provider conditional UI
+      - [x] show Google Drive fields only when `google_drive` is the active provider
+      - show active-provider fields only unless there is a strong operational reason not to
+      - document persistence behavior for hidden fields
+    - [ ] Email settings row layout
+      - [x] stack API key field + test action on mobile
+      - [x] move Resend API key placeholder into i18n
+      - stack API key field + test action on mobile
+      - move remaining literal placeholder text into i18n
+      - keep loading state from shifting layout
+    - [ ] Input density and form rhythm
+      - standardize fixed widths and grid/flex behavior
+    - [ ] Non-superadmin variant
+      - [x] align shortcut cards with the main settings surface language and button pattern
+      - align shortcut-card surface with main settings IA
+
+#### Notification Information Architecture
+- [ ] Audit notification UI duplication between dashboard blocks and top-bar notification center
+  - canonical inbox should remain `src/components/layout/notification-bell.tsx`
+  - [x] remove duplicate notification-like sidebar section so inbox semantics stay with `NotificationBell`
+  - [x] verify dashboard at-risk block is watchlist/threshold summary data, not notification inbox data
+  - [ ] if a dashboard block uses the same notification data source, remove duplicate notification surface
+  - [ ] if a dashboard block is a watchlist/at-risk queue, rename and restyle it so it is not presented as `การแจ้งเตือน`
+  - verify data-source separation between:
+    - notification inbox
+    - at-risk/watchlist summary
+    - academic-year alert banners
 
 ### High Priority
 - [ ] **i18n integration ทั้งระบบ — งานคงเหลือหลังทำ partial แล้ว**  
@@ -221,10 +337,31 @@
   - [x] เพิ่ม table helper กลางสำหรับ sortable header, nullable cell display, status label และ compare functions
   - [x] ปรับ shared data tables หลัก (`student-table`, `teacher-table`, `classroom-table`, `score-transaction-table`) ให้ไม่มี literal fallback หลักและรองรับ sort
   - [x] ปรับ page-level table บางส่วน (`dashboard`, `interventions`, `settings/logs`, `settings/academic-years`) ให้ใช้ helper กลาง/no fallback/sort แล้ว
-  - [ ] Server action errors และ API routes อื่นที่ยังเหลือ
-  - [ ] ตรวจ hardcoded ที่เหลือใน reports/score/settings/teacher/student profile/PDF ให้ครบแบบ strict
-  - [ ] ไล่ table pages ที่ยังเป็น page-level table ให้ใช้ helper กลาง/no fallback/sort: classroom detail, settings import, student dashboard, reports tables, score record table, teacher positions
-  - [ ] แยก domain data ที่ไม่ควร i18n เช่น CSV Thai headers, คำนำหน้า, sample import data ออกจาก UI copy ที่ต้อง i18n
+  - [x] ปรับ API routes ชุดแรกให้ใช้ `apiErrors`/`apiMessage` และไม่ส่ง raw provider/database/auth error ออก response: `email/test`, `notifications`, `blob`, `auth/login`, `auth/debug`, `auth/force-password-change`
+  - [ ] **No fallback / no hardcode: API + server action responses**
+    - [x] ปิด core response helpers: `src/lib/server-action.ts`, `src/lib/validation/form-utils.ts`, `src/lib/security/validate-input.ts`
+    - [x] ปิด infra errors: `src/lib/email.ts`, `src/lib/storage/vercel-blob.ts`, `src/lib/storage/google-drive.ts`
+    - [x] ปิด server action raw errors/UI namespace leakage ชุดหลัก: `student.action.ts`, `dashboard.action.ts`, `teacher.action.ts`, `classroom.action.ts`, `academic-year.action.ts`, `settings.action.ts`, `education-stage.action.ts`, `grade-level.action.ts`, `teacher-position.action.ts`
+    - [x] ปิด query-layer hardcoded error ที่ leak ได้ใน `classroom.queries.ts`, `teacher.queries.ts`, `student.queries.ts` ให้เป็น error code แล้ว map กลับผ่าน action/i18n
+    - [x] ปิด user-facing error response ใน `report.action.ts` และ `score.action.ts` ให้ใช้ `serverApiMessage`
+    - [x] ปิด user-facing notification/email/classroom duplicate copy ใน lib/action layer ให้ใช้ `messages/*` (`score-approval`, `threshold`, `email.ts`, `classroom.action.ts`)
+    - [x] ปิด `importStudentsCsv(...)` ใน scope import: CSV aliases ผ่าน domain constants, error responses ผ่าน `serverApiMessage`, default domain fallback ผ่าน constants
+    - [x] ห้ามส่ง `error.message`, `authError.message`, `updateError.message`, `err.message` เป็น user-facing response ใน scope ที่แก้รอบนี้; map เป็น `apiErrors.*` หรือ action error key ที่ชัดเจน
+    - [ ] ห้ามใช้ UI namespace เช่น `authPages.*`, `settings.*` ใน API/action response ยกเว้นเป็น success copy ที่ caller ไม่ใช้เป็น API error — เหลือ success copy ใน `dashboard.action.ts` ให้ตัดสินใจแยก namespace
+  - [ ] **No fallback / no hardcode: Client UI**
+    - [ ] ปิด literal loading/placeholder/title/sr-only/aria-label ใน layout และ UI primitives: `loading.tsx`, `classrooms/loading.tsx`, `reports/loading.tsx`, `score/*/loading.tsx`, `components/ui/sidebar.tsx`, `dialog.tsx`, `sheet.tsx`, `spinner.tsx`, `components/layout/*`
+    - [x] ปิด `alert(...)`, `confirm(...)`, `toast('...')`, และ `result.error || fallback` ใน `settings/page.tsx`, `teachers/page.tsx`, `student-form.tsx`, `teacher-form.tsx`, `settings/profile/page.tsx`
+    - [x] ปิด scoped page-level table fallback รอบนี้: `students/page.tsx`, `students/error.tsx`, `classrooms/page.tsx`, `settings/education-stages/page.tsx`, `student/dashboard/page.tsx`, `score-transaction-table.tsx`
+    - [x] ปิด scoped `reports/*` fallback ที่สแกนเจอรอบนี้: `reports/individual`, `reports/classroom`, `reports/threshold`, `reports/bond`, `reports/statistics`
+    - [x] ปิด `commonT('notAvailable')`, `'-'`, raw status/type fallback และ empty-label fallback ที่แสดงผลใน UI ส่วนที่ยังไม่ได้ไล่ครบ: `classrooms/[id]/page.tsx`, `teachers/[id]/page.tsx`, `score/*`
+    - [ ] ไล่ page-level tables ที่ยังต้องใช้ helper กลาง/no fallback/sort: settings import, teacher positions
+    - [x] ปรับ `score/record` ให้ใช้ shared pagination toolbar + rows-per-page + sortable headers + helper กลาง
+  - [ ] **No fallback / no hardcode: Domain data separation**
+    - [x] แยกคำนำหน้า (`เด็กชาย`, `เด็กหญิง`, `นาย`, `นางสาว`, `นาง`, `คุณ`) และ teacher default position/legacy prefix ออกจาก UI copy เป็น domain constants
+    - [x] แยก CSV import aliases หลักของ student/teacher ออกจาก UI translation เป็น domain constants/helpers (`src/lib/domain/csv.ts`)
+    - [ ] ไล่ CSV/export headers ต่อใน `settings/import/page.tsx` และ export helpers อื่นที่อยู่นอก student/teacher import scope
+    - [ ] แยก sample import data และ stage codes (`primary`, `secondary`, `highschool`) ว่าเป็น stored/domain values ไม่ใช่ UI labels
+    - [ ] แยก docs/wiki content ยาวใน `docs/docs-content.tsx` เป็นงาน content/i18n แยก ไม่ปนกับ workflow UI
 - [x] **รายงานนักเรียนถึงเกณฑ์ + การแจ้งเตือน**
   - [x] แปลง `/reports/threshold` เป็น i18n สำหรับ UI/filters หลักแล้ว
   - [x] เพิ่ม filter/search/pagination และ export filename ที่มีปีการศึกษา
@@ -288,3 +425,25 @@
 | Testing | ✅ 新增 | 219 tests across 6 files (vitest) |
 | Infrastructure | ✅ 90% | school.config.ts, loading/error states, nav links |
 | **Overall** | **~88%** | Production-ready test data + academic structure done; upload/rollover/permissions remain |
+
+## Table Scope Notes
+
+- Shared data tables ที่ตอนนี้เข้า pattern กลางแล้ว:
+  - `/students`
+  - `/teachers`
+  - `/classrooms`
+  - `/score/record`
+  - `/interventions`
+  - `/settings/logs`
+  - `/reports/individual`
+  - `/reports/bond`
+  - `/reports/threshold`
+- Fixed-order / report-detail tables ที่ตั้งใจไม่บังคับ pagination toolbar:
+  - `/reports/classroom`
+  - `/reports/statistics`
+  - `/student/dashboard`
+  - `student-detail-dialog`
+- Preview/sample/config tables ที่ยังเป็น scope แยก:
+  - `/settings/import`
+  - `/settings/teacher-positions`
+  - `/settings/academic-years`

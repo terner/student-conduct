@@ -3,23 +3,22 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { toast } from 'sonner';
-import { AlertTriangle, ChevronLeft, ChevronRight, Download, Eye, FileText, Search } from 'lucide-react';
+import { AlertTriangle, Download, Eye, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
+import { TablePaginationToolbar } from '@/components/ui/table-pagination-toolbar';
 import { ScoreBadge } from '@/components/features/scores/score-badge';
 import { getThresholdReport, logReportExport, type ThresholdReportData } from '@/lib/actions/report.action';
-import { generateBondDocument } from '@/lib/actions/bond.action';
 import { exportCsv } from '@/lib/utils/csv';
 import { useSelectedAcademicYearId } from '@/lib/academic-year-selection';
 import { createClient } from '@/lib/supabase/client';
 import type { StudentThresholdInfo } from '@/types';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 export default function ThresholdReportPage() {
   const t = useTranslations('threshold');
@@ -32,7 +31,7 @@ export default function ThresholdReportPage() {
   const [levelFilter, setLevelFilter] = useState('all');
   const [classroomFilter, setClassroomFilter] = useState('all');
   const [page, setPage] = useState(1);
-  const [generatingBond, setGeneratingBond] = useState<string | null>(null);
+  const [pageSize, setPageSize] = useState<number>(20);
   const realtimeRefreshRef = useRef<number | null>(null);
 
   const loadReport = useCallback(async (showSpinner = false) => {
@@ -110,15 +109,24 @@ export default function ThresholdReportPage() {
       return matchesSearch && matchesLevel && matchesClassroom;
     });
   }, [students, search, levelFilter, classroomFilter]);
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pagedStudents = filteredStudents.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pagedStudents = filteredStudents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const from = filteredStudents.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const to = filteredStudents.length === 0 ? 0 : Math.min((currentPage - 1) * pageSize + pagedStudents.length, filteredStudents.length);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      void Promise.resolve().then(() => setPage(1));
+    }
+  }, [page, totalPages]);
 
   function resetPage() {
     setPage(1);
   }
 
   async function handleExport() {
+    if (!reportData) return;
     const data = filteredStudents.map((s: StudentThresholdInfo) => ({
       [reportT('studentId')]: s.student_id_number,
       [reportT('studentName')]: `${s.first_name} ${s.last_name}`,
@@ -128,10 +136,10 @@ export default function ThresholdReportPage() {
       [reportT('level')]: s.threshold_level,
       [t('action')]: s.threshold_action,
     }));
-    const filename = t('exportFileName', { year: String(reportData?.academic_year ?? '').replace(/\s+/g, '_') });
+    const filename = t('exportFileName', { year: reportData.academic_year.replace(/\s+/g, '_') });
     exportCsv(data, filename);
     await logReportExport('threshold', {
-      academic_year: reportData?.academic_year ?? '',
+      academic_year: reportData.academic_year,
       exported_count: data.length,
       filters: { search, level: levelFilter, classroom: classroomFilter },
     });
@@ -144,9 +152,11 @@ export default function ThresholdReportPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{t('title')}</h1>
-          <p className="text-muted-foreground mt-1">
-            {t('description', { year: reportData?.academic_year ?? '', count: filteredStudents.length })}
-          </p>
+          {reportData?.academic_year && (
+            <p className="text-muted-foreground mt-1">
+              {t('description', { year: reportData.academic_year, count: filteredStudents.length })}
+            </p>
+          )}
         </div>
         <Button variant="outline" onClick={handleExport} disabled={filteredStudents.length === 0}>
           <Download className="mr-2 h-4 w-4" />{t('exportCsv')}
@@ -211,8 +221,20 @@ export default function ThresholdReportPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <>
+          <TablePaginationToolbar
+            page={page}
+            pageSize={pageSize}
+            total={filteredStudents.length}
+            summary={t('paginationSummary', { start: from, end: to, total: filteredStudents.length })}
+            rowsPerPageLabel={commonT('rowsPerPage')}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            onPageSizeChange={setPageSize}
+            onPageChange={setPage}
+          />
+
+          <Card>
+            <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -241,60 +263,17 @@ export default function ThresholdReportPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{s.threshold_action}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          disabled={generatingBond === s.student_id}
-                          onClick={async () => {
-                            setGeneratingBond(s.student_id);
-                            const result = await generateBondDocument({
-                              student_id: s.student_id,
-                              threshold_deducted: s.deducted_total,
-                            });
-                            if (result.success) {
-                              toast.success(`สร้างเอกสารทัณฑ์บน ${result.data.document_no} สำเร็จ`);
-                            } else {
-                              toast.error(result.error?.message || 'เกิดข้อผิดพลาด');
-                            }
-                            setGeneratingBond(null);
-                          }}
-                          title="สร้างเอกสารทัณฑ์บน"
-                        >
-                          <FileText className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" nativeButton={false} render={<Link href={`/students?studentId=${s.student_id}`} />}>
+                        <Eye className="h-3 w-3" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            {totalPages > 1 && (
-              <div className="flex flex-col gap-3 border-t p-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-                <span>
-                  {t('paginationSummary', {
-                    start: (currentPage - 1) * PAGE_SIZE + 1,
-                    end: Math.min(currentPage * PAGE_SIZE, filteredStudents.length),
-                    total: filteredStudents.length,
-                  })}
-                </span>
-                <div className="flex items-center justify-end gap-2">
-                  <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>
-                    <ChevronLeft className="h-4 w-4" />{commonT('previous')}
-                  </Button>
-                  <span className="px-2">{currentPage} / {totalPages}</span>
-                  <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>
-                    {commonT('next')}<ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

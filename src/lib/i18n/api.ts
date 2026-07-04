@@ -17,8 +17,14 @@ function readPath(messages: Messages, path: string) {
   }, messages);
 }
 
-export function apiMessage(request: Request, key: string) {
+export function apiMessage(request: Request, key: string, values?: Record<string, string | number>) {
   const messages = getLocale(request) === 'en' ? en : th;
   const value = readPath(messages, `apiErrors.${key}`);
-  return typeof value === 'string' ? value : key;
+  const template = typeof value === 'string' ? value : readPath(messages, 'apiErrors.internalError');
+  if (typeof template !== 'string') return '';
+  if (!values) return template;
+  return Object.entries(values).reduce(
+    (message, [name, replacement]) => message.replaceAll(`{${name}}`, String(replacement)),
+    template,
+  );
 }

@@ -88,33 +88,57 @@ export async function listScoreTransactions(params: ScoreListParams = {}) {
       approved_by_profile:profiles!score_transactions_approved_by_fkey(full_name),
       voided_by_profile:profiles!score_transactions_voided_by_fkey(full_name),
       score_transaction_evidence(id, file_name, file_type, file_size, file_path, file_url, storage_provider)
-    `, { count: 'exact' });
+    `);
+
+  let countQuery = supabase
+    .from('score_transactions')
+    .select(`
+      id,
+      students!inner(
+        student_id_number,
+        classrooms!inner(name, grade_level)
+      )
+    `, { count: 'exact', head: true });
 
   if (student_id) query = query.eq('student_id', student_id);
+  if (student_id) countQuery = countQuery.eq('student_id', student_id);
   if (category_id) query = query.eq('category_id', category_id);
+  if (category_id) countQuery = countQuery.eq('category_id', category_id);
   if (status) query = query.eq('status', status);
+  if (status) countQuery = countQuery.eq('status', status);
   if (academic_year_id) query = query.eq('academic_year_id', academic_year_id);
+  if (academic_year_id) countQuery = countQuery.eq('academic_year_id', academic_year_id);
   if (recorded_by) query = query.eq('recorded_by', recorded_by);
+  if (recorded_by) countQuery = countQuery.eq('recorded_by', recorded_by);
   if (from_date) query = query.gte('recorded_at', from_date);
+  if (from_date) countQuery = countQuery.gte('recorded_at', from_date);
   if (to_date) query = query.lte('recorded_at', to_date);
+  if (to_date) countQuery = countQuery.lte('recorded_at', to_date);
 
   // If classroom_id filter, join through students table
   if (classroom_id) {
     query = query.eq('students.classroom_id', classroom_id);
+    countQuery = countQuery.eq('students.classroom_id', classroom_id);
   }
 
   if (search) {
     query = query.or(`students.student_id_number.ilike.%${search}%`);
+    countQuery = countQuery.or(`students.student_id_number.ilike.%${search}%`);
   }
 
   const from = (page - 1) * page_size;
   const to = from + page_size - 1;
 
-  const { data, error, count } = await query
-    .order('recorded_at', { ascending: false })
-    .range(from, to);
+  const [
+    { data, error },
+    { count, error: countError },
+  ] = await Promise.all([
+    query.order('recorded_at', { ascending: false }).range(from, to),
+    countQuery,
+  ]);
 
   if (error) throw error;
+  if (countError) throw countError;
 
   const mapped: ScoreTransactionWithDetails[] = (data || []).map((t: Record<string, unknown>) => ({
     id: t.id as string,
